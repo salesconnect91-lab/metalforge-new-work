@@ -1,0 +1,889 @@
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  BarChart3,
+  Boxes,
+  BookOpen,
+  CalendarDays,
+  ChevronRight,
+  CircleDollarSign,
+  FileText,
+  Landmark,
+  Package,
+  RefreshCw,
+  ShoppingCart,
+  Truck,
+} from "lucide-react";
+
+interface OrderRow {
+  id: string;
+  total: number | string | null;
+  created_at: string | null;
+}
+
+interface DashboardMetrics {
+  items: number;
+  customers: number;
+  suppliers: number;
+  salesOrders: number;
+  purchaseOrders: number;
+  workOrders: number;
+  cuttingOrders: number;
+  furnaceYields: number;
+  warehouseLines: number;
+  stockMovements: number;
+  journalEntries: number;
+  chartAccounts: number;
+  salesTotal: number;
+  purchaseTotal: number;
+  monthSalesTotal: number;
+  yearSalesTotal: number;
+  monthPurchaseTotal: number;
+  avgSaleValue: number;
+  salesGrowth: number;
+  purchaseGrowth: number;
+}
+
+interface DailyData {
+  day: string;
+  sales: number;
+  purchases: number;
+}
+
+const initialMetrics: DashboardMetrics = {
+  items: 0,
+  customers: 0,
+  suppliers: 0,
+  salesOrders: 0,
+  purchaseOrders: 0,
+  workOrders: 0,
+  cuttingOrders: 0,
+  furnaceYields: 0,
+  warehouseLines: 0,
+  stockMovements: 0,
+  journalEntries: 0,
+  chartAccounts: 0,
+  salesTotal: 0,
+  purchaseTotal: 0,
+  monthSalesTotal: 0,
+  yearSalesTotal: 0,
+  monthPurchaseTotal: 0,
+  avgSaleValue: 0,
+  salesGrowth: 0,
+  purchaseGrowth: 0,
+};
+
+const money = (value: number) =>
+  `PKR ${value.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  })}`;
+
+const compactMoney = (value: number) => {
+  const n = Math.abs(value);
+  if (n >= 10_000_000) return `PKR ${(value / 10_000_000).toFixed(2)} Cr`;
+  if (n >= 100_000) return `PKR ${(value / 100_000).toFixed(2)} Lakh`;
+  if (n >= 1_000_000) return `PKR ${(value / 1_000_000).toFixed(2)}M`;
+  return money(value);
+};
+
+const num = (value: unknown) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+};
+
+function monthGrowth(rows: OrderRow[]) {
+  const now = new Date();
+  const month = now.getMonth();
+  const year = now.getFullYear();
+  const previousMonth = month === 0 ? 11 : month - 1;
+  const previousYear = month === 0 ? year - 1 : year;
+
+  let current = 0;
+  let previous = 0;
+
+  rows.forEach((row) => {
+    if (!row.created_at) return;
+    const d = new Date(row.created_at);
+    const amount = num(row.total);
+
+    if (d.getMonth() === month && d.getFullYear() === year) current += amount;
+    if (
+      d.getMonth() === previousMonth &&
+      d.getFullYear() === previousYear
+    ) {
+      previous += amount;
+    }
+  });
+
+  if (previous === 0) return current > 0 ? 100 : 0;
+  return Number((((current - previous) / previous) * 100).toFixed(1));
+}
+
+export default function Dashboard() {
+  const [metrics, setMetrics] = useState(initialMetrics);
+  const [dailyData, setDailyData] = useState<DailyData[]>([]);
+  const [userName, setUserName] = useState("Director");
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadDashboard = async (refresh = false) => {
+    if (refresh) setRefreshing(true);
+    else setLoading(true);
+
+    try {
+      const safeCount = async (table: string) => {
+        try {
+          const { count, error } = await supabase
+            .from(table)
+            .select("*", { count: "exact", head: true });
+          return error ? 0 : count ?? 0;
+        } catch {
+          return 0;
+        }
+      };
+
+      const [
+        items,
+        customers,
+        suppliers,
+        workOrders,
+        cuttingOrders,
+        furnaceYields,
+        warehouseLines,
+        stockMovements,
+        journalEntries,
+        chartAccounts,
+        salesResult,
+        purchaseResult,
+      ] = await Promise.all([
+        safeCount("items"),
+        safeCount("customers"),
+        safeCount("suppliers"),
+        safeCount("work_orders"),
+        safeCount("cutting_orders"),
+        safeCount("furnace_yields"),
+        safeCount("warehouse_stock"),
+        safeCount("stock_movements"),
+        safeCount("journal_entries"),
+        safeCount("chart_of_accounts"),
+        supabase.from("sales_orders").select("id,total,created_at"),
+        supabase.from("purchase_orders").select("id,total,created_at"),
+      ]);
+
+      const sales = (salesResult.data ?? []) as OrderRow[];
+      const purchases = (purchaseResult.data ?? []) as OrderRow[];
+
+      const now = new Date();
+      const month = now.getMonth();
+      const year = now.getFullYear();
+      const dailyMap: Record<string, DailyData> = {};
+
+      let salesTotal = 0;
+      let purchaseTotal = 0;
+      let monthSalesTotal = 0;
+      let yearSalesTotal = 0;
+      let monthPurchaseTotal = 0;
+
+      sales.forEach((row) => {
+        const amount = num(row.total);
+        salesTotal += amount;
+        if (!row.created_at) return;
+
+        const d = new Date(row.created_at);
+        if (d.getFullYear() === year) {
+          yearSalesTotal += amount;
+          if (d.getMonth() === month) {
+            monthSalesTotal += amount;
+            const key = String(d.getDate()).padStart(2, "0");
+            dailyMap[key] ??= { day: key, sales: 0, purchases: 0 };
+            dailyMap[key].sales += amount;
+          }
+        }
+      });
+
+      purchases.forEach((row) => {
+        const amount = num(row.total);
+        purchaseTotal += amount;
+        if (!row.created_at) return;
+
+        const d = new Date(row.created_at);
+        if (d.getFullYear() === year && d.getMonth() === month) {
+          monthPurchaseTotal += amount;
+          const key = String(d.getDate()).padStart(2, "0");
+          dailyMap[key] ??= { day: key, sales: 0, purchases: 0 };
+          dailyMap[key].purchases += amount;
+        }
+      });
+
+      const { data: authData } = await supabase.auth.getUser();
+      const user = authData.user;
+      if (user) {
+        const rawName =
+          user.user_metadata?.full_name ||
+          user.user_metadata?.name ||
+          user.email?.split("@")[0] ||
+          "Operator";
+        setUserName(
+          String(rawName).charAt(0).toUpperCase() + String(rawName).slice(1)
+        );
+      }
+
+      setMetrics({
+        items,
+        customers,
+        suppliers,
+        salesOrders: sales.length,
+        purchaseOrders: purchases.length,
+        workOrders,
+        cuttingOrders,
+        furnaceYields,
+        warehouseLines,
+        stockMovements,
+        journalEntries,
+        chartAccounts,
+        salesTotal,
+        purchaseTotal,
+        monthSalesTotal,
+        yearSalesTotal,
+        monthPurchaseTotal,
+        avgSaleValue: sales.length ? salesTotal / sales.length : 0,
+        salesGrowth: monthGrowth(sales),
+        purchaseGrowth: monthGrowth(purchases),
+      });
+
+      setDailyData(
+        Object.values(dailyMap).sort((a, b) => Number(a.day) - Number(b.day))
+      );
+    } catch (error) {
+      console.error("Dashboard load error:", error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadDashboard();
+  }, []);
+
+  const today = new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date());
+
+  const monthName = new Intl.DateTimeFormat("en", {
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
+
+  const maxDaily = useMemo(
+    () =>
+      Math.max(
+        ...dailyData.map((item) => Math.max(item.sales, item.purchases)),
+        1
+      ),
+    [dailyData]
+  );
+
+
+  return (
+    <div className="min-h-full bg-[#f4f7f6] text-slate-800">
+
+
+      <div className="w-full">
+
+        <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
+          {/* Enterprise page header */}
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-col gap-5 px-5 py-5 md:flex-row md:items-center md:justify-between lg:px-7">
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-700">
+                  Executive Control Center
+                </div>
+                <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+                  Good afternoon, {userName}!
+                </h1>
+                <p className="mt-1 text-sm text-slate-500">
+                  Here is today’s financial and operational overview / آج کا کاروباری جائزہ
+                </p>
+                <div className="mt-2 flex items-center gap-2 text-xs text-slate-400">
+                  <CalendarDays className="h-4 w-4" />
+                  {today}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                System Online / سسٹم فعال
+              </span>
+              <button
+                type="button"
+                onClick={() => void loadDashboard(true)}
+                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+              >
+                <RefreshCw
+                  className={refreshing ? "h-3 w-3 animate-spin" : "h-3 w-3"}
+                />
+                Refresh
+              </button>
+              </div>
+            </div>
+
+            <div className="border-t border-slate-100 bg-slate-50/70 px-5 py-4 lg:px-7">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="mr-1 text-xs font-bold text-slate-500">Quick actions</span>
+                <QuickAction label="Create invoice" link="/sales/new" icon={<ShoppingCart className="h-4 w-4" />} primary />
+                <QuickAction label="Sales invoices" link="/sales" icon={<FileText className="h-4 w-4" />} />
+                <QuickAction label="Purchase order" link="/purchase" icon={<Truck className="h-4 w-4" />} />
+                <QuickAction label="Record stock" link="/godown" icon={<Package className="h-4 w-4" />} />
+                <QuickAction label="Journal entry" link="/accounting" icon={<BookOpen className="h-4 w-4" />} />
+              </div>
+            </div>
+          </div>
+
+          {/* Inline KPI ledger */}
+          <section className="mt-5 overflow-x-auto">
+            <div className="grid min-w-[900px] grid-cols-6 gap-4">
+              <InlineKpi
+                label="Sales / فروخت"
+                value={loading ? "—" : compactMoney(metrics.monthSalesTotal)}
+                detail="This Month / اس ماہ"
+                trend={metrics.salesGrowth}
+                tone="emerald"
+              />
+              <InlineKpi
+                label="Revenue / آمدنی"
+                value={loading ? "—" : compactMoney(metrics.yearSalesTotal)}
+                detail="YTD / سالانہ"
+                tone="blue"
+              />
+              <InlineKpi
+                label="Purchase / خرید"
+                value={loading ? "—" : compactMoney(metrics.monthPurchaseTotal)}
+                detail="This Month / اس ماہ"
+                trend={metrics.purchaseGrowth}
+                tone="amber"
+              />
+              <InlineKpi
+                label="Avg. Sale / اوسط فروخت"
+                value={loading ? "—" : compactMoney(metrics.avgSaleValue)}
+                detail="Per document / فی بل"
+                tone="violet"
+              />
+              <InlineKpi
+                label="Sales Orders / آرڈرز"
+                value={loading ? "—" : metrics.salesOrders.toLocaleString()}
+                detail="Documents / دستاویزات"
+                tone="cyan"
+              />
+              <InlineKpi
+                label="Purchase Orders / خرید آرڈر"
+                value={loading ? "—" : metrics.purchaseOrders.toLocaleString()}
+                detail="Documents / دستاویزات"
+                tone="slate"
+              />
+            </div>
+          </section>
+
+          {/* Main information workspace */}
+          <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-[1.55fr_1fr]">
+            <Section
+              title="Sales & Purchase Activity / فروخت و خریداری"
+              subtitle={`${monthName} · transaction value`}
+              icon={<BarChart3 className="h-4 w-4" />}
+              link="/reports"
+            >
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[620px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50 text-left text-[11px] uppercase tracking-wider text-slate-500">
+                      <th className="px-4 py-2.5 font-semibold">Day</th>
+                      <th className="px-4 py-2.5 text-right font-semibold">
+                        Sales / فروخت
+                      </th>
+                      <th className="px-4 py-2.5 text-right font-semibold">
+                        Purchase / خرید
+                      </th>
+                      <th className="px-4 py-2.5 text-right font-semibold">
+                        Net Flow / خالص
+                      </th>
+                      <th className="w-[34%] px-4 py-2.5 font-semibold">
+                        Activity
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="px-4 py-12 text-center text-sm text-slate-400"
+                        >
+                          Loading live transactions...
+                        </td>
+                      </tr>
+                    ) : dailyData.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="px-4 py-12 text-center text-sm text-slate-400"
+                        >
+                          No transaction activity for this month.
+                        </td>
+                      </tr>
+                    ) : (
+                      dailyData.map((row) => {
+                        const net = row.sales - row.purchases;
+                        const width = `${Math.max(
+                          3,
+                          Math.round((Math.max(row.sales, row.purchases) / maxDaily) * 100)
+                        )}%`;
+
+                        return (
+                          <tr
+                            key={row.day}
+                            className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
+                          >
+                            <td className="px-4 py-3 text-xs font-semibold text-slate-700">
+                              {row.day} {new Intl.DateTimeFormat("en", { month: "short" }).format(new Date())}
+                            </td>
+                            <td className="px-4 py-3 text-right text-xs font-semibold text-slate-800">
+                              {money(row.sales)}
+                            </td>
+                            <td className="px-4 py-3 text-right text-xs font-semibold text-slate-800">
+                              {money(row.purchases)}
+                            </td>
+                            <td
+                              className={`px-4 py-3 text-right text-xs font-semibold ${
+                                net >= 0 ? "text-emerald-700" : "text-red-700"
+                              }`}
+                            >
+                              {net >= 0 ? "+" : ""}
+                              {money(net)}
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <div className="h-1.5 w-full bg-slate-100">
+                                <div
+                                  className="h-1.5 bg-blue-600"
+                                  style={{ width }}
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Section>
+
+            <Section
+              title="Financial Control / مالی کنٹرول"
+              subtitle="Management overview / انتظامی جائزہ"
+              icon={<Landmark className="h-4 w-4" />}
+              link="/accounting"
+            >
+              <div className="divide-y divide-slate-200">
+                <FinancialRow
+                  label="Sales Value / فروخت"
+                  value={metrics.salesTotal}
+                  icon={<ShoppingCart className="h-4 w-4" />}
+                />
+                <FinancialRow
+                  label="Purchase Value / خرید"
+                  value={metrics.purchaseTotal}
+                  icon={<Truck className="h-4 w-4" />}
+                />
+                <FinancialRow
+                  label="Gross Trading Difference / تجارتی فرق"
+                  value={metrics.salesTotal - metrics.purchaseTotal}
+                  icon={<CircleDollarSign className="h-4 w-4" />}
+                  strong
+                />
+                <FinancialRow
+                  label="Avg. Invoice / اوسط بل"
+                  value={metrics.avgSaleValue}
+                  icon={<FileText className="h-4 w-4" />}
+                />
+              </div>
+
+              <div className="border-t border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <div className="uppercase tracking-wider text-slate-400">
+                      YTD Revenue / سالانہ آمدنی
+                    </div>
+                    <div className="mt-1 text-sm font-bold text-slate-900">
+                      {compactMoney(metrics.yearSalesTotal)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="uppercase tracking-wider text-slate-400">
+                      Sales Growth / فروخت اضافہ
+                    </div>
+                    <div
+                      className={`mt-1 flex items-center gap-1 text-sm font-bold ${
+                        metrics.salesGrowth >= 0
+                          ? "text-emerald-700"
+                          : "text-red-700"
+                      }`}
+                    >
+                      {metrics.salesGrowth >= 0 ? (
+                        <ArrowUpRight className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowDownRight className="h-3.5 w-3.5" />
+                      )}
+                      {metrics.salesGrowth}%
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Section>
+          </div>
+
+          {/* Work queues */}
+          <section className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">
+                  ERP Work Queues / زیرِ کارروائی کام
+                </h2>
+                <p className="mt-1 text-xs text-slate-400">
+                  Direct access to operational modules / متعلقہ ماڈیول
+                </p>
+              </div>
+              <Link
+                to="/reports"
+                className="text-xs font-semibold text-blue-700 hover:text-blue-900"
+              >
+                All Reports / تمام رپورٹس →
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 divide-y divide-slate-200 md:grid-cols-3 md:divide-x md:divide-y-0">
+              <QueueRow
+                title="Sales & Customers / فروخت و گاہک"
+                rows={[
+                  ["Customers / گاہک", metrics.customers, "/master-data"],
+                  ["Sales Documents / فروخت بل", metrics.salesOrders, "/sales"],
+                ]}
+              />
+              <QueueRow
+                title="Purchase & Suppliers / خرید و سپلائر"
+                rows={[
+                  ["Suppliers / سپلائر", metrics.suppliers, "/master-data"],
+                  ["Purchase Orders / خرید آرڈر", metrics.purchaseOrders, "/purchase"],
+                ]}
+              />
+              <QueueRow
+                title="Operations / آپریشنز"
+                rows={[
+                  ["Warehouse Lines / گودام", metrics.warehouseLines, "/godown"],
+                  ["Stock Movements / اسٹاک حرکت", metrics.stockMovements, "/godown"],
+                  ["Work Orders / ورک آرڈر", metrics.workOrders, "/production"],
+                  ["Cutting Orders / کٹنگ", metrics.cuttingOrders, "/cutting"],
+                ]}
+              />
+            </div>
+          </section>
+
+          {/* ERP master/control register */}
+          <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <Section
+              title="System Registers / سسٹم رجسٹر"
+              subtitle="Current record counts"
+              icon={<Boxes className="h-4 w-4" />}
+            >
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <tbody>
+                    <RegisterRow label="Items / آئٹمز" value={metrics.items} link="/master-data" />
+                    <RegisterRow label="Customers / گاہک" value={metrics.customers} link="/master-data" />
+                    <RegisterRow label="Suppliers / سپلائرز" value={metrics.suppliers} link="/master-data" />
+                    <RegisterRow label="Warehouse Stock Lines / گودام اسٹاک" value={metrics.warehouseLines} link="/godown" />
+                    <RegisterRow label="Stock Movements / اسٹاک حرکت" value={metrics.stockMovements} link="/godown" />
+                  </tbody>
+                </table>
+              </div>
+            </Section>
+
+            <Section
+              title="Accounting Registers / اکاؤنٹنگ رجسٹر"
+              subtitle="Financial control documents"
+              icon={<BookOpen className="h-4 w-4" />}
+              link="/accounting"
+            >
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <tbody>
+                    <RegisterRow label="Chart of Accounts / اکاؤنٹس" value={metrics.chartAccounts} link="/accounting" />
+                    <RegisterRow label="Journal Entries / جرنل اندراجات" value={metrics.journalEntries} link="/accounting" />
+                    <RegisterRow label="Purchase Value / خریداری" value={metrics.purchaseTotal} moneyValue link="/purchase" />
+                    <RegisterRow label="Sales Value / فروخت" value={metrics.salesTotal} moneyValue link="/sales" />
+                    <RegisterRow
+                      label="Trading Difference / تجارتی فرق"
+                      value={metrics.salesTotal - metrics.purchaseTotal}
+                      moneyValue
+                      link="/reports"
+                      emphasis
+                    />
+                  </tbody>
+                </table>
+              </div>
+            </Section>
+          </div>
+
+          {/* Quick transaction register */}
+          <section className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <h2 className="text-base font-bold text-slate-900">
+                Quick Transactions / فوری اندراج
+              </h2>
+            </div>
+            <div className="grid grid-cols-2 divide-x divide-y divide-slate-200 sm:grid-cols-4 sm:divide-y-0">
+              <QuickLink label="Sales Invoice / فروخت بل" link="/sales" icon={<ShoppingCart className="h-4 w-4" />} />
+              <QuickLink label="Purchase Order / خرید آرڈر" link="/purchase" icon={<Truck className="h-4 w-4" />} />
+              <QuickLink label="Stock / اسٹاک" link="/godown" icon={<Package className="h-4 w-4" />} />
+              <QuickLink label="Journal Entry / جرنل" link="/accounting" icon={<BookOpen className="h-4 w-4" />} />
+            </div>
+          </section>
+
+          <footer className="flex flex-col gap-1 py-6 text-xs text-slate-400 sm:flex-row sm:justify-between">
+            <span>MetalForge OS · Enterprise ERP Control Center</span>
+            <span>English + اردو · Live operational data</span>
+          </footer>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QuickAction({
+  label,
+  link,
+  icon,
+  primary,
+}: {
+  label: string;
+  link: string;
+  icon: ReactNode;
+  primary?: boolean;
+}) {
+  return (
+    <Link
+      to={link}
+      className={`inline-flex h-9 items-center gap-2 rounded-full border px-4 text-xs font-semibold transition ${
+        primary
+          ? "border-emerald-700 bg-emerald-700 text-white shadow-sm hover:bg-emerald-800"
+          : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+      }`}
+    >
+      {icon}
+      {label}
+    </Link>
+  );
+}
+
+
+function InlineKpi({
+  label,
+  value,
+  detail,
+  trend,
+  tone,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  trend?: number;
+  tone: "emerald" | "blue" | "amber" | "violet" | "cyan" | "slate";
+}) {
+  const tones = {
+    emerald: "border-t-emerald-500",
+    blue: "border-t-blue-500",
+    amber: "border-t-amber-500",
+    violet: "border-t-violet-500",
+    cyan: "border-t-cyan-500",
+    slate: "border-t-slate-500",
+  } as const;
+
+  return (
+    <div className={`rounded-xl border border-t-[3px] border-slate-200 bg-white px-4 py-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${tones[tone]}`}>
+      <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{label}</div>
+      <div className="mt-2 text-lg font-bold tracking-tight text-slate-950">
+        {value}
+      </div>
+      <div className="mt-1 flex items-center justify-between gap-2">
+        <span className="text-xs text-slate-400">{detail}</span>
+        {trend !== undefined && (
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+              trend >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+            }`}
+          >
+            {trend >= 0 ? "+" : ""}
+            {trend}%
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Section({
+  title,
+  subtitle,
+  icon,
+  link,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  icon: ReactNode;
+  link?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600">{icon}</span>
+          <div>
+            <h2 className="text-base font-bold text-slate-900">{title}</h2>
+            <p className="mt-0.5 text-xs text-slate-400">{subtitle}</p>
+          </div>
+        </div>
+        {link && (
+          <Link
+            to={link}
+            className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+          >
+            Open →
+          </Link>
+        )}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function FinancialRow({
+  label,
+  value,
+  icon,
+  strong,
+}: {
+  label: string;
+  value: number;
+  icon: ReactNode;
+  strong?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between px-4 py-3">
+      <div className="flex items-center gap-3">
+        <span className="text-slate-400">{icon}</span>
+        <span
+          className={`text-sm ${
+            strong ? "font-semibold text-slate-800" : "text-slate-600"
+          }`}
+        >
+          {label}
+        </span>
+      </div>
+      <span
+        className={`text-sm ${
+          strong ? "font-bold text-slate-900" : "font-semibold text-slate-700"
+        }`}
+      >
+        {compactMoney(value)}
+      </span>
+    </div>
+  );
+}
+
+function QueueRow({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: [string, number, string][];
+}) {
+  return (
+    <div className="p-4">
+      <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+        {title}
+      </div>
+      <div className="divide-y divide-slate-100">
+        {rows.map(([label, value, link]) => (
+          <Link
+            key={label}
+            to={link}
+            className="flex items-center justify-between rounded-lg px-2 py-2.5 text-sm transition hover:bg-slate-50"
+          >
+            <span className="text-slate-600">{label}</span>
+            <span className="font-bold text-slate-900">{value.toLocaleString()}</span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RegisterRow({
+  label,
+  value,
+  link,
+  moneyValue,
+  emphasis,
+}: {
+  label: string;
+  value: number;
+  link: string;
+  moneyValue?: boolean;
+  emphasis?: boolean;
+}) {
+  return (
+    <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+      <td className="px-4 py-3 text-sm text-slate-600">{label}</td>
+      <td
+        className={`px-4 py-3 text-right text-sm ${
+          emphasis ? "font-bold text-slate-900" : "font-semibold text-slate-800"
+        }`}
+      >
+        {moneyValue ? compactMoney(value) : value.toLocaleString()}
+      </td>
+      <td className="w-8 px-2">
+        <Link to={link} className="text-slate-400 hover:text-blue-700">
+          <ChevronRight className="h-3.5 w-3.5" />
+        </Link>
+      </td>
+    </tr>
+  );
+}
+
+function QuickLink({
+  label,
+  link,
+  icon,
+}: {
+  label: string;
+  link: string;
+  icon: ReactNode;
+}) {
+  return (
+    <Link
+      to={link}
+      className="flex items-center gap-3 px-5 py-5 transition hover:bg-slate-50"
+    >
+      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600">{icon}</span>
+      <span className="text-sm font-semibold text-slate-700">{label}</span>
+    </Link>
+  );
+}

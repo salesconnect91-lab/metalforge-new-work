@@ -1,0 +1,75 @@
+﻿import { supabase } from "@/lib/supabase";
+import { ChartOfAccount } from "@/types";
+
+export async function deactivateAccount(id: string) {
+  // Current COA schema has no is_active column.
+  // Keep the account available for historical references.
+  throw new Error("Account deactivation is not enabled in the current COA schema. Rename the account or remove its mapping instead.");
+}
+
+export async function activateAccount(id: string) {
+  // Current COA schema has no is_active column.
+  return;
+}
+
+export async function deleteAccount(id: string) {
+  const { error } = await supabase
+    .from("chart_of_accounts")
+    .delete()
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+}
+
+export async function listMappings() {
+  const { data, error } = await supabase
+    .from("account_mappings")
+    .select("*, account:chart_of_accounts(*)")
+    .order("mapping_key");
+
+  if (error) throw new Error(error.message);
+
+  return (data ?? []) as AccountMapping[];
+}
+
+export async function setMapping(mappingKey: string, accountId: string) {
+  if (!mappingKey || !accountId) {
+    throw new Error("Mapping key and account are required.");
+  }
+
+  const { error } = await supabase
+    .from("account_mappings")
+    .upsert(
+      {
+        mapping_key: mappingKey,
+        account_id: accountId,
+      },
+      {
+        onConflict: "user_id,mapping_key",
+      }
+    );
+
+  if (error) throw new Error(error.message);
+}
+
+export async function resolveMappedAccount(
+  mappingKey: string
+): Promise<ChartOfAccount> {
+  const { data, error } = await supabase
+    .from("account_mappings")
+    .select("account:chart_of_accounts(*)")
+    .eq("mapping_key", mappingKey)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+
+  const account = (data as any)?.account as ChartOfAccount | null;
+
+  if (!account) {
+    throw new Error(
+      `No Chart of Accounts mapping configured for '${mappingKey}'.`
+    );
+  }
+
+  return account;
+}

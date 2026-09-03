@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
+import { canViewModule, type ModuleKey } from "@/auth/permissions";
 
 import Login from "@/auth/Login";
 import ProtectedRoute from "@/auth/ProtectedRoute";
@@ -26,6 +27,12 @@ import OwnerPanel from "@/modules/platform/OwnerPanel";
 function OwnerOnly() {
   const { isPlatformOwner } = useAuth();
   return isPlatformOwner ? <OwnerPanel /> : <Navigate to="/" replace />;
+}
+
+function ModuleOnly({ module, children }: { module: ModuleKey; children: React.ReactNode }) {
+  const { isPlatformOwner, activeCompany } = useAuth();
+  const allowed = canViewModule(activeCompany?.membership_role, module, isPlatformOwner);
+  return allowed ? <>{children}</> : <Navigate to="/" replace />;
 }
 
 export default function App() {
@@ -57,22 +64,22 @@ export default function App() {
       <Route path="/*" element={<ProtectedRoute><Layout><Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/owner" element={<OwnerOnly />} />
-        <Route path="/master-data/*" element={<MasterData />} />
-        <Route path="/sales" element={<SalesInvoiceList />} />
-        <Route path="/sales/new" element={<SalesInvoiceCreate />} />
-        <Route path="/sales/:id/edit" element={<SalesInvoiceCreate />} />
-        <Route path="/sales/report" element={<SalespersonReport />} />
-        <Route path="/sales/charges" element={<ChargeMaster />} />
-        <Route path="/sales/consolidated" element={<ConsolidatedInvoices />} />
-        <Route path="/sales/:id" element={<SalesInvoiceDetail />} />
-        <Route path="/purchase/*" element={<Purchase />} />
-        <Route path="/godown/*" element={<Godown />} />
-        <Route path="/production/*" element={<Production />} />
-        <Route path="/cutting/*" element={<Cutting />} />
-        <Route path="/accounting/customer-invoice-statement" element={<CustomerInvoiceStatement />} />
-        <Route path="/accounting/*" element={<Accounting />} />
-        <Route path="/reports/*" element={<Reports />} />
-        <Route path="/settings/*" element={<Settings />} />
+        <Route path="/master-data/*" element={<ModuleOnly module="master"><MasterData /></ModuleOnly>} />
+        <Route path="/sales" element={<ModuleOnly module="sales"><SalesInvoiceList /></ModuleOnly>} />
+        <Route path="/sales/new" element={<ModuleOnly module="sales"><SalesInvoiceCreate /></ModuleOnly>} />
+        <Route path="/sales/:id/edit" element={<ModuleOnly module="sales"><SalesInvoiceCreate /></ModuleOnly>} />
+        <Route path="/sales/report" element={<ModuleOnly module="reports"><SalespersonReport /></ModuleOnly>} />
+        <Route path="/sales/charges" element={<ModuleOnly module="master"><ChargeMaster /></ModuleOnly>} />
+        <Route path="/sales/consolidated" element={<ModuleOnly module="sales"><ConsolidatedInvoices /></ModuleOnly>} />
+        <Route path="/sales/:id" element={<ModuleOnly module="sales"><SalesInvoiceDetail /></ModuleOnly>} />
+        <Route path="/purchase/*" element={<ModuleOnly module="purchase"><Purchase /></ModuleOnly>} />
+        <Route path="/godown/*" element={<ModuleOnly module="inventory"><Godown /></ModuleOnly>} />
+        <Route path="/production/*" element={<ModuleOnly module="production"><Production /></ModuleOnly>} />
+        <Route path="/cutting/*" element={<ModuleOnly module="production"><Cutting /></ModuleOnly>} />
+        <Route path="/accounting/customer-invoice-statement" element={<ModuleOnly module="accounting"><CustomerInvoiceStatement /></ModuleOnly>} />
+        <Route path="/accounting/*" element={<ModuleOnly module="accounting"><Accounting /></ModuleOnly>} />
+        <Route path="/reports/*" element={<ModuleOnly module="reports"><Reports /></ModuleOnly>} />
+        <Route path="/settings/*" element={<ModuleOnly module="settings"><Settings /></ModuleOnly>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes></Layout></ProtectedRoute>} />
     </Routes>

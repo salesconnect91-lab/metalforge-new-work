@@ -68,36 +68,21 @@ export async function loadDocumentPrintSettings(
   company: CompanyDocumentSettings;
   visibility: DocumentVisibility;
 }> {
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+  // Company scoping is enforced by current_company_id() + RLS.
+  // Do not filter by the logged-in user's legacy user_id: multiple users can
+  // work inside the same company and must share the same print configuration.
+  const [companyResult, visibilityResult] = await Promise.all([
+    supabase
+      .from("company_settings")
+      .select("*")
+      .maybeSingle(),
 
-  if (userError) {
-    throw userError;
-  }
-
-  if (!user) {
-    throw new Error(
-      "Authentication required to load document settings."
-    );
-  }
-
-  const [companyResult, visibilityResult] =
-    await Promise.all([
-      supabase
-        .from("company_settings")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle(),
-
-      supabase
-        .from("document_print_visibility")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("document_type", documentType)
-        .maybeSingle(),
-    ]);
+    supabase
+      .from("document_print_visibility")
+      .select("*")
+      .eq("document_type", documentType)
+      .maybeSingle(),
+  ]);
 
   if (companyResult.error) {
     throw companyResult.error;
@@ -108,10 +93,7 @@ export async function loadDocumentPrintSettings(
   }
 
   return {
-    company:
-      (companyResult.data ??
-        {}) as CompanyDocumentSettings,
-
+    company: (companyResult.data ?? {}) as CompanyDocumentSettings,
     visibility: {
       ...DEFAULT_DOCUMENT_VISIBILITY,
       ...(visibilityResult.data ?? {}),

@@ -37,7 +37,6 @@ const URDU: Record<string, string> = {
   "Work Orders": "ورک آرڈرز",
   "Work Order": "ورک آرڈر",
   Cutting: "کٹنگ",
-  Loading: "لوڈنگ",
   Accounting: "اکاؤنٹنگ",
   "Chart of Accounts": "چارٹ آف اکاؤنٹس",
   "Journal Entries": "جرنل انٹریز",

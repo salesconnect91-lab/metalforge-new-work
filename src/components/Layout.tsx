@@ -255,7 +255,7 @@ const navigation: NavNode[] = [
     module: "settings",
     children: [
       { key: "company-settings", to: "/settings", label: "Company / کمپنی", end: true, module: "settings" },
-      { key: "tax-settings", to: "/settings/tax", label: "Tax & Charges / ٹیکس و چارجز", module: "settings" },
+      { key: "tax-settings", to: "/settings/tax", label: "Tax Settings / ٹیکس سیٹنگز", module: "settings" },
       { key: "document-settings", to: "/settings/documents", label: "Document & Print / ڈاکومنٹ و پرنٹ", module: "settings" },
     ],
   },

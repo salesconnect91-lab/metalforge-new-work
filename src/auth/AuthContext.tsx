@@ -19,11 +19,13 @@ type AccessContext = {
   profile_active: boolean;
   platform_role: "super_admin" | "support" | "user";
   is_platform_owner: boolean;
+  current_company_id: string | null;
   companies: CompanyAccess[];
 };
 
 type AccountingSetupState = {
   userId: string | null;
+  companyId: string | null;
   status: "idle" | "loading" | "ready" | "error";
   error: string | null;
 };
@@ -36,9 +38,12 @@ interface AuthContextValue {
   accessError: string | null;
   isPlatformOwner: boolean;
   activeCompany: CompanyAccess | null;
+  availableCompanies: CompanyAccess[];
+  switchingCompany: boolean;
   accountingSetupError: string | null;
   retryAccountingSetup: () => void;
   refreshAccess: () => Promise<void>;
+  switchCompany: (companyId: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -50,11 +55,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [accessLoading, setAccessLoading] = useState(false);
+  const [switchingCompany, setSwitchingCompany] = useState(false);
   const [accessContext, setAccessContext] = useState<AccessContext | null>(null);
   const [accessError, setAccessError] = useState<string | null>(null);
   const [accountingAttempt, setAccountingAttempt] = useState(0);
   const [accountingSetup, setAccountingSetup] = useState<AccountingSetupState>({
     userId: null,
+    companyId: null,
     status: "idle",
     error: null,
   });
@@ -72,11 +79,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const loadAccess = async () => {
+  const loadAccess = async (): Promise<AccessContext | null> => {
     if (!session?.user.id) {
       setAccessContext(null);
       setAccessError(null);
-      return;
+      return null;
     }
 
     setAccessLoading(true);
@@ -87,14 +94,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) {
       setAccessContext(null);
       setAccessError(error.message);
-    } else if (!data) {
-      setAccessContext(null);
-      setAccessError("Your login profile has not been provisioned by the software owner.");
-    } else {
-      setAccessContext(data as AccessContext);
+      setAccessLoading(false);
+      return null;
     }
 
+    if (!data) {
+      setAccessContext(null);
+      setAccessError("Your login profile has not been provisioned by the software owner.");
+      setAccessLoading(false);
+      return null;
+    }
+
+    const next = data as AccessContext;
+    setAccessContext(next);
     setAccessLoading(false);
+    return next;
   };
 
   useEffect(() => {
@@ -102,35 +116,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user.id]);
 
+  const currentCompanyId = accessContext?.current_company_id ?? null;
+  const activeCompany =
+    accessContext?.companies.find(
+      (company) => company.company_id === currentCompanyId && company.access_allowed
+    ) ??
+    accessContext?.companies.find((company) => company.access_allowed) ??
+    null;
+  const availableCompanies =
+    accessContext?.companies.filter((company) => company.access_allowed) ?? [];
+
   useEffect(() => {
     const userId = session?.user.id;
+    const companyId = activeCompany?.company_id ?? null;
 
     if (!userId || accessLoading || !accessContext) {
-      setAccountingSetup({ userId: null, status: "idle", error: null });
+      setAccountingSetup({ userId: null, companyId: null, status: "idle", error: null });
       return;
     }
 
-    const allowed =
-      accessContext.profile_active &&
-      (accessContext.is_platform_owner || accessContext.companies.some((company) => company.access_allowed));
+    const allowed = accessContext.profile_active && Boolean(activeCompany?.access_allowed);
 
-    if (!allowed) {
-      setAccountingSetup({ userId, status: "ready", error: null });
+    if (!allowed || !companyId) {
+      setAccountingSetup({ userId, companyId, status: "ready", error: null });
+      return;
+    }
+
+    const role = activeCompany?.membership_role;
+    const canInitializeAccounting =
+      accessContext.is_platform_owner ||
+      role === "company_owner" ||
+      role === "admin" ||
+      role === "accounts";
+
+    if (!canInitializeAccounting) {
+      setAccountingSetup({ userId, companyId, status: "ready", error: null });
       return;
     }
 
     let cancelled = false;
-    setAccountingSetup({ userId, status: "loading", error: null });
+    setAccountingSetup({ userId, companyId, status: "loading", error: null });
 
     void (async () => {
-      // COA is company-owned now. Only initialize it when the current company has no accounts yet.
       const { count, error: countError } = await supabase
         .from("chart_of_accounts")
         .select("id", { count: "exact", head: true });
 
       if (cancelled) return;
       if (countError) {
-        setAccountingSetup({ userId, status: "error", error: countError.message });
+        setAccountingSetup({ userId, companyId, status: "error", error: countError.message });
         return;
       }
 
@@ -140,6 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) {
           setAccountingSetup({
             userId,
+            companyId,
             status: "error",
             error: error.hint || error.details || error.message,
           });
@@ -147,13 +182,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      setAccountingSetup({ userId, status: "ready", error: null });
+      setAccountingSetup({ userId, companyId, status: "ready", error: null });
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [session?.user.id, accessContext, accessLoading, accountingAttempt]);
+  }, [session?.user.id, accessContext, accessLoading, activeCompany?.company_id, accountingAttempt]);
 
   const retryAccountingSetup = () => {
     setAccountingSetup((current) => ({ ...current, status: "loading", error: null }));
@@ -162,6 +197,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshAccess = async () => {
     await loadAccess();
+  };
+
+  const switchCompany = async (companyId: string) => {
+    if (!companyId || companyId === activeCompany?.company_id) return { error: null };
+
+    setSwitchingCompany(true);
+    setAccessError(null);
+    setAccountingSetup({
+      userId: session?.user.id ?? null,
+      companyId,
+      status: "idle",
+      error: null,
+    });
+
+    const { error } = await supabase.rpc("set_current_company", {
+      p_company_id: companyId,
+    });
+
+    if (error) {
+      setSwitchingCompany(false);
+      setAccessError(error.message);
+      return { error: error.message };
+    }
+
+    const next = await loadAccess();
+    setSwitchingCompany(false);
+
+    if (!next || next.current_company_id !== companyId) {
+      const message = "Company switch could not be confirmed.";
+      setAccessError(message);
+      return { error: message };
+    }
+
+    return { error: null };
   };
 
   const signIn = async (email: string, password: string) => {
@@ -181,21 +250,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const currentUserId = session?.user.id ?? null;
-  const accountingStateMatchesUser = accountingSetup.userId === currentUserId;
+  const accountingStateMatchesContext =
+    accountingSetup.userId === currentUserId &&
+    accountingSetup.companyId === (activeCompany?.company_id ?? null);
   const accountingSetupError =
-    currentUserId && accountingStateMatchesUser && accountingSetup.status === "error"
+    currentUserId && accountingStateMatchesContext && accountingSetup.status === "error"
       ? accountingSetup.error
       : null;
   const accountingLoading =
-    Boolean(currentUserId && accessContext) &&
-    (!accountingStateMatchesUser ||
+    Boolean(currentUserId && accessContext && activeCompany) &&
+    (!accountingStateMatchesContext ||
       accountingSetup.status === "idle" ||
       accountingSetup.status === "loading");
 
   const isPlatformOwner = Boolean(accessContext?.is_platform_owner);
-  const activeCompany =
-    accessContext?.companies.find((company) => company.access_allowed) ?? null;
-  const loading = authLoading || accessLoading || accountingLoading;
+  const loading = authLoading || accessLoading || switchingCompany || accountingLoading;
 
   return (
     <AuthContext.Provider
@@ -207,9 +276,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         accessError,
         isPlatformOwner,
         activeCompany,
+        availableCompanies,
+        switchingCompany,
         accountingSetupError,
         retryAccountingSetup,
         refreshAccess,
+        switchCompany,
         signIn,
         signUp,
         signOut,

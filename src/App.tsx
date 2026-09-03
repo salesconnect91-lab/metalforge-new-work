@@ -50,7 +50,8 @@ function DashboardHome() {
 }
 
 export default function App() {
-  const { loading, accountingSetupError, retryAccountingSetup, signOut } = useAuth();
+  const { loading, accountingSetupError, retryAccountingSetup, signOut, activeCompany } = useAuth();
+  const companyKey = activeCompany?.company_id ?? "no-company";
 
   if (loading) {
     return <><GlobalExperience /><div className="min-h-screen flex items-center justify-center"><div className="text-slate-400">Loading… / لوڈ ہو رہا ہے…</div></div></>;
@@ -65,7 +66,7 @@ export default function App() {
       <GlobalExperience />
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/*" element={<ProtectedRoute><><CompanySwitcher /><Layout><Routes>
+        <Route path="/*" element={<ProtectedRoute><><CompanySwitcher /><Layout key={companyKey}><Routes>
           <Route path="/" element={<DashboardHome />} />
           <Route path="/owner" element={<OwnerOnly />} />
           <Route path="/master-data/*" element={<ModuleOnly module="master"><MasterData /></ModuleOnly>} />

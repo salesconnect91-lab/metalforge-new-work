@@ -10,10 +10,11 @@ export default function CompanySwitcher() {
   if (availableCompanies.length <= 1) return null;
 
   return (
-    <div className="fixed right-[116px] top-[10px] z-40 hidden min-w-[190px] md:block">
+    <div className="fixed right-[116px] top-[10px] z-40 hidden min-w-[220px] md:block">
       <select
-        aria-label="Active company"
-        className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-700 shadow-sm"
+        aria-label="Active company / فعال کمپنی"
+        title="Active company / فعال کمپنی"
+        className="w-full rounded-lg border border-slate-200 bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-slate-700 shadow-sm backdrop-blur"
         value={activeCompany?.company_id ?? ""}
         disabled={switchingCompany}
         onChange={(event) => {

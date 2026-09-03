@@ -1,0 +1,54 @@
+name: ERP readability font fix
+
+on:
+  push:
+    paths:
+      - '.github/workflows/readability-font-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.event.head_commit.message == 'Add one-time ERP readability font fix'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Increase ERP-wide readability
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/index.css')
+          s=p.read_text(encoding='utf-8-sig')
+          replacements={
+            'font-size: 12.5px;':'font-size: 14px;',
+            'text-[12px] font-semibold':'text-[13px] font-semibold',
+            'text-[12px] text-slate-900':'text-[13px] text-slate-900',
+            'text-[11px] font-semibold text-slate-600':'text-[12px] font-semibold text-slate-600',
+            'text-[10px] font-semibold;':'text-[11px] font-semibold;',
+            'text-[11px] text-slate-500':'text-[12px] text-slate-500',
+            'text-[11.5px]':'text-[13px]',
+            'text-[10px] font-semibold uppercase':'text-[11.5px] font-semibold uppercase',
+            'text-[10px] font-medium uppercase':'text-[11px] font-medium uppercase',
+            'font-size: 0.8rem !important;':'font-size: 0.9rem !important;',
+            'font-size: 0.74rem !important;':'font-size: 0.82rem !important;',
+          }
+          for old,new in replacements.items(): s=s.replace(old,new)
+          anchor='/* Enterprise density overrides for existing screens */'
+          readability='''/* ERP-wide readability floor: keep dense screens compact but clearly legible. */\n.erp-shell main { font-size: 14px; line-height: 1.5; }\n.erp-shell main .text-xs { font-size: 0.78rem !important; line-height: 1.35 !important; }\n.erp-shell main .text-\\[8px\\],\n.erp-shell main .text-\\[9px\\],\n.erp-shell main .text-\\[10px\\] { font-size: 0.72rem !important; line-height: 1.35 !important; }\n.erp-shell main .text-\\[11px\\],\n.erp-shell main .text-\\[11\\.5px\\],\n.erp-shell main .text-\\[12px\\] { font-size: 0.8rem !important; line-height: 1.4 !important; }\n.erp-shell main p,\n.erp-shell main td,\n.erp-shell main li,\n.erp-shell main label { font-weight: 450; }\n.erp-shell main .text-slate-400,\n.erp-shell main .text-slate-500 { color: #526174; }\n\n'''
+          if 'ERP-wide readability floor' not in s: s=s.replace(anchor,readability+anchor)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - run: npm ci
+      - run: npm run build
+      - name: Commit font readability fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/index.css
+          git commit -m "Improve ERP-wide font readability"
+          git push origin main

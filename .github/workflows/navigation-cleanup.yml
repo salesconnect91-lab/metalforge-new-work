@@ -1,0 +1,91 @@
+name: Global Navigation Cleanup
+
+on:
+  push:
+    paths:
+      - '.github/workflows/navigation-cleanup.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Normalize navigation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # Inventory: remove horizontal tabs but retain routes and page components.
+          p = Path('src/modules/master-data/Godown.tsx')
+          s = p.read_text()
+          s = s.replace('import { Routes, Route, NavLink } from "react-router-dom";', 'import { Routes, Route } from "react-router-dom";')
+          start = s.find('      <div className="flex gap-1 mb-6 border-b border-slate-200 overflow-x-auto">')
+          end = s.find('      <Routes>', start)
+          if start != -1 and end != -1:
+              s = s[:start] + s[end:]
+          fn = s.find('\nfunction TabLink(')
+          marker = s.find('\n// 1. Godowns Master Page', fn)
+          if fn != -1 and marker != -1:
+              s = s[:fn] + s[marker:]
+          p.write_text(s)
+
+          # Layout: expose former horizontal navigation in sidebar.
+          p = Path('src/components/Layout.tsx')
+          s = p.read_text()
+          s = s.replace(
+            '  { to: "/production", label: "Production / Furnace & Mill", icon: ProductionIcon, module: "production" },',
+            '''  {\n    to: "/production",\n    label: "Production / Furnace & Mill",\n    icon: ProductionIcon,\n    module: "production",\n    children: [\n      { to: "/production", label: "Work Orders / ورک آرڈرز", end: true, module: "production" },\n      { to: "/production/yields", label: "Furnace Yield / فرنس پیداوار", module: "production" },\n    ],\n  },''')
+          s = s.replace(
+            '  { to: "/cutting", label: "Cutting & Loading / کٹنگ و لوڈنگ", icon: CuttingIcon, module: "production" },',
+            '''  {\n    to: "/cutting",\n    label: "Cutting & Loading / کٹنگ و لوڈنگ",\n    icon: CuttingIcon,\n    module: "production",\n    children: [\n      { to: "/cutting", label: "Cutting Orders / کٹنگ آرڈرز", end: true, module: "production" },\n      { to: "/cutting/gate-pass", label: "Gate Pass & Weighbridge / گیٹ پاس اور وزن کانٹا", module: "production" },\n    ],\n  },''')
+          s = s.replace(
+            '  { to: "/settings", label: "Settings / سیٹنگز", icon: SettingsIcon, module: "settings" },',
+            '''  {\n    to: "/settings",\n    label: "Settings / سیٹنگز",\n    icon: SettingsIcon,\n    module: "settings",\n    children: [\n      { to: "/settings", label: "Company / کمپنی", end: true, module: "settings" },\n      { to: "/settings/tax", label: "Tax & Charges / ٹیکس و چارجز", module: "settings" },\n      { to: "/settings/documents", label: "Document & Print / ڈاکومنٹ و پرنٹ", module: "settings" },\n    ],\n  },''')
+          s = s.replace(
+            '      { to: "/godown/movements", label: "Stock Movements / اسٹاک حرکت", module: "inventory" },',
+            '      { to: "/godown/movements", label: "Stock Movements / اسٹاک حرکت", module: "inventory" },\n      { to: "/godown/master", label: "Godowns Master / گودام ماسٹر", module: "inventory" },')
+          s = s.replace(
+            '  "/production": "Production / Furnace & Mill",',
+            '  "/production": "Production / Furnace & Mill",\n  "/production/yields": "Furnace Yield / فرنس پیداوار",')
+          s = s.replace(
+            '  "/cutting": "Cutting & Loading",',
+            '  "/cutting": "Cutting & Loading",\n  "/cutting/gate-pass": "Gate Pass & Weighbridge / گیٹ پاس اور وزن کانٹا",')
+          s = s.replace(
+            '  "/settings": "Settings / سیٹنگز",',
+            '  "/settings": "Settings / سیٹنگز",\n  "/settings/tax": "Tax & Charges / ٹیکس و چارجز",\n  "/settings/documents": "Document & Print / ڈاکومنٹ و پرنٹ",')
+          s = s.replace(
+            '    "Reports / رپورٹس":',
+            '    "Production / Furnace & Mill": location.pathname.startsWith("/production"),\n    "Cutting & Loading / کٹنگ و لوڈنگ": location.pathname.startsWith("/cutting"),\n    "Settings / سیٹنگز": location.pathname.startsWith("/settings"),\n    "Reports / رپورٹس":')
+
+          # Larger, highlighted Back / Index / breadcrumb navigation.
+          old = '''              <div className="hidden items-center gap-1 text-[12px] text-slate-400 sm:flex">\n                {breadcrumbs.map((crumb, index) => (\n                  <div key={crumb.to} className="flex min-w-0 items-center gap-1">\n                    {index > 0 && <span>/</span>}\n                    {index === breadcrumbs.length - 1 ? (\n                      <span className="truncate text-slate-500">\n                        {crumb.label}\n                      </span>\n                    ) : (\n                      <button\n                        type="button"\n                        onClick={() => navigate(crumb.to)}\n                        className="truncate hover:text-blue-600"\n                      >\n                        {crumb.label}\n                      </button>\n                    )}\n                  </div>\n                ))}\n              </div>'''
+          new = '''              <div className="hidden items-center gap-1.5 text-[13px] font-semibold sm:flex">\n                {location.pathname !== "/" && (\n                  <button\n                    type="button"\n                    onClick={() => navigate(-1)}\n                    className="mr-1 inline-flex items-center gap-1 rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1 text-slate-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"\n                    title="Back / واپس"\n                  >\n                    <span aria-hidden="true">←</span> Back / واپس\n                  </button>\n                )}\n                {breadcrumbs.map((crumb, index) => (\n                  <div key={crumb.to} className="flex min-w-0 items-center gap-1.5">\n                    {index > 0 && <span className="font-bold text-slate-400">›</span>}\n                    {index === breadcrumbs.length - 1 ? (\n                      <span className="truncate rounded-md bg-blue-50 px-2.5 py-1 font-bold text-blue-700 ring-1 ring-inset ring-blue-200">\n                        {crumb.label}\n                      </span>\n                    ) : (\n                      <button\n                        type="button"\n                        onClick={() => navigate(crumb.to)}\n                        className="truncate rounded-md px-2 py-1 font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-blue-700"\n                      >\n                        {index === 0 ? "Index / مرکزی صفحہ" : crumb.label}\n                      </button>\n                    )}\n                  </div>\n                ))}\n              </div>'''
+          if old not in s:
+              raise SystemExit('Breadcrumb block not found')
+          s = s.replace(old, new)
+          p.write_text(s)
+          PY
+      - name: Build
+        run: |
+          npm ci
+          npm run build
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/Layout.tsx src/modules/master-data/Godown.tsx
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Unify ERP navigation and highlight back index controls"
+            git push origin main
+          fi

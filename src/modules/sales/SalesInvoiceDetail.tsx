@@ -1314,6 +1314,15 @@ export default function SalesInvoiceDetail() {
     [lines]
   );
 
+  const linkedHawalaTotal = linkedHawalaInvoices.reduce(
+    (sum, invoice) => sum + toNumber(invoice.total),
+    0
+  );
+  const taxAmount = Math.max(
+    0,
+    toNumber(order?.total) - linkedHawalaTotal - itemsTotal - chargesTotal
+  );
+
   const paidAmount = toNumber(order?.paid_amount);
   const outstandingAmount = toNumber(order?.outstanding_amount);
 
@@ -1982,6 +1991,7 @@ export default function SalesInvoiceDetail() {
           chargeBreakdown={chargeBreakdown}
           itemsTotal={itemsTotal}
           chargesTotal={chargesTotal}
+          taxAmount={taxAmount}
           grandTotal={order.total}
           hawalaDocuments={linkedHawalaInvoices.map((hawala) => ({
             id: hawala.id,

@@ -131,6 +131,7 @@ export default function SalesInvoiceCreate() {
   const [referenceNotes, setReferenceNotes] = useState("");
   
   const [invoiceType, setInvoiceType] = useState<"Sale Invoice" | "Cash Bill" | "Tax Invoice">("Tax Invoice"); 
+  const [paymentMode, setPaymentMode] = useState<"Credit" | "Cash" | "Bank">("Credit");
   const [globalTaxPercent, setGlobalTaxPercent] = useState<string>("18");
 
   const [rows, setRows] = useState<InvoiceRow[]>([
@@ -372,6 +373,9 @@ export default function SalesInvoiceCreate() {
           setReferenceNotes(orderData.reference_notes || "");
           if (orderData.invoice_type) {
             setInvoiceType(orderData.invoice_type);
+          }
+          if (["Credit", "Cash", "Bank"].includes(orderData.payment_mode)) {
+            setPaymentMode(orderData.payment_mode as "Credit" | "Cash" | "Bank");
           }
           if (orderData.tax_percent !== undefined) {
             setGlobalTaxPercent(String(orderData.tax_percent));
@@ -696,6 +700,7 @@ export default function SalesInvoiceCreate() {
   const invoiceQrPayload = JSON.stringify({
     invoice_no: invoiceNo,
     invoice_type: invoiceType,
+    payment_mode: paymentMode,
     invoice_date: invoiceDate,
     customer: selectedCustomerObj?.name || "",
     salesperson: selectedSalesPersonObj?.name || "",
@@ -779,6 +784,7 @@ export default function SalesInvoiceCreate() {
         reference_no: referenceNo.trim() || null,
         reference_notes: referenceNotes.trim() || null,
         invoice_type: invoiceType,
+        payment_mode: paymentMode,
         tax_percent: invoiceType === "Tax Invoice" ? parseFloat(globalTaxPercent) || 0 : 0,
         ...chargePayload,
       };
@@ -1089,10 +1095,29 @@ export default function SalesInvoiceCreate() {
                     handleTypeChange(event.target.value as any)
                   }
                 >
-                  <option value="Sale Invoice">Sale Invoice (Credit) / ادھار فروخت انوائس</option>
-                  <option value="Cash Bill">Cash Bill (Cash) / نقد بل</option>
+                  <option value="Sale Invoice">Sale Invoice (No VAT) / عام فروخت انوائس</option>
+                  <option value="Cash Bill">Cash Bill (No VAT) / نقد بل</option>
                   <option value="Tax Invoice">Tax Invoice (GST/VAT) / ٹیکس انوائس</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="label">Payment Mode / ادائیگی طریقہ</label>
+                <select
+                  className="input"
+                  disabled={isLocked}
+                  value={paymentMode}
+                  onChange={(event) =>
+                    setPaymentMode(event.target.value as "Credit" | "Cash" | "Bank")
+                  }
+                >
+                  <option value="Credit">Credit / ادھار</option>
+                  <option value="Cash">Cash / نقد</option>
+                  <option value="Bank">Bank / بینک</option>
+                </select>
+                <div className="mt-1 text-[10px] text-slate-500">
+                  Document type and payment mode are independent.
+                </div>
               </div>
 
               <div>
@@ -1956,7 +1981,13 @@ export default function SalesInvoiceCreate() {
                 <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400">Sales Person / سیلز پرسن</div>
                 <div className="mt-1 text-sm font-bold">{selectedSalesPersonObj?.name || "—"}</div>
                 <div className="mt-2 text-[12px] text-slate-500">Payment / ادائیگی</div>
-                <div className="font-semibold">{invoiceType === "Cash Bill" ? "Cash / نقد" : "Credit / ادھار"}</div>
+                <div className="font-semibold">
+                  {paymentMode === "Cash"
+                    ? "Cash / نقد"
+                    : paymentMode === "Bank"
+                      ? "Bank / بینک"
+                      : "Credit / ادھار"}
+                </div>
               </div>
             </div>
 

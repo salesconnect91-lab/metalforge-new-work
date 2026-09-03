@@ -1,4 +1,4 @@
-import { Routes, Route, NavLink } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import WarehouseStock from "../godown/WarehouseStock";
 import StockMovements from "../godown/StockMovements";
 import { useEffect, useState, useCallback } from "react";
@@ -10,12 +10,6 @@ import { Printer, FileSpreadsheet, Building2, Plus } from "lucide-react";
 export default function Godown() {
   return (
     <div>
-      <div className="flex gap-1 mb-6 border-b border-slate-200 overflow-x-auto">
-        <TabLink to="/godown" end label="Warehouse Stock / ویئرہاؤس اسٹاک" />
-        <TabLink to="/godown/movements" label="Stock Movements / اسٹاک موومنٹس" />
-        <TabLink to="/godown/aging" label="Stock Aging Report / اسٹاک ایجنگ رپورٹ" />
-        <TabLink to="/godown/master" label="Godowns Master / گودام ماسٹر" />
-      </div>
       <Routes>
         <Route path="/" element={<WarehouseStock />} />
         <Route path="/movements" element={<StockMovements />} />
@@ -23,22 +17,6 @@ export default function Godown() {
         <Route path="/master" element={<GodownsMasterPage />} />
       </Routes>
     </div>
-  );
-}
-
-function TabLink({ to, label, end }: { to: string; label: string; end?: boolean }) {
-  return (
-    <NavLink to={to} end={end}>
-      {({ isActive }) => (
-        <span
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-pointer inline-block whitespace-nowrap ${
-            isActive ? "border-primary-600 text-primary-600" : "border-transparent text-slate-500 hover:text-slate-700"
-          }`}
-        >
-          {label}
-        </span>
-      )}
-    </NavLink>
   );
 }
 

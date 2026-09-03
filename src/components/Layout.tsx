@@ -74,10 +74,29 @@ const navigation: MainItem[] = [
     children: [
       { to: "/godown", label: "Current Stock / موجودہ اسٹاک", end: true, module: "inventory" },
       { to: "/godown/movements", label: "Stock Movements / اسٹاک حرکت", module: "inventory" },
+      { to: "/godown/master", label: "Godowns Master / گودام ماسٹر", module: "inventory" },
     ],
   },
-  { to: "/production", label: "Production / Furnace & Mill", icon: ProductionIcon, module: "production" },
-  { to: "/cutting", label: "Cutting & Loading / کٹنگ و لوڈنگ", icon: CuttingIcon, module: "production" },
+  {
+    to: "/production",
+    label: "Production / Furnace & Mill",
+    icon: ProductionIcon,
+    module: "production",
+    children: [
+      { to: "/production", label: "Work Orders / ورک آرڈرز", end: true, module: "production" },
+      { to: "/production/yields", label: "Furnace Yield / فرنس پیداوار", module: "production" },
+    ],
+  },
+  {
+    to: "/cutting",
+    label: "Cutting & Loading / کٹنگ و لوڈنگ",
+    icon: CuttingIcon,
+    module: "production",
+    children: [
+      { to: "/cutting", label: "Cutting Orders / کٹنگ آرڈرز", end: true, module: "production" },
+      { to: "/cutting/gate-pass", label: "Gate Pass & Weighbridge / گیٹ پاس اور وزن کانٹا", module: "production" },
+    ],
+  },
   {
     to: "/accounting",
     label: "Accounting / اکاؤنٹنگ",
@@ -134,7 +153,17 @@ const navigation: MainItem[] = [
     icon: OwnerIcon,
     ownerOnly: true,
   },
-  { to: "/settings", label: "Settings / سیٹنگز", icon: SettingsIcon, module: "settings" },
+  {
+    to: "/settings",
+    label: "Settings / سیٹنگز",
+    icon: SettingsIcon,
+    module: "settings",
+    children: [
+      { to: "/settings", label: "Company / کمپنی", end: true, module: "settings" },
+      { to: "/settings/tax", label: "Tax & Charges / ٹیکس و چارجز", module: "settings" },
+      { to: "/settings/documents", label: "Document & Print / ڈاکومنٹ و پرنٹ", module: "settings" },
+    ],
+  },
 ];
 
 const pageLabels: Record<string, string> = {
@@ -149,7 +178,9 @@ const pageLabels: Record<string, string> = {
   "/godown/aging": "Stock Aging Report / اسٹاک ایجنگ",
   "/godown/master": "Godowns Master / گودام ماسٹر",
   "/production": "Production / Furnace & Mill",
+  "/production/yields": "Furnace Yield / فرنس پیداوار",
   "/cutting": "Cutting & Loading",
+  "/cutting/gate-pass": "Gate Pass & Weighbridge / گیٹ پاس اور وزن کانٹا",
   "/accounting": "Accounting / اکاؤنٹنگ",
   "/accounting/cash-counter": "Cash Counter / کیش کاؤنٹر",
   "/accounting/day-book": "Day Book / روزنامچہ",
@@ -170,6 +201,8 @@ const pageLabels: Record<string, string> = {
   "/reports": "Reports / رپورٹس",
   "/owner": "Owner Control / مالک کنٹرول",
   "/settings": "Settings / سیٹنگز",
+  "/settings/tax": "Tax & Charges / ٹیکس و چارجز",
+  "/settings/documents": "Document & Print / ڈاکومنٹ و پرنٹ",
 };
 
 function pageTitle(pathname: string) {
@@ -253,6 +286,9 @@ export default function Layout({ children }: { children: ReactNode }) {
     "Inventory / Stock / اسٹاک":
       location.pathname === "/godown" ||
       location.pathname === "/godown/movements",
+    "Production / Furnace & Mill": location.pathname.startsWith("/production"),
+    "Cutting & Loading / کٹنگ و لوڈنگ": location.pathname.startsWith("/cutting"),
+    "Settings / سیٹنگز": location.pathname.startsWith("/settings"),
     "Reports / رپورٹس":
       location.pathname.startsWith("/reports") ||
       location.pathname === "/sales/report" ||
@@ -530,21 +566,31 @@ export default function Layout({ children }: { children: ReactNode }) {
             </button>
 
             <div className="min-w-0 flex-1">
-              <div className="hidden items-center gap-1 text-[12px] text-slate-400 sm:flex">
+              <div className="hidden items-center gap-1.5 text-[13px] font-semibold sm:flex">
+                {location.pathname !== "/" && (
+                  <button
+                    type="button"
+                    onClick={() => navigate(-1)}
+                    className="mr-1 inline-flex items-center gap-1 rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1 text-slate-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                    title="Back / واپس"
+                  >
+                    <span aria-hidden="true">←</span> Back / واپس
+                  </button>
+                )}
                 {breadcrumbs.map((crumb, index) => (
-                  <div key={crumb.to} className="flex min-w-0 items-center gap-1">
-                    {index > 0 && <span>/</span>}
+                  <div key={crumb.to} className="flex min-w-0 items-center gap-1.5">
+                    {index > 0 && <span className="font-bold text-slate-400">›</span>}
                     {index === breadcrumbs.length - 1 ? (
-                      <span className="truncate text-slate-500">
+                      <span className="truncate rounded-md bg-blue-50 px-2.5 py-1 font-bold text-blue-700 ring-1 ring-inset ring-blue-200">
                         {crumb.label}
                       </span>
                     ) : (
                       <button
                         type="button"
                         onClick={() => navigate(crumb.to)}
-                        className="truncate hover:text-blue-600"
+                        className="truncate rounded-md px-2 py-1 font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-blue-700"
                       >
-                        {crumb.label}
+                        {index === 0 ? "Index / مرکزی صفحہ" : crumb.label}
                       </button>
                     )}
                   </div>

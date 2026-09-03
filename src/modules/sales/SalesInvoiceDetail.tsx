@@ -100,6 +100,8 @@ type SalesInvoiceDetailOrder = SalesOrder & {
   paid_amount?: number | string | null;
   outstanding_amount?: number | string | null;
   payment_status?: PaymentStatus | null;
+  invoice_type?: "Sale Invoice" | "Cash Bill" | "Tax Invoice";
+  payment_mode?: "Credit" | "Cash" | "Bank" | null;
 };
 
 interface OrderChargeWorker {
@@ -779,7 +781,11 @@ export default function SalesInvoiceDetail() {
       pdf.setFontSize(16);
 
       pdf.text(
-        "SALES INVOICE",
+        order.invoice_type === "Cash Bill"
+          ? "CASH BILL"
+          : order.invoice_type === "Tax Invoice"
+            ? "TAX INVOICE"
+            : "SALES INVOICE",
         pageWidth / 2,
         y,
         { align: "center" }
@@ -844,17 +850,11 @@ export default function SalesInvoiceDetail() {
           cellPadding: 2.5,
         },
 
-        head: [
-          [
-            "#",
-            "Item",
-            "Grade",
-            "Size",
-            "Qty",
-            "Rate",
-            "Amount",
-          ],
-        ],
+        head: [[
+          "#", "Item", "Grade", "Size", "Qty", "Rate",
+          ...(order.invoice_type === "Tax Invoice" ? ["VAT", "VAT Amount"] : []),
+          "Amount",
+        ]],
 
         body:
           lines.length > 0
@@ -867,6 +867,14 @@ export default function SalesInvoiceDetail() {
                 formatCurrency(
                   toNumber(line.unit_price)
                 ),
+                ...(order.invoice_type === "Tax Invoice"
+                  ? [
+                      `${toNumber(line.tax_percent)}%`,
+                      formatCurrency(
+                        (toNumber(line.line_total) * toNumber(line.tax_percent)) / 100
+                      ),
+                    ]
+                  : []),
                 formatCurrency(
                   toNumber(line.line_total)
                 ),
@@ -1006,6 +1014,9 @@ export default function SalesInvoiceDetail() {
             "Charges Total",
             formatCurrency(chargesTotal),
           ],
+          ...(order.invoice_type === "Tax Invoice"
+            ? [["Total VAT", formatCurrency(taxAmount)]]
+            : []),
           [
             "Grand Total",
             formatCurrency(toNumber(order.total)),
@@ -1314,10 +1325,24 @@ export default function SalesInvoiceDetail() {
     [lines]
   );
 
-  const taxAmount = Math.max(
-    0,
-    toNumber(order?.total) - linkedHawalaTotal - itemsTotal - chargesTotal
-  );
+  const isTaxInvoice = order?.invoice_type === "Tax Invoice";
+  const itemTaxAmount = isTaxInvoice
+    ? lines.reduce(
+        (sum, line) =>
+          sum +
+          (toNumber(line.line_total) * toNumber(line.tax_percent)) / 100,
+        0
+      )
+    : 0;
+  const chargeTaxAmount = isTaxInvoice
+    ? workerCharges.reduce(
+        (sum, charge) =>
+          sum +
+          (toNumber(charge.amount) * toNumber(charge.tax_percent)) / 100,
+        0
+      )
+    : 0;
+  const taxAmount = itemTaxAmount + chargeTaxAmount;
 
   const paidAmount = toNumber(order?.paid_amount);
   const outstandingAmount = toNumber(order?.outstanding_amount);
@@ -1819,6 +1844,15 @@ export default function SalesInvoiceDetail() {
                 </span>
               </div>
 
+              {isTaxInvoice && (
+                <div className="flex items-center justify-between text-slate-500">
+                  <span>Total VAT / کل ٹیکس</span>
+                  <span className="font-semibold text-slate-800">
+                    {formatCurrency(taxAmount)}
+                  </span>
+                </div>
+              )}
+
               {linkedHawalaInvoices.length > 0 && (
                 <>
                   <div className="flex items-center justify-between border-t border-slate-100 pt-2 text-slate-500">
@@ -1908,7 +1942,13 @@ export default function SalesInvoiceDetail() {
 
       {showPrint && (
         <PrintLayout
-          voucherTitle="Sales Invoice"
+          voucherTitle={
+            order.invoice_type === "Cash Bill"
+              ? "Cash Bill"
+              : order.invoice_type === "Tax Invoice"
+                ? "Tax Invoice"
+                : "Sales Invoice"
+          }
           voucherNo={order.order_no}
           voucherDate={order.order_date}
           company={{
@@ -1983,11 +2023,16 @@ export default function SalesInvoiceDetail() {
             qty: line.qty,
             unitPrice: line.unit_price,
             lineTotal: line.line_total,
+            taxPercent: isTaxInvoice ? toNumber(line.tax_percent) : 0,
+            taxAmount: isTaxInvoice
+              ? (toNumber(line.line_total) * toNumber(line.tax_percent)) / 100
+              : 0,
           }))}
           chargeBreakdown={chargeBreakdown}
           itemsTotal={itemsTotal}
           chargesTotal={chargesTotal}
           taxAmount={taxAmount}
+          showTaxSummary={isTaxInvoice}
           grandTotal={order.total}
           hawalaDocuments={linkedHawalaInvoices.map((hawala) => ({
             id: hawala.id,
@@ -2013,6 +2058,10 @@ export default function SalesInvoiceDetail() {
               : undefined
           }
           extraFields={[
+            {
+              label: "Payment Mode / ادائیگی طریقہ",
+              value: order.payment_mode || "Credit",
+            },
             ...(order.sales_person
               ? [
                   {

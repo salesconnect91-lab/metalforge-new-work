@@ -1,0 +1,45 @@
+name: Company Scope Cleanup
+on:
+  push:
+    paths:
+      - '.github/workflows/company-scope-cleanup.yml'
+permissions:
+  contents: write
+jobs:
+  cleanup:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fix legacy company-scoping conflict key
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/lib/accountService.ts')
+          s = p.read_text(encoding='utf-8-sig')
+          old = 'onConflict: "user_id,mapping_key"'
+          new = 'onConflict: "company_id,mapping_key"'
+          if old not in s:
+              raise SystemExit('Legacy mapping conflict key not found')
+          p.write_text(s.replace(old, new), encoding='utf-8')
+          PY
+      - name: Audit active frontend for legacy user scoping
+        run: |
+          if grep -RIn --include='*.ts' --include='*.tsx' -E '\.eq\(["'"']user_id["'"']|onConflict:[[:space:]]*["'"']user_id,' src; then
+            echo 'Legacy user-scoped frontend query remains.'
+            exit 1
+          fi
+      - name: Build
+        run: |
+          npm ci
+          npm run build
+      - name: Commit cleanup
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/lib/accountService.ts
+          git diff --cached --quiet && exit 0
+          git commit -m 'Use company-scoped accounting mapping conflict key'
+          git push

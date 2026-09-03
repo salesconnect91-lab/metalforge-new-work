@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -16,6 +16,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { loadDocumentPrintSettings } from "@/lib/documentPrintSettings";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { OrderStatus, SalesOrder, SalesOrderLine } from "@/types";
@@ -254,44 +255,9 @@ export default function SalesInvoiceDetail() {
   }, [id]);
 
   const fetchPrintSettings = useCallback(async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) return;
-
-    const [companyResult, visibilityResult] =
-      await Promise.all([
-        supabase
-          .from("company_settings")
-          .select("*")
-          .eq("user_id", user.id)
-          .maybeSingle(),
-
-        supabase
-          .from("document_print_visibility")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("document_type", "sales_invoice")
-          .maybeSingle(),
-      ]);
-
-    if (companyResult.error) {
-      throw companyResult.error;
-    }
-
-    if (visibilityResult.error) {
-      throw visibilityResult.error;
-    }
-
-    setCompanyPrint(
-      (companyResult.data || {}) as CompanyPrintSettings
-    );
-
-    setSalesPrintVisibility({
-      ...DEFAULT_SALES_PRINT_VISIBILITY,
-      ...(visibilityResult.data || {}),
-    });
+    const settings = await loadDocumentPrintSettings("sales_invoice");
+    setCompanyPrint(settings.company as CompanyPrintSettings);
+    setSalesPrintVisibility({ ...DEFAULT_SALES_PRINT_VISIBILITY, ...settings.visibility });
   }, []);
 
   const fetchOrder = useCallback(async () => {
@@ -575,43 +541,10 @@ export default function SalesInvoiceDetail() {
     setError(null);
 
     try {
-      // Reload settings so PDF always follows latest matrix.
-      await fetchPrintSettings();
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        throw new Error("Authentication required.");
-      }
-
-      const [companyResult, visibilityResult] =
-        await Promise.all([
-          supabase
-            .from("company_settings")
-            .select("*")
-            .eq("user_id", user.id)
-            .maybeSingle(),
-
-          supabase
-            .from("document_print_visibility")
-            .select("*")
-            .eq("user_id", user.id)
-            .eq("document_type", "sales_invoice")
-            .maybeSingle(),
-        ]);
-
-      if (companyResult.error) throw companyResult.error;
-      if (visibilityResult.error) throw visibilityResult.error;
-
-      const company =
-        (companyResult.data || {}) as CompanyPrintSettings;
-
-      const visibility: SalesPrintVisibility = {
-        ...DEFAULT_SALES_PRINT_VISIBILITY,
-        ...(visibilityResult.data || {}),
-      };
+      // Reload from selected company so PDF follows latest matrix.
+      const settings = await loadDocumentPrintSettings("sales_invoice");
+      const company = settings.company as CompanyPrintSettings;
+      const visibility: SalesPrintVisibility = { ...DEFAULT_SALES_PRINT_VISIBILITY, ...settings.visibility };
 
       const pdf = new jsPDF({
         orientation:

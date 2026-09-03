@@ -1,4 +1,4 @@
-﻿import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { AccountMapping, ChartOfAccount } from "@/types";
 
 /* -------------------------------------------------------------------------- */
@@ -1038,7 +1038,7 @@ export async function setMapping(
         account_id: accountId,
       },
       {
-        onConflict: "user_id,mapping_key",
+        onConflict: "company_id,mapping_key",
       }
     );
 

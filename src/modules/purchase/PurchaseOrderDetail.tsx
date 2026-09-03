@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { loadDocumentPrintSettings } from "@/lib/documentPrintSettings";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { PurchaseOrder, PurchaseOrderLine, Item } from "@/types";
@@ -105,44 +106,9 @@ export default function PurchaseOrderDetail() {
   const [paymentNotes, setPaymentNotes] = useState("");
 
   const fetchPrintSettings = useCallback(async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) return;
-
-    const [companyResult, visibilityResult] =
-      await Promise.all([
-        supabase
-          .from("company_settings")
-          .select("*")
-          .eq("user_id", user.id)
-          .maybeSingle(),
-
-        supabase
-          .from("document_print_visibility")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("document_type", "purchase")
-          .maybeSingle(),
-      ]);
-
-    if (companyResult.error) {
-      throw companyResult.error;
-    }
-
-    if (visibilityResult.error) {
-      throw visibilityResult.error;
-    }
-
-    setCompanyPrint(
-      (companyResult.data || {}) as CompanyPrintSettings
-    );
-
-    setPurchasePrintVisibility({
-      ...DEFAULT_PURCHASE_VISIBILITY,
-      ...(visibilityResult.data || {}),
-    });
+    const settings = await loadDocumentPrintSettings("purchase");
+    setCompanyPrint(settings.company as CompanyPrintSettings);
+    setPurchasePrintVisibility({ ...DEFAULT_PURCHASE_VISIBILITY, ...settings.visibility });
   }, []);
 
   const fetchOrder = useCallback(async () => {
@@ -440,40 +406,9 @@ export default function PurchaseOrderDetail() {
     setError(null);
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        throw new Error("Authentication required.");
-      }
-
-      const [companyResult, visibilityResult] =
-        await Promise.all([
-          supabase
-            .from("company_settings")
-            .select("*")
-            .eq("user_id", user.id)
-            .maybeSingle(),
-
-          supabase
-            .from("document_print_visibility")
-            .select("*")
-            .eq("user_id", user.id)
-            .eq("document_type", "purchase")
-            .maybeSingle(),
-        ]);
-
-      if (companyResult.error) throw companyResult.error;
-      if (visibilityResult.error) throw visibilityResult.error;
-
-      const company =
-        (companyResult.data || {}) as CompanyPrintSettings;
-
-      const visibility: PurchasePrintVisibility = {
-        ...DEFAULT_PURCHASE_VISIBILITY,
-        ...(visibilityResult.data || {}),
-      };
+      const settings = await loadDocumentPrintSettings("purchase");
+      const company = settings.company as CompanyPrintSettings;
+      const visibility: PurchasePrintVisibility = { ...DEFAULT_PURCHASE_VISIBILITY, ...settings.visibility };
 
       const pdf = new jsPDF({
         orientation:

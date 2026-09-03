@@ -2,12 +2,14 @@ import * as Lucide from "lucide-react";
 import { useMemo, useState, type ReactNode, type ReactElement, useEffect} from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
+import { canViewModule, roleLabel, type ModuleKey } from "@/auth/permissions";
 import { APP_CONFIG } from "@/config/app";
 
 type ChildItem = {
   to: string;
   label: string;
   end?: boolean;
+  module?: ModuleKey;
 };
 
 type MainItem = {
@@ -18,27 +20,32 @@ type MainItem = {
   excludePaths?: string[];
   children?: ChildItem[];
   ownerOnly?: boolean;
+  module?: ModuleKey;
 };
 
 const navigation: MainItem[] = [
-  { to: "/", label: "Dashboard / ڈیش بورڈ", icon: HomeIcon, end: true },
+  { to: "/", label: "Dashboard / ڈیش بورڈ", icon: HomeIcon, end: true, module: "dashboard" },
   {
     to: "/master-data",
     label: "Master Data / ماسٹر ڈیٹا",
     icon: DatabaseIcon,
+    module: "master",
     children: [
       {
         to: "/master-data",
         label: "All Master Data / تمام ماسٹر ڈیٹا",
         end: true,
+        module: "master",
       },
       {
         to: "/sales/charges",
         label: "Charge Master / چارج ماسٹر",
+        module: "master",
       },
       {
         to: "/godown/master",
         label: "Godowns Master / گودام ماسٹر",
+        module: "inventory",
       },
     ],
   },
@@ -46,51 +53,59 @@ const navigation: MainItem[] = [
     to: "/sales",
     label: "Sales / سیلز",
     icon: SalesIcon,
+    module: "sales",
     excludePaths: ["/sales/report", "/sales/charges"],
     children: [
       {
         to: "/sales",
         label: "Sales Invoices / سیلز انوائسز",
         end: true,
+        module: "sales",
       },
     ],
   },
-  { to: "/purchase", label: "Purchase / خریداری", icon: PurchaseIcon },
+  { to: "/purchase", label: "Purchase / خریداری", icon: PurchaseIcon, module: "purchase" },
   {
     to: "/godown",
     label: "Inventory / Stock / اسٹاک",
     icon: InventoryIcon,
+    module: "inventory",
     excludePaths: ["/godown/aging", "/godown/master"],
     children: [
-      { to: "/godown", label: "Current Stock / موجودہ اسٹاک", end: true },
-      { to: "/godown/movements", label: "Stock Movements / اسٹاک حرکت" },
+      { to: "/godown", label: "Current Stock / موجودہ اسٹاک", end: true, module: "inventory" },
+      { to: "/godown/movements", label: "Stock Movements / اسٹاک حرکت", module: "inventory" },
     ],
   },
-  { to: "/production", label: "Production / Furnace & Mill", icon: ProductionIcon },
-  { to: "/cutting", label: "Cutting & Loading / کٹنگ و لوڈنگ", icon: CuttingIcon },
+  { to: "/production", label: "Production / Furnace & Mill", icon: ProductionIcon, module: "production" },
+  { to: "/cutting", label: "Cutting & Loading / کٹنگ و لوڈنگ", icon: CuttingIcon, module: "production" },
   {
     to: "/accounting",
     label: "Accounting / اکاؤنٹنگ",
     icon: AccountingIcon,
+    module: "accounting",
     excludePaths: ["/accounting/customer-invoice-statement"],
   },
   {
     to: "/reports",
     label: "Reports / رپورٹس",
     icon: ReportsIcon,
+    module: "reports",
     children: [
-      { to: "/reports", label: "Reports Overview / رپورٹس", end: true },
+      { to: "/reports", label: "Reports Overview / رپورٹس", end: true, module: "reports" },
       {
         to: "/sales/report",
         label: "Salesperson Performance / سیلز پرسن",
+        module: "reports",
       },
       {
         to: "/godown/aging",
         label: "Stock Aging Report / اسٹاک ایجنگ",
+        module: "reports",
       },
       {
         to: "/accounting/customer-invoice-statement",
         label: "Customer Statement & Aging",
+        module: "accounting",
       },
     ],
   },
@@ -100,7 +115,7 @@ const navigation: MainItem[] = [
     icon: OwnerIcon,
     ownerOnly: true,
   },
-  { to: "/settings", label: "Settings / سیٹنگز", icon: SettingsIcon },
+  { to: "/settings", label: "Settings / سیٹنگز", icon: SettingsIcon, module: "settings" },
 ];
 
 const pageLabels: Record<string, string> = {
@@ -161,7 +176,6 @@ function breadcrumbItems(pathname: string) {
 }
 
 export default function Layout({ children }: { children: ReactNode }) {
-
   const [appTheme, setAppTheme] = useState<"light" | "dark" | "black">(() => {
     const saved = localStorage.getItem("metalforge-dashboard-preferences-v2");
     if (!saved) return "light";
@@ -193,7 +207,6 @@ export default function Layout({ children }: { children: ReactNode }) {
       // ignore malformed local preference
     }
   }, [appTheme]);
-
 
   const { user, signOut, isPlatformOwner, activeCompany } = useAuth();
   const location = useLocation();
@@ -230,9 +243,22 @@ export default function Layout({ children }: { children: ReactNode }) {
     [location.pathname]
   );
 
+  const role = activeCompany?.membership_role;
+
   const visibleNavigation = useMemo(
-    () => navigation.filter((item) => !item.ownerOnly || isPlatformOwner),
-    [isPlatformOwner]
+    () => navigation
+      .filter((item) => {
+        if (item.ownerOnly) return isPlatformOwner;
+        if (!item.module) return true;
+        return canViewModule(role, item.module, isPlatformOwner);
+      })
+      .map((item) => ({
+        ...item,
+        children: item.children?.filter((child) =>
+          !child.module || canViewModule(role, child.module, isPlatformOwner)
+        ),
+      })),
+    [isPlatformOwner, role]
   );
 
   const sidebarWidth = collapsed ? "lg:w-[68px]" : "lg:w-[218px]";
@@ -439,7 +465,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                     {user?.email ?? "Signed in"}
                   </div>
                   <div className="text-[8px] uppercase tracking-wider text-slate-600">
-                    {isPlatformOwner ? "Platform Owner" : "Active"}
+                    {isPlatformOwner ? "Platform Owner" : roleLabel(role)}
                   </div>
                 </div>
                 <button
@@ -521,7 +547,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               </button>
             </div>
           </div>
-        
+
           <div className="mf-global-theme-switcher" title="Application theme / ایپ تھیم">
             <button
               type="button"
@@ -550,8 +576,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               <Lucide.Circle className="mf-black-theme-icon" />
             </button>
           </div>
-
-</header>
+        </header>
 
         <main className="px-4 py-4 lg:px-5 lg:py-4">
           <div className="mx-auto w-full max-w-[1560px]">{children}</div>
@@ -675,7 +700,7 @@ function CompanyIcon() {
 function SettingsIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l-.15-.09a2 2 0 0 0-.73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
       <circle cx="12" cy="12" r="3" />
     </svg>
   );

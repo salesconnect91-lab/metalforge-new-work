@@ -15,6 +15,8 @@ export interface PrintItemRow {
   qty: number;
   unitPrice: number;
   lineTotal: number;
+  taxPercent?: number;
+  taxAmount?: number;
 }
 
 export interface PrintLayoutProps {
@@ -35,6 +37,7 @@ export interface PrintLayoutProps {
   itemsTotal: number;
   chargesTotal: number;
   taxAmount?: number;
+  showTaxSummary?: boolean;
   grandTotal: number;
   extraFields?: { label: string; value: string }[];
 
@@ -92,6 +95,7 @@ export default function PrintLayout({
   itemsTotal,
   chargesTotal,
   taxAmount = 0,
+  showTaxSummary = false,
   grandTotal,
   extraFields,
   hawalaDocuments = [],
@@ -174,6 +178,14 @@ export default function PrintLayout({
                 ? ` / ${
                     voucherTitle === "Sales Invoice"
                       ? "فروخت کا بل"
+                      : voucherTitle === "Cash Bill"
+                        ? "نقد بل"
+                        : voucherTitle === "Tax Invoice"
+                          ? "ٹیکس انوائس"
+                          : voucherTitle === "Purchase Invoice"
+                            ? "خریداری انوائس"
+                            : voucherTitle === "Purchase Tax Invoice"
+                              ? "خریداری ٹیکس انوائس"
                       : voucherTitle === "Unbilled Dispatch"
                         ? "حوالہ ڈسپیچ"
                         : "دستاویز"
@@ -255,6 +267,7 @@ export default function PrintLayout({
               <th className="print-th" style={{ width: "10%" }}>Size / سائز</th>
               <th className="print-th" style={{ width: "12%", textAlign: "right" }}>Qty / مقدار</th>
               <th className="print-th" style={{ width: "14%", textAlign: "right" }}>Rate / ریٹ</th>
+              {showTaxSummary && <th className="print-th" style={{ width: "12%", textAlign: "right" }}>VAT / ٹیکس</th>}
               <th className="print-th" style={{ width: "14%", textAlign: "right" }}>Amount / رقم</th>
             </tr>
           </thead>
@@ -267,6 +280,12 @@ export default function PrintLayout({
                 <td className="print-td">{item.size ?? "—"}</td>
                 <td className="print-td" style={{ textAlign: "right" }}>{item.qty}</td>
                 <td className="print-td" style={{ textAlign: "right" }}>{formatCurrency(item.unitPrice)}</td>
+                {showTaxSummary && (
+                  <td className="print-td" style={{ textAlign: "right" }}>
+                    {formatCurrency(item.taxAmount || 0)}
+                    <div style={{ fontSize: "9px", color: "#64748b" }}>{item.taxPercent || 0}%</div>
+                  </td>
+                )}
                 <td className="print-td" style={{ textAlign: "right", fontWeight: 500 }}>{formatCurrency(item.lineTotal)}</td>
               </tr>
             ))}
@@ -397,9 +416,9 @@ export default function PrintLayout({
               <span>Charges Total / کل چارجز</span>
               <span>{formatCurrency(chargesTotal)}</span>
             </div>
-            {taxAmount > 0 && (
+            {showTaxSummary && (
               <div className="print-total-row">
-                <span>VAT Amount / ویلیو ایڈڈ ٹیکس</span>
+                <span>Total VAT / کل ٹیکس</span>
                 <span>{formatCurrency(taxAmount)}</span>
               </div>
             )}

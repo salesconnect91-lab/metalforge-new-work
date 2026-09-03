@@ -8,6 +8,7 @@ import ProtectedRoute from "@/auth/ProtectedRoute";
 import Layout from "@/components/Layout";
 import CompanySwitcher from "@/components/CompanySwitcher";
 import ErpExperienceBridge from "@/components/ErpExperienceBridge";
+import PrintPreviewController from "@/components/PrintPreviewController";
 
 import Dashboard from "@/modules/Dashboard";
 import MasterData from "@/modules/master-data/MasterData";
@@ -38,13 +39,17 @@ function ModuleOnly({ module, children }: { module: ModuleKey; children: ReactNo
   return allowed ? <>{children}</> : <Navigate to="/" replace />;
 }
 
+function GlobalExperience() {
+  return <><ErpExperienceBridge /><PrintPreviewController /></>;
+}
+
 export default function App() {
   const { loading, accountingSetupError, retryAccountingSetup, signOut } = useAuth();
 
   if (loading) {
     return (
       <>
-        <ErpExperienceBridge />
+        <GlobalExperience />
         <div className="min-h-screen flex items-center justify-center"><div className="text-slate-400">Loading… / لوڈ ہو رہا ہے…</div></div>
       </>
     );
@@ -53,7 +58,7 @@ export default function App() {
   if (accountingSetupError) {
     return (
       <>
-        <ErpExperienceBridge />
+        <GlobalExperience />
         <div className="min-h-screen bg-slate-50 px-4 py-12">
           <div className="mx-auto max-w-lg rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
             <h1 className="text-lg font-bold text-slate-900">Accounting setup could not be completed / اکاؤنٹنگ سیٹ اپ مکمل نہیں ہو سکا</h1>
@@ -71,7 +76,7 @@ export default function App() {
 
   return (
     <>
-      <ErpExperienceBridge />
+      <GlobalExperience />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/*" element={<ProtectedRoute><><CompanySwitcher /><Layout><Routes>

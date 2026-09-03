@@ -27,6 +27,8 @@ interface SalesOrderReportRow {
   total: number | string | null;
   paid_amount?: number | string | null;
   outstanding_amount?: number | string | null;
+  invoice_type?: string | null;
+  payment_mode?: string | null;
   status: string;
   customer_id: string | null;
   customer?: { name: string } | { name: string }[] | null;
@@ -40,6 +42,9 @@ interface SalespersonSummary {
   totalOrders: number;
   totalSales: number;
   totalReceived: number;
+  cashSales: number;
+  creditSales: number;
+  taxSales: number;
   balanceDue: number;
   debitBalance: number;
   creditBalance: number;
@@ -82,6 +87,12 @@ export default function SalespersonReport() {
   const [statusFilter, setStatusFilter] = useState<
     "active" | "all" | "inactive"
   >("active");
+  const [showColumns, setShowColumns] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState({
+    customers: true, dateRange: true, cashSales: true, creditSales: true,
+    taxSales: true, sales: true, received: true, debit: true, credit: true,
+    collection: true, actions: true,
+  });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -111,6 +122,8 @@ export default function SalespersonReport() {
             total,
             paid_amount,
             outstanding_amount,
+            invoice_type,
+            payment_mode,
             status,
             customer_id,
             customer:customers(name)
@@ -177,6 +190,9 @@ export default function SalespersonReport() {
           totalOrders: number;
           totalSales: number;
           totalReceived: number;
+          cashSales: number;
+          creditSales: number;
+          taxSales: number;
           balanceDue: number;
           customers: Set<string>;
           dates: string[];
@@ -188,6 +204,9 @@ export default function SalespersonReport() {
           totalOrders: 0,
           totalSales: 0,
           totalReceived: 0,
+          cashSales: 0,
+          creditSales: 0,
+          taxSales: 0,
           balanceDue: 0,
           customers: new Set<string>(),
           dates: [],
@@ -203,6 +222,9 @@ export default function SalespersonReport() {
             totalOrders: 0,
             totalSales: 0,
             totalReceived: 0,
+            cashSales: 0,
+            creditSales: 0,
+            taxSales: 0,
             balanceDue: 0,
             customers: new Set<string>(),
             dates: [],
@@ -221,6 +243,12 @@ export default function SalespersonReport() {
         summary.totalOrders += 1;
         summary.totalSales += total;
         summary.totalReceived += received;
+        if (["cash", "bank"].includes(String(order.payment_mode || "credit").toLowerCase())) {
+          summary.cashSales += total;
+        } else {
+          summary.creditSales += total;
+        }
+        if (order.invoice_type === "Tax Invoice") summary.taxSales += total;
         summary.balanceDue += outstanding;
 
         const customerName = getCustomerName(order.customer);
@@ -249,6 +277,9 @@ export default function SalespersonReport() {
             totalOrders: data.totalOrders,
             totalSales: data.totalSales,
             totalReceived: data.totalReceived,
+            cashSales: data.cashSales,
+            creditSales: data.creditSales,
+            taxSales: data.taxSales,
             balanceDue: data.balanceDue,
             debitBalance,
             creditBalance,
@@ -357,6 +388,9 @@ export default function SalespersonReport() {
         (acc, row) => {
           acc.sales += row.totalSales;
           acc.received += row.totalReceived;
+          acc.cashSales += row.cashSales;
+          acc.creditSales += row.creditSales;
+          acc.taxSales += row.taxSales;
           acc.debitBalance += row.debitBalance;
           acc.creditBalance += row.creditBalance;
           acc.orders += row.totalOrders;
@@ -365,6 +399,9 @@ export default function SalespersonReport() {
         {
           sales: 0,
           received: 0,
+          cashSales: 0,
+          creditSales: 0,
+          taxSales: 0,
           debitBalance: 0,
           creditBalance: 0,
           orders: 0,
@@ -555,6 +592,20 @@ export default function SalespersonReport() {
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
+          <div className="relative">
+            <button type="button" onClick={() => setShowColumns((value) => !value)} className="btn-secondary">
+              Customize Columns
+            </button>
+            {showColumns && (
+              <div className="absolute right-0 top-10 z-50 grid w-[320px] grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-white p-3 shadow-xl">
+                {Object.entries({
+                  customers:"Customers",dateRange:"Date Span",cashSales:"Cash Sales",creditSales:"Credit Sales",
+                  taxSales:"Tax Sales",sales:"Total Sales",received:"Received",debit:"Debit",
+                  credit:"Credit",collection:"Collection",actions:"Actions",
+                }).map(([key,label]) => <label key={key} className="flex items-center gap-2 text-xs"><input type="checkbox" checked={visibleColumns[key as keyof typeof visibleColumns]} onChange={() => setVisibleColumns((current) => ({...current,[key]:!current[key as keyof typeof current]}))}/>{label}</label>)}
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={exportToExcel}
@@ -754,24 +805,27 @@ export default function SalespersonReport() {
                 <th className="px-2 py-2 text-center">
                   Invoices
                 </th>
-                <th className="px-2 py-2 text-left">Customers / گاہک</th>
-                <th className="px-2 py-2 text-left">
+                {visibleColumns.customers && <th className="px-2 py-2 text-left">Customers / گاہک</th>}
+                {visibleColumns.dateRange && <th className="px-2 py-2 text-left">
                   Date Span
-                </th>
-                <th className="px-2 py-2 text-right">Sales / فروخت</th>
-                <th className="px-2 py-2 text-right">
+                </th>}
+                {visibleColumns.cashSales && <th className="px-2 py-2 text-right">Cash Sales</th>}
+                {visibleColumns.creditSales && <th className="px-2 py-2 text-right">Credit Sales</th>}
+                {visibleColumns.taxSales && <th className="px-2 py-2 text-right">Tax Sales</th>}
+                {visibleColumns.sales && <th className="px-2 py-2 text-right">Sales / فروخت</th>}
+                {visibleColumns.received && <th className="px-2 py-2 text-right">
                   Received
-                </th>
-                <th className="px-2 py-2 text-right">
+                </th>}
+                {visibleColumns.debit && <th className="px-2 py-2 text-right">
                   Debit Balance
-                </th>
-                <th className="px-2 py-2 text-right">
+                </th>}
+                {visibleColumns.credit && <th className="px-2 py-2 text-right">
                   Credit Balance
-                </th>
-                <th className="px-2 py-2 text-right">
+                </th>}
+                {visibleColumns.collection && <th className="px-2 py-2 text-right">
                   Collection
-                </th>
-                <th className="px-3 py-2 text-right">Actions / کارروائیاں</th>
+                </th>}
+                {visibleColumns.actions && <th className="px-3 py-2 text-right">Actions / کارروائیاں</th>}
               </tr>
             </thead>
 
@@ -844,7 +898,7 @@ export default function SalespersonReport() {
                         {row.totalOrders}
                       </td>
 
-                      <td
+                      {visibleColumns.customers && <td
                         className="max-w-[250px] px-2 py-2.5 text-slate-600"
                         title={row.customers.join(", ")}
                       >
@@ -861,35 +915,39 @@ export default function SalespersonReport() {
                               : "s"}
                           </div>
                         )}
-                      </td>
+                      </td>}
 
-                      <td className="px-2 py-2.5 text-[12px] text-slate-500">
+                      {visibleColumns.dateRange && <td className="px-2 py-2.5 text-[12px] text-slate-500">
                         {row.dateRange}
-                      </td>
+                      </td>}
 
-                      <td className="px-2 py-2.5 text-right font-semibold text-slate-900">
+                      {visibleColumns.cashSales && <td className="px-2 py-2.5 text-right font-semibold text-emerald-700">{formatCurrency(row.cashSales)}</td>}
+                      {visibleColumns.creditSales && <td className="px-2 py-2.5 text-right font-semibold text-amber-700">{formatCurrency(row.creditSales)}</td>}
+                      {visibleColumns.taxSales && <td className="px-2 py-2.5 text-right font-semibold text-violet-700">{formatCurrency(row.taxSales)}</td>}
+
+                      {visibleColumns.sales && <td className="px-2 py-2.5 text-right font-semibold text-slate-900">
                         {formatCurrency(row.totalSales)}
-                      </td>
+                      </td>}
 
-                      <td className="px-2 py-2.5 text-right font-semibold text-emerald-700">
+                      {visibleColumns.received && <td className="px-2 py-2.5 text-right font-semibold text-emerald-700">
                         {formatCurrency(
                           row.totalReceived
                         )}
-                      </td>
+                      </td>}
 
-                      <td className="px-2 py-2.5 text-right font-semibold text-blue-700">
+                      {visibleColumns.debit && <td className="px-2 py-2.5 text-right font-semibold text-blue-700">
                         {formatCurrency(
                           row.debitBalance
                         )}
-                      </td>
+                      </td>}
 
-                      <td className="px-2 py-2.5 text-right font-semibold text-rose-700">
+                      {visibleColumns.credit && <td className="px-2 py-2.5 text-right font-semibold text-rose-700">
                         {formatCurrency(
                           row.creditBalance
                         )}
-                      </td>
+                      </td>}
 
-                      <td className="px-2 py-2.5 text-right">
+                      {visibleColumns.collection && <td className="px-2 py-2.5 text-right">
                         <div className="font-semibold text-slate-700">
                           {collection.toFixed(1)}%
                         </div>
@@ -907,9 +965,9 @@ export default function SalespersonReport() {
                             }}
                           />
                         </div>
-                      </td>
+                      </td>}
 
-                      <td className="px-3 py-2.5 text-right">
+                      {visibleColumns.actions && <td className="px-3 py-2.5 text-right">
                         <div className="flex justify-end gap-1.5">
                           <button
                             type="button"
@@ -939,7 +997,7 @@ export default function SalespersonReport() {
                               : "Deactivate"}
                           </button>
                         </div>
-                      </td>
+                      </td>}
                     </tr>
                   );
                 })

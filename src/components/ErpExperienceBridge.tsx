@@ -225,6 +225,38 @@ input:focus,select:focus,textarea:focus { outline:none; border-color:#7db0f5!imp
 ::-webkit-scrollbar { width:8px;height:8px; }
 ::-webkit-scrollbar-thumb { background:#bac7d8;border-radius:999px;border:2px solid transparent;background-clip:padding-box; }
 ::-webkit-scrollbar-track { background:transparent; }
+
+/* ERP-wide print readability floor. This overrides tiny inline print sizes too. */
+@media print {
+  .print-page,
+  .print-document,
+  .print-report,
+  [data-print-root] {
+    font-size:13px!important;
+    line-height:1.45!important;
+    color:#0f172a!important;
+  }
+
+  .print-page p,.print-page span,.print-page div,.print-page td,.print-page th,.print-page label,
+  .print-document p,.print-document span,.print-document div,.print-document td,.print-document th,
+  .print-report p,.print-report span,.print-report div,.print-report td,.print-report th,
+  [data-print-root] p,[data-print-root] span,[data-print-root] div,[data-print-root] td,[data-print-root] th {
+    font-size:11.5px!important;
+    line-height:1.42!important;
+  }
+
+  .print-company-name { font-size:22px!important; line-height:1.2!important; }
+  .print-voucher-title { font-size:19px!important; line-height:1.2!important; }
+  .print-party-name,.print-charges-title,.print-grand-total,.print-charge-total,.print-total-row,.print-meta-value {
+    font-size:12px!important;
+    font-weight:700!important;
+  }
+  .print-company-addr,.print-company-tax,.print-party-addr,.print-party-phone,.print-party-email,.print-meta-label,.print-footer,.print-footer p {
+    font-size:10.5px!important;
+  }
+  .print-th { font-size:11px!important; font-weight:700!important; padding:7px 8px!important; }
+  .print-td { font-size:11.5px!important; padding:7px 8px!important; }
+}
 `;
 
 function normalize(value: string) {

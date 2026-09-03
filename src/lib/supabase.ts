@@ -16,17 +16,11 @@ const rawSupabase = createClient(url, anonKey, {
 });
 
 /**
- * These tables are company-owned configuration, not user-owned data.
- *
- * A few older screens still contain legacy `.eq("user_id", user.id)` filters.
- * RLS already scopes these tables through current_company_id(), so keeping the
- * old user filter can incorrectly hide the selected company's shared settings
- * from another authorized user in the same company.
- *
- * This compatibility bridge ignores only that obsolete user_id filter on the
- * listed company-scoped settings tables. All other filters and all database RLS
- * policies remain active. It lets older modules behave correctly while they are
- * progressively migrated to explicit company-context queries.
+ * Company-owned configuration must follow the selected company, not the
+ * currently logged-in user. Older screens still contain legacy user_id filters
+ * and user-based upsert conflict targets, so this small compatibility layer
+ * translates only those obsolete settings-table operations while database RLS
+ * continues to enforce current_company_id() and permissions.
  */
 const COMPANY_SCOPED_SETTINGS_TABLES = new Set([
   "company_settings",
@@ -36,7 +30,26 @@ const COMPANY_SCOPED_SETTINGS_TABLES = new Set([
   "charge_rate_settings",
 ]);
 
-function wrapCompanyScopedBuilder<T extends object>(builder: T): T {
+function companyConflictTarget(table: string, value: unknown) {
+  if (!value || typeof value !== "object") return value;
+
+  const options = { ...(value as Record<string, unknown>) };
+  const onConflict = options.onConflict;
+
+  if (table === "company_settings" || table === "company_profile") {
+    if (onConflict === "user_id") options.onConflict = "company_id";
+  }
+
+  if (table === "document_print_visibility") {
+    if (onConflict === "user_id,document_type") {
+      options.onConflict = "company_id,document_type";
+    }
+  }
+
+  return options;
+}
+
+function wrapCompanyScopedBuilder<T extends object>(builder: T, table: string): T {
   return new Proxy(builder, {
     get(target, property, receiver) {
       const member = Reflect.get(target, property, receiver);
@@ -53,7 +66,21 @@ function wrapCompanyScopedBuilder<T extends object>(builder: T): T {
 
           const next = member.call(target, column, value);
           return next && typeof next === "object"
-            ? wrapCompanyScopedBuilder(next)
+            ? wrapCompanyScopedBuilder(next, table)
+            : next;
+        };
+      }
+
+      if (property === "upsert" && typeof member === "function") {
+        return (values: unknown, options?: unknown) => {
+          const next = member.call(
+            target,
+            values,
+            companyConflictTarget(table, options)
+          );
+
+          return next && typeof next === "object"
+            ? wrapCompanyScopedBuilder(next, table)
             : next;
         };
       }
@@ -67,7 +94,7 @@ function wrapCompanyScopedBuilder<T extends object>(builder: T): T {
             typeof next === "object" &&
             typeof (next as { then?: unknown }).then !== "function"
           ) {
-            return wrapCompanyScopedBuilder(next);
+            return wrapCompanyScopedBuilder(next, table);
           }
 
           return next;
@@ -89,7 +116,7 @@ export const supabase = new Proxy(rawSupabase, {
     return (table: string) => {
       const builder = rawSupabase.from(table);
       return COMPANY_SCOPED_SETTINGS_TABLES.has(table)
-        ? wrapCompanyScopedBuilder(builder)
+        ? wrapCompanyScopedBuilder(builder, table)
         : builder;
     };
   },

@@ -4,10 +4,11 @@ import { supabase } from "@/lib/supabase";
 import { PageHeader, ErrorBanner, Modal } from "@/components/ui";
 
 type ChargeType = "recovery" | "cost" | "both";
+type ChargeContext = "sales" | "purchase" | "both";
+type ChargeUnit = "fixed" | "percent" | "per_kg" | "per_ton" | "per_piece";
 
 type Charge = {
   id: string;
-  user_id: string;
   charge_key: string;
   charge_name: string;
   charge_type: ChargeType;
@@ -15,6 +16,10 @@ type Charge = {
   cost_account_id: string | null;
   tax_applicable: boolean;
   service_party_required: boolean;
+  default_rate: number;
+  unit: ChargeUnit;
+  applies_to: ChargeContext;
+  is_fixed: boolean;
   is_active: boolean;
   description: string | null;
 };
@@ -29,8 +34,6 @@ type Account = {
   is_active: boolean;
 };
 
-const USER_ID = "a3312921-433d-4a71-98eb-f822a3c784fa";
-
 const emptyForm = {
   charge_name: "",
   charge_type: "both" as ChargeType,
@@ -38,6 +41,10 @@ const emptyForm = {
   cost_account_id: "",
   tax_applicable: true,
   service_party_required: true,
+  default_rate: "0",
+  unit: "fixed" as ChargeUnit,
+  applies_to: "both" as ChargeContext,
+  is_fixed: false,
   is_active: true,
   description: "",
 };
@@ -68,7 +75,6 @@ export default function ChargeMaster() {
       supabase
         .from("charge_master")
         .select("*")
-        .eq("user_id", USER_ID)
         .order("charge_name"),
       supabase
         .from("chart_of_accounts")
@@ -118,6 +124,10 @@ export default function ChargeMaster() {
       cost_account_id: charge.cost_account_id ?? "",
       tax_applicable: charge.tax_applicable,
       service_party_required: charge.service_party_required,
+      default_rate: String(charge.default_rate ?? 0),
+      unit: charge.unit ?? "fixed",
+      applies_to: charge.applies_to ?? "both",
+      is_fixed: charge.is_fixed ?? false,
       is_active: charge.is_active,
       description: charge.description ?? "",
     });
@@ -161,7 +171,6 @@ export default function ChargeMaster() {
     setSaving(true);
 
     const payload = {
-      user_id: USER_ID,
       charge_key: key,
       charge_name: name,
       charge_type: form.charge_type,
@@ -169,13 +178,17 @@ export default function ChargeMaster() {
       cost_account_id: form.cost_account_id || null,
       tax_applicable: form.tax_applicable,
       service_party_required: form.service_party_required,
+      default_rate: Number(form.default_rate) || 0,
+      unit: form.unit,
+      applies_to: form.applies_to,
+      is_fixed: form.is_fixed,
       is_active: form.is_active,
       description: form.description.trim() || null,
       updated_at: new Date().toISOString(),
     };
 
     const result = editingId
-      ? await supabase.from("charge_master").update(payload).eq("id", editingId).eq("user_id", USER_ID)
+      ? await supabase.from("charge_master").update(payload).eq("id", editingId)
       : await supabase.from("charge_master").insert(payload);
 
     if (result.error) {
@@ -199,8 +212,7 @@ export default function ChargeMaster() {
         is_active: !charge.is_active,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", charge.id)
-      .eq("user_id", USER_ID);
+      .eq("id", charge.id);
 
     if (updateError) {
       setError(updateError.message);
@@ -221,8 +233,7 @@ export default function ChargeMaster() {
     const { error: deleteError } = await supabase
       .from("charge_master")
       .delete()
-      .eq("id", charge.id)
-      .eq("user_id", USER_ID);
+      .eq("id", charge.id);
 
     if (deleteError) {
       setError(deleteError.message);
@@ -264,6 +275,8 @@ export default function ChargeMaster() {
               <tr>
                 <th className="px-4 py-3 text-left">Charge / چارج</th>
                 <th className="px-4 py-3 text-left">Type / قسم</th>
+                <th className="px-4 py-3 text-left">Rate / ریٹ</th>
+                <th className="px-4 py-3 text-left">Applies To / اطلاق</th>
                 <th className="px-4 py-3 text-left">Revenue COA / ریونیو</th>
                 <th className="px-4 py-3 text-left">Cost COA / لاگت</th>
                 <th className="px-4 py-3 text-left">Tax / ٹیکس</th>
@@ -274,13 +287,13 @@ export default function ChargeMaster() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                  <td colSpan={9} className="px-4 py-8 text-center text-slate-500">
                     Loading / لوڈ ہو رہا ہے...
                   </td>
                 </tr>
               ) : charges.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                  <td colSpan={9} className="px-4 py-8 text-center text-slate-500">
                     No charges found / کوئی چارج موجود نہیں
                   </td>
                 </tr>
@@ -292,6 +305,8 @@ export default function ChargeMaster() {
                       <div className="text-xs text-slate-400">{charge.charge_key}</div>
                     </td>
                     <td className="px-4 py-3 capitalize">{charge.charge_type}</td>
+                    <td className="px-4 py-3">{Number(charge.default_rate || 0).toLocaleString()} <span className="text-xs text-slate-400">{charge.unit}</span></td>
+                    <td className="px-4 py-3 capitalize">{charge.applies_to}</td>
                     <td className="px-4 py-3">{accountLabel(charge.revenue_account_id)}</td>
                     <td className="px-4 py-3">{accountLabel(charge.cost_account_id)}</td>
                     <td className="px-4 py-3">{charge.tax_applicable ? "Yes / ہاں" : "No / نہیں"}</td>
@@ -350,6 +365,31 @@ export default function ChargeMaster() {
               <option value="recovery">Recovery / وصولی</option>
               <option value="cost">Cost / لاگت</option>
             </select>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <label className="label">Default Rate / ڈیفالٹ ریٹ</label>
+              <input className="input" type="number" min="0" step="0.01" value={form.default_rate} onChange={(e) => setForm((x) => ({ ...x, default_rate: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Unit / اکائی</label>
+              <select className="input" value={form.unit} onChange={(e) => setForm((x) => ({ ...x, unit: e.target.value as ChargeUnit }))}>
+                <option value="fixed">Fixed Amount / مقررہ رقم</option>
+                <option value="percent">Percentage / فیصد</option>
+                <option value="per_kg">Per KG / فی کلو</option>
+                <option value="per_ton">Per Ton / فی ٹن</option>
+                <option value="per_piece">Per Piece / فی عدد</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Applies To / اطلاق</label>
+              <select className="input" value={form.applies_to} onChange={(e) => setForm((x) => ({ ...x, applies_to: e.target.value as ChargeContext }))}>
+                <option value="both">Sales + Purchase / دونوں</option>
+                <option value="sales">Sales / فروخت</option>
+                <option value="purchase">Purchase / خریداری</option>
+              </select>
+            </div>
           </div>
 
           <div>
@@ -411,6 +451,11 @@ export default function ChargeMaster() {
               onChange={(e) => setForm((x) => ({ ...x, is_active: e.target.checked }))}
             />
             <span>Active / فعال</span>
+          </label>
+
+          <label className="flex items-center gap-2 rounded-lg border p-3">
+            <input type="checkbox" checked={form.is_fixed} onChange={(e) => setForm((x) => ({ ...x, is_fixed: e.target.checked }))} />
+            <span>Lock Rate on Invoice / انوائس پر ریٹ تبدیل نہ ہو</span>
           </label>
 
           <div>

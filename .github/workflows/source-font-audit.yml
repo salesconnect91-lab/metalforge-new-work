@@ -1,0 +1,101 @@
+name: ERP-wide source font readability audit
+
+on:
+  push:
+    paths:
+      - '.github/workflows/source-font-audit.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  audit-and-fix:
+    if: github.event.head_commit.message == 'Run ERP-wide source font readability audit'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Replace unreadably small source font sizes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          roots=[Path('src')]
+          exts={'.tsx','.ts','.css'}
+          changed=[]
+          replacements=0
+
+          # UI source policy: normal ERP text must not use 8/9/10px; 11px becomes 12px.
+          # PrintLayout inline sizes are included; global print CSS remains the final safety floor.
+          for root in roots:
+            for p in root.rglob('*'):
+              if p.suffix not in exts or not p.is_file():
+                continue
+              s=p.read_text(encoding='utf-8-sig')
+              old=s
+
+              # Tailwind arbitrary text sizes.
+              s,n=re.subn(r'text-\[(?:8|9|10)px\]', 'text-[12px]', s)
+              replacements += n
+              s,n=re.subn(r'text-\[11px\]', 'text-[12px]', s)
+              replacements += n
+              s,n=re.subn(r'text-\[11\.5px\]', 'text-[12px]', s)
+              replacements += n
+
+              # JSX inline fontSize strings and CSS declarations.
+              s,n=re.subn(r'fontSize:\s*["\'](?:8|9|10)px["\']', 'fontSize: "12px"', s)
+              replacements += n
+              s,n=re.subn(r'fontSize:\s*["\']11px["\']', 'fontSize: "12px"', s)
+              replacements += n
+              s,n=re.subn(r'font-size:\s*(?:8|9|10)px\s*;', 'font-size: 12px;', s)
+              replacements += n
+              s,n=re.subn(r'font-size:\s*11px\s*;', 'font-size: 12px;', s)
+              replacements += n
+
+              if s != old:
+                p.write_text(s,encoding='utf-8')
+                changed.append(str(p))
+
+          print(f'Updated {len(changed)} files, {replacements} font declarations')
+          for p in changed:
+            print(p)
+
+          # Audit: fail if unreadable literal sizes remain in app source.
+          bad=[]
+          patterns=[
+            re.compile(r'text-\[(?:8|9|10|11|11\.5)px\]'),
+            re.compile(r'fontSize:\s*["\'](?:8|9|10|11)px["\']'),
+            re.compile(r'font-size:\s*(?:8|9|10|11)px\s*;'),
+          ]
+          for root in roots:
+            for p in root.rglob('*'):
+              if p.suffix not in exts or not p.is_file(): continue
+              data=p.read_text(encoding='utf-8-sig')
+              for i,line in enumerate(data.splitlines(),1):
+                if any(rx.search(line) for rx in patterns):
+                  bad.append(f'{p}:{i}: {line.strip()}')
+          if bad:
+            print('\n'.join(bad[:200]))
+            raise SystemExit(f'{len(bad)} unreadable literal font declarations remain')
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Commit source readability cleanup
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src
+          if git diff --cached --quiet; then
+            echo "No source font changes needed"
+          else
+            git commit -m "Normalize ERP-wide readable font sizes"
+            git push origin main
+          fi

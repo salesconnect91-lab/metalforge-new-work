@@ -1,6 +1,20 @@
-/* ERP-wide text contrast refinement */
+/* ERP-wide professional typography and contrast upgrade */
+.erp-shell {
+  color: #172033;
+}
+
 .erp-shell main {
-  color: #1e293b;
+  color: #172033;
+}
+
+/* Primary reading text */
+.erp-shell main p,
+.erp-shell main td,
+.erp-shell main li,
+.erp-shell main label,
+.erp-shell main span,
+.erp-shell main div {
+  text-rendering: optimizeLegibility;
 }
 
 .erp-shell main p,
@@ -10,48 +24,160 @@
   font-weight: 500;
 }
 
+/* Stronger neutral palette without making everything black */
 .erp-shell main .text-slate-400,
-.erp-shell main .text-slate-500 {
-  color: #475569 !important;
+.erp-shell main .text-gray-400 {
+  color: #526071 !important;
 }
 
-.erp-shell main .text-slate-600 {
+.erp-shell main .text-slate-500,
+.erp-shell main .text-gray-500 {
+  color: #445166 !important;
+}
+
+.erp-shell main .text-slate-600,
+.erp-shell main .text-gray-600 {
   color: #334155 !important;
 }
 
-.erp-shell main .text-slate-700 {
-  color: #1e293b !important;
+.erp-shell main .text-slate-700,
+.erp-shell main .text-gray-700 {
+  color: #1f2937 !important;
 }
 
+.erp-shell main .text-slate-800,
+.erp-shell main .text-slate-900,
+.erp-shell main .text-gray-800,
+.erp-shell main .text-gray-900 {
+  color: #111827 !important;
+}
+
+/* Titles and section hierarchy */
+.erp-shell main h1,
+.erp-shell main h2,
+.erp-shell main h3,
+.erp-shell main h4,
+.erp-shell main h5,
+.erp-shell main h6,
+.erp-shell main .page-title,
+.erp-shell main .summary-value {
+  color: #0f172a !important;
+  font-weight: 700;
+}
+
+.erp-shell main .page-subtitle,
+.erp-shell main .summary-label,
+.erp-shell main .label {
+  color: #3f4c60 !important;
+  font-weight: 600;
+}
+
+/* Tables: clearer ERP scanning */
+.erp-shell main table th,
+.erp-shell main .data-table th {
+  color: #263449 !important;
+  font-weight: 700 !important;
+}
+
+.erp-shell main table td,
+.erp-shell main .data-table td {
+  color: #172033 !important;
+  font-weight: 500;
+}
+
+.erp-shell main table tbody tr:hover td {
+  color: #0f172a !important;
+}
+
+/* Inputs and controls */
 .erp-shell main input,
 .erp-shell main select,
 .erp-shell main textarea {
-  color: #0f172a;
+  color: #0f172a !important;
   font-weight: 500;
 }
 
 .erp-shell main input::placeholder,
 .erp-shell main textarea::placeholder {
-  color: #64748b;
+  color: #64748b !important;
   opacity: 1;
 }
 
-.erp-shell main table th {
-  color: #334155;
+.erp-shell main button:not(.btn-primary):not(.btn-danger) {
+  font-weight: 600;
+}
+
+/* Cards and badges should retain hierarchy */
+.erp-shell main .card,
+.erp-shell main .summary-card {
+  color: #172033;
+}
+
+.erp-shell main .badge {
   font-weight: 700;
 }
 
-.erp-shell main table td {
-  color: #1e293b;
+/* Header / breadcrumb readability */
+.erp-shell header .text-slate-400 {
+  color: #56657a !important;
 }
 
+.erp-shell header .text-slate-500,
+.erp-shell header .text-slate-600 {
+  color: #3f4c60 !important;
+}
+
+/* Sidebar: slightly brighter secondary text while preserving dark theme */
+.erp-shell aside .text-slate-600 {
+  color: #7f8da1 !important;
+}
+
+.erp-shell aside .text-slate-500 {
+  color: #91a0b5 !important;
+}
+
+.erp-shell aside .text-slate-400 {
+  color: #b1bdcc !important;
+}
+
+.erp-shell aside .text-slate-300 {
+  color: #d5dce6 !important;
+}
+
+/* Print/PDF readability */
 @media print {
   .print-page,
   .print-document,
   .print-report,
   [data-print-root] {
-    color: #0f172a !important;
+    color: #0b1220 !important;
     font-weight: 500;
+  }
+
+  .print-page p,
+  .print-page span,
+  .print-page div,
+  .print-document p,
+  .print-document span,
+  .print-document div,
+  .print-report p,
+  .print-report span,
+  .print-report div,
+  [data-print-root] p,
+  [data-print-root] span,
+  [data-print-root] div {
+    color: #172033 !important;
+  }
+
+  .print-company-name,
+  .print-voucher-title,
+  .print-party-name,
+  .print-grand-total,
+  .print-charge-total,
+  .print-total-row,
+  .print-meta-value {
+    color: #020617 !important;
+    font-weight: 700 !important;
   }
 
   .print-company-addr,
@@ -74,7 +200,7 @@
 
   .print-td,
   .print-table td {
-    color: #1e293b !important;
+    color: #172033 !important;
     font-weight: 500 !important;
   }
 }

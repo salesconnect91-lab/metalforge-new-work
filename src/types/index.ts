@@ -181,6 +181,8 @@ export interface PurchaseOrder {
   status: PurchaseStatus;
 
   total: number;
+  invoice_type?: "Purchase Invoice" | "Tax Invoice";
+  tax_percent?: number;
 
   loading_charge: number;
   unloading_charge: number;
@@ -210,6 +212,7 @@ export interface PurchaseOrderLine {
   qty: number;
   unit_cost: number;
   line_total: number;
+  tax_percent?: number;
 
   item?: Item | null;
   godown?: {

@@ -1,0 +1,46 @@
+name: Accounting sidebar reorder
+on:
+  push:
+    paths:
+      - '.github/accounting-sidebar.trigger'
+permissions:
+  contents: write
+jobs:
+  reorder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Reorder accounting and reports navigation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/components/Layout.tsx')
+          s=p.read_text(encoding='utf-8-sig')
+          old='''  {\n    to: "/accounting",\n    label: "Accounting / اکاؤنٹنگ",\n    icon: AccountingIcon,\n    module: "accounting",\n    excludePaths: ["/accounting/customer-invoice-statement"],\n  },'''
+          new='''  {\n    to: "/accounting",\n    label: "Accounting / اکاؤنٹنگ",\n    icon: AccountingIcon,\n    module: "accounting",\n    excludePaths: ["/accounting/customer-invoice-statement"],\n    children: [\n      { to: "/accounting", label: "Journal Entries / جرنل اندراجات", end: true, module: "accounting" },\n      { to: "/accounting/cash-counter", label: "Cash Counter / کیش کاؤنٹر", module: "accounting" },\n      { to: "/accounting/day-book", label: "Day Book / روزنامچہ", module: "accounting" },\n      { to: "/accounting/ledgers", label: "General Ledgers / جنرل لیجر", module: "accounting" },\n      { to: "/accounting/trial-balance", label: "Trial Balance / ٹرائل بیلنس", module: "accounting" },\n      { to: "/accounting/profit-loss", label: "Profit & Loss / نفع و نقصان", module: "accounting" },\n      { to: "/accounting/balance-sheet", label: "Balance Sheet / بیلنس شیٹ", module: "accounting" },\n      { to: "/accounting/cash-flow", label: "Cash Flow / کیش فلو", module: "accounting" },\n      { to: "/accounting/bank-reconciliation", label: "Bank Reconciliation / بینک ریکنسیلی ایشن", module: "accounting" },\n      { to: "/accounting/returns", label: "Credit / Debit Notes / ریٹرن نوٹس", module: "accounting" },\n      { to: "/accounting/periods", label: "Period Closing / پیریڈ کلوزنگ", module: "accounting" },\n      { to: "/accounting/year-closing", label: "Year Closing / سالانہ اختتام", module: "accounting" },\n      { to: "/accounting/accounts", label: "Chart of Accounts / چارٹ آف اکاؤنٹس", module: "accounting" },\n      { to: "/accounting/mappings", label: "Account Mapping / اکاؤنٹ میپنگ", module: "accounting" },\n      { to: "/accounting/controls", label: "Financial Controls / مالی کنٹرولز", module: "accounting" },\n      { to: "/accounting/audit-trail", label: "Audit Trail / آڈٹ ٹریل", module: "accounting" },\n    ],\n  },'''
+          if old not in s: raise SystemExit('Accounting nav anchor not found')
+          s=s.replace(old,new,1)
+          report_anchor='''      { to: "/reports", label: "Reports Overview / رپورٹس", end: true, module: "reports" },'''
+          if 'to: "/reports/steel-stock"' not in s:
+            s=s.replace(report_anchor, report_anchor+'\n      { to: "/reports/steel-stock", label: "Steel Stock Control / اسٹیل اسٹاک کنٹرول", module: "reports" },',1)
+          labels='''  "/accounting": "Accounting",'''
+          extra='''  "/accounting": "Accounting / اکاؤنٹنگ",\n  "/accounting/cash-counter": "Cash Counter / کیش کاؤنٹر",\n  "/accounting/day-book": "Day Book / روزنامچہ",\n  "/accounting/accounts": "Chart of Accounts / چارٹ آف اکاؤنٹس",\n  "/accounting/ledgers": "General Ledgers / جنرل لیجر",\n  "/accounting/trial-balance": "Trial Balance / ٹرائل بیلنس",\n  "/accounting/profit-loss": "Profit & Loss / نفع و نقصان",\n  "/accounting/balance-sheet": "Balance Sheet / بیلنس شیٹ",\n  "/accounting/audit-trail": "Audit Trail / آڈٹ ٹریل",'''
+          s=s.replace(labels,extra,1)
+          if '"/reports/steel-stock"' not in s:
+            s=s.replace('  "/reports": "Reports / رپورٹس",','  "/reports": "Reports / رپورٹس",\n  "/reports/steel-stock": "Steel Stock Control / اسٹیل اسٹاک کنٹرول",',1)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - run: npm ci
+      - run: npm run build
+      - name: Commit navigation reorder
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/Layout.tsx
+          git commit -m "Reorder accounting navigation into sidebar" || true
+          git push origin main

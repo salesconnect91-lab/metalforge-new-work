@@ -9,6 +9,7 @@ interface PurchaseRow {
   item_id: string;
   qty: string;
   unit_cost: string;
+  tax_percent: string;
 }
 
 export default function CreatePurchaseInvoice() {
@@ -21,9 +22,11 @@ export default function CreatePurchaseInvoice() {
   const [orderNo, setOrderNo] = useState("");
   const [supplierId, setSupplierId] = useState("");
   const [orderDate, setOrderDate] = useState(new Date().toISOString().slice(0, 10));
+  const [invoiceType, setInvoiceType] = useState<"Purchase Invoice" | "Tax Invoice">("Tax Invoice");
+  const [globalTaxPercent, setGlobalTaxPercent] = useState("18");
 
   const [rows, setRows] = useState<PurchaseRow[]>([
-    { item_id: "", qty: "0", unit_cost: "0" },
+    { item_id: "", qty: "0", unit_cost: "0", tax_percent: "18" },
   ]);
 
   const [charges, setCharges] = useState<ChargeValues>(createEmptyCharges());
@@ -46,7 +49,10 @@ export default function CreatePurchaseInvoice() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const addRow = () => setRows([...rows, { item_id: "", qty: "0", unit_cost: "0" }]);
+  const addRow = () => setRows([
+    ...rows,
+    { item_id: "", qty: "0", unit_cost: "0", tax_percent: globalTaxPercent },
+  ]);
   const removeRow = (i: number) => setRows(rows.filter((_, idx) => idx !== i));
 
   const updateRow = (index: number, field: keyof PurchaseRow, value: string) => {
@@ -59,9 +65,19 @@ export default function CreatePurchaseInvoice() {
     setRows(updated);
   };
 
-  const rowsTotal = rows.reduce((s, r) => (s + (parseFloat(r.qty) || 0) * (parseFloat(r.unit_cost) || 0)), 0);
+  const rowsTotal = rows.reduce((s, r) => s + (parseFloat(r.qty) || 0) * (parseFloat(r.unit_cost) || 0), 0);
+  const itemTaxAmount = invoiceType === "Tax Invoice"
+    ? rows.reduce((s, r) => {
+        const base = (parseFloat(r.qty) || 0) * (parseFloat(r.unit_cost) || 0);
+        return s + (base * (parseFloat(r.tax_percent) || 0)) / 100;
+      }, 0)
+    : 0;
   const chargesTotal = calculateChargeTotalForContext(charges, "purchase");
-  const grandTotal = rowsTotal + chargesTotal;
+  const chargeTaxAmount = invoiceType === "Tax Invoice"
+    ? (chargesTotal * (parseFloat(globalTaxPercent) || 0)) / 100
+    : 0;
+  const vatAmount = itemTaxAmount + chargeTaxAmount;
+  const grandTotal = rowsTotal + chargesTotal + vatAmount;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +106,8 @@ export default function CreatePurchaseInvoice() {
         supplier_id: supplierId,
         order_date: orderDate,
         status: "draft",
+        invoice_type: invoiceType,
+        tax_percent: invoiceType === "Tax Invoice" ? parseFloat(globalTaxPercent) || 0 : 0,
         total: grandTotal,
         ...chargePayload,
       })
@@ -107,6 +125,7 @@ export default function CreatePurchaseInvoice() {
       item_id: r.item_id,
       qty: parseFloat(r.qty) || 0,
       unit_cost: parseFloat(r.unit_cost) || 0,
+      tax_percent: invoiceType === "Tax Invoice" ? parseFloat(r.tax_percent) || 0 : 0,
       line_total: (parseFloat(r.qty) || 0) * (parseFloat(r.unit_cost) || 0),
     }));
 
@@ -131,7 +150,7 @@ export default function CreatePurchaseInvoice() {
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="card p-6">
           <h3 className="font-semibold text-slate-900 mb-4">Order Details / آرڈر کی تفصیل</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <label className="label">Order No. / آرڈر نمبر</label>
               <input className="input bg-slate-50 cursor-not-allowed" required readOnly value={orderNo} />
@@ -146,6 +165,34 @@ export default function CreatePurchaseInvoice() {
             <div>
               <label className="label">Order Date / آرڈر کی تاریخ</label>
               <input className="input" type="date" required value={orderDate} onChange={(e) => setOrderDate(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">Purchase Type / خریداری کی قسم</label>
+              <select
+                className="input"
+                value={invoiceType}
+                onChange={(e) => setInvoiceType(e.target.value as "Purchase Invoice" | "Tax Invoice")}
+              >
+                <option value="Purchase Invoice">Purchase Invoice / عام خریداری</option>
+                <option value="Tax Invoice">Tax Invoice (VAT) / ٹیکس خریداری</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Global VAT % / ویٹ فیصد</label>
+              <input
+                className="input text-right"
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                disabled={invoiceType !== "Tax Invoice"}
+                value={globalTaxPercent}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setGlobalTaxPercent(value);
+                  setRows(rows.map((row) => ({ ...row, tax_percent: value })));
+                }}
+              />
             </div>
           </div>
         </div>
@@ -163,13 +210,19 @@ export default function CreatePurchaseInvoice() {
                   <th className="text-left py-2 pr-3 font-medium text-slate-600">Item / آئٹم</th>
                   <th className="text-right py-2 px-3 font-medium text-slate-600">Qty (kg) / مقدار</th>
                   <th className="text-right py-2 px-3 font-medium text-slate-600">Unit Cost / فی یونٹ لاگت</th>
-                  <th className="text-right py-2 px-3 font-medium text-slate-600">Amount / رقم</th>
+                  {invoiceType === "Tax Invoice" && (
+                    <th className="text-right py-2 px-3 font-medium text-slate-600">VAT % / ویٹ</th>
+                  )}
+                  <th className="text-right py-2 px-3 font-medium text-slate-600">Amount Incl. VAT / رقم</th>
                   <th className="py-2 pl-3"></th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row, i) => {
                   const amount = (parseFloat(row.qty) || 0) * (parseFloat(row.unit_cost) || 0);
+                  const lineTax = invoiceType === "Tax Invoice"
+                    ? (amount * (parseFloat(row.tax_percent) || 0)) / 100
+                    : 0;
                   return (
                     <tr key={i} className="border-b border-slate-100">
                       <td className="py-2 pr-3">
@@ -184,7 +237,20 @@ export default function CreatePurchaseInvoice() {
                       <td className="py-2 px-3">
                         <input className="input w-28 text-right" type="number" step="0.01" value={row.unit_cost} onChange={(e) => updateRow(i, "unit_cost", e.target.value)} />
                       </td>
-                      <td className="py-2 px-3 text-right font-medium text-slate-700">{formatCurrency(amount)}</td>
+                      {invoiceType === "Tax Invoice" && (
+                        <td className="py-2 px-3">
+                          <input
+                            className="input w-20 text-right"
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={row.tax_percent}
+                            onChange={(e) => updateRow(i, "tax_percent", e.target.value)}
+                          />
+                        </td>
+                      )}
+                      <td className="py-2 px-3 text-right font-medium text-slate-700">{formatCurrency(amount + lineTax)}</td>
                       <td className="py-2 pl-3">
                         {rows.length > 1 && (
                           <button type="button" onClick={() => removeRow(i)} className="text-error-600 hover:text-error-700 text-sm">✕</button>
@@ -198,8 +264,8 @@ export default function CreatePurchaseInvoice() {
           </div>
           <div className="flex justify-end mt-3">
             <div className="text-right">
-              <div className="text-sm text-slate-500">Items Total / آئٹمز کل</div>
-              <div className="text-lg font-bold text-slate-900">{formatCurrency(rowsTotal)}</div>
+              <div className="text-sm text-slate-500">Items Total Incl. VAT / آئٹمز کل</div>
+              <div className="text-lg font-bold text-slate-900">{formatCurrency(rowsTotal + itemTaxAmount)}</div>
             </div>
           </div>
         </div>
@@ -227,8 +293,15 @@ export default function CreatePurchaseInvoice() {
         <div className="card p-6">
           <div className="flex justify-end">
             <div className="w-full max-w-xs space-y-2">
-              <div className="flex justify-between text-sm text-slate-600"><span>Items Total / آئٹمز کل</span><span>{formatCurrency(rowsTotal)}</span></div>
-              <div className="flex justify-between text-sm text-slate-600"><span>Charges Total / چارجز کل</span><span>{formatCurrency(chargesTotal)}</span></div>
+              <div className="flex justify-between text-sm text-slate-600"><span>Items Subtotal / آئٹمز ذیلی کل</span><span>{formatCurrency(rowsTotal)}</span></div>
+              <div className="flex justify-between text-sm text-slate-600"><span>Charges / چارجز</span><span>{formatCurrency(chargesTotal)}</span></div>
+              {invoiceType === "Tax Invoice" && (
+                <>
+                  <div className="flex justify-between text-sm text-slate-600"><span>Items VAT / آئٹمز ویٹ</span><span>{formatCurrency(itemTaxAmount)}</span></div>
+                  <div className="flex justify-between text-sm text-slate-600"><span>Charges VAT / چارجز ویٹ</span><span>{formatCurrency(chargeTaxAmount)}</span></div>
+                  <div className="flex justify-between text-sm font-semibold text-slate-700"><span>Total VAT / کل ویٹ</span><span>{formatCurrency(vatAmount)}</span></div>
+                </>
+              )}
               <div className="flex justify-between text-lg font-bold text-slate-900 border-t border-slate-200 pt-2"><span>Grand Total / مجموعی کل</span><span>{formatCurrency(grandTotal)}</span></div>
             </div>
           </div>

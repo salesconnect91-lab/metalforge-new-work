@@ -9,6 +9,7 @@ import Layout from "@/components/Layout";
 import CompanySwitcher from "@/components/CompanySwitcher";
 import ErpExperienceBridge from "@/components/ErpExperienceBridge";
 import PrintPreviewController from "@/components/PrintPreviewController";
+import DashboardGlobalSearch from "@/components/DashboardGlobalSearch";
 
 import Dashboard from "@/modules/Dashboard";
 import MasterData from "@/modules/master-data/MasterData";
@@ -44,35 +45,19 @@ function GlobalExperience() {
   return <><ErpExperienceBridge /><PrintPreviewController /></>;
 }
 
+function DashboardHome() {
+  return <><DashboardGlobalSearch /><Dashboard /></>;
+}
+
 export default function App() {
   const { loading, accountingSetupError, retryAccountingSetup, signOut } = useAuth();
 
   if (loading) {
-    return (
-      <>
-        <GlobalExperience />
-        <div className="min-h-screen flex items-center justify-center"><div className="text-slate-400">Loading… / لوڈ ہو رہا ہے…</div></div>
-      </>
-    );
+    return <><GlobalExperience /><div className="min-h-screen flex items-center justify-center"><div className="text-slate-400">Loading… / لوڈ ہو رہا ہے…</div></div></>;
   }
 
   if (accountingSetupError) {
-    return (
-      <>
-        <GlobalExperience />
-        <div className="min-h-screen bg-slate-50 px-4 py-12">
-          <div className="mx-auto max-w-lg rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
-            <h1 className="text-lg font-bold text-slate-900">Accounting setup could not be completed / اکاؤنٹنگ سیٹ اپ مکمل نہیں ہو سکا</h1>
-            <p className="mt-2 text-sm text-slate-600">ERP access is paused so transactions cannot be posted without a complete Chart of Accounts. / مکمل چارٹ آف اکاؤنٹس کے بغیر ٹرانزیکشن پوسٹ نہیں کی جا سکتی۔</p>
-            <div className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{accountingSetupError}</div>
-            <div className="mt-5 flex gap-3">
-              <button type="button" className="btn-primary" onClick={retryAccountingSetup}>Retry accounting setup / دوبارہ اکاؤنٹنگ سیٹ اپ کریں</button>
-              <button type="button" className="btn" onClick={() => void signOut()}>Sign out / لاگ آؤٹ</button>
-            </div>
-          </div>
-        </div>
-      </>
-    );
+    return <><GlobalExperience /><div className="min-h-screen bg-slate-50 px-4 py-12"><div className="mx-auto max-w-lg rounded-2xl border border-red-200 bg-white p-6 shadow-sm"><h1 className="text-lg font-bold text-slate-900">Accounting setup could not be completed / اکاؤنٹنگ سیٹ اپ مکمل نہیں ہو سکا</h1><p className="mt-2 text-sm text-slate-600">ERP access is paused so transactions cannot be posted without a complete Chart of Accounts. / مکمل چارٹ آف اکاؤنٹس کے بغیر ٹرانزیکشن پوسٹ نہیں کی جا سکتی۔</p><div className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{accountingSetupError}</div><div className="mt-5 flex gap-3"><button type="button" className="btn-primary" onClick={retryAccountingSetup}>Retry accounting setup / دوبارہ اکاؤنٹنگ سیٹ اپ کریں</button><button type="button" className="btn" onClick={() => void signOut()}>Sign out / لاگ آؤٹ</button></div></div></div></>;
   }
 
   return (
@@ -81,7 +66,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/*" element={<ProtectedRoute><><CompanySwitcher /><Layout><Routes>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/" element={<DashboardHome />} />
           <Route path="/owner" element={<OwnerOnly />} />
           <Route path="/master-data/*" element={<ModuleOnly module="master"><MasterData /></ModuleOnly>} />
           <Route path="/sales" element={<ModuleOnly module="sales"><SalesInvoiceList /></ModuleOnly>} />

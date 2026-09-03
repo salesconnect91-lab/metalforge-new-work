@@ -75,6 +75,7 @@ export default function PurchaseOrderDetail() {
     godown_id: "",
     qty: "1",
     unit_cost: "0",
+    tax_percent: "18",
   });
   const [posting, setPosting] = useState(false);
   const [showPostConfirm, setShowPostConfirm] = useState(false);
@@ -150,6 +151,12 @@ export default function PurchaseOrderDetail() {
     const { data, error } = await supabase.from("purchase_orders").select("*, supplier:suppliers(*)").eq("id", id).maybeSingle();
     if (error) { setError(error.message); return; }
     setOrder(data);
+    if (data) {
+      setNewLine((current) => ({
+        ...current,
+        tax_percent: String(data.tax_percent ?? 18),
+      }));
+    }
   }, [id]);
 
   const fetchLines = useCallback(async () => {
@@ -210,11 +217,24 @@ export default function PurchaseOrderDetail() {
   ]);
 
   const recalcTotal = async (updatedLines: PurchaseOrderLine[]) => {
-    const total = updatedLines.reduce((sum, l) => sum + (l.line_total ?? 0), 0);
-    if (order) {
-      await supabase.from("purchase_orders").update({ total }).eq("id", order.id);
-      setOrder({ ...order, total });
-    }
+    if (!order) return;
+    const itemsSubtotal = updatedLines.reduce((sum, line) => sum + Number(line.line_total ?? 0), 0);
+    const itemVat = order.invoice_type === "Tax Invoice"
+      ? updatedLines.reduce(
+          (sum, line) => sum + (Number(line.line_total ?? 0) * Number(line.tax_percent ?? 0)) / 100,
+          0
+        )
+      : 0;
+    const orderCharges = getChargeBreakdown(
+      chargesFromRecord(order as unknown as Record<string, unknown>),
+      "purchase"
+    ).reduce((sum, charge) => sum + charge.amount, 0);
+    const chargeVat = order.invoice_type === "Tax Invoice"
+      ? (orderCharges * Number(order.tax_percent ?? 0)) / 100
+      : 0;
+    const total = itemsSubtotal + itemVat + orderCharges + chargeVat;
+    await supabase.from("purchase_orders").update({ total }).eq("id", order.id);
+    setOrder({ ...order, total });
   };
 
   const handleAddLine = async (e: React.FormEvent) => {
@@ -226,6 +246,9 @@ export default function PurchaseOrderDetail() {
     const qty = parseFloat(newLine.qty) || 0;
     const unitCost = parseFloat(newLine.unit_cost) || 0;
     const lineTotal = qty * unitCost;
+    const taxPercent = order?.invoice_type === "Tax Invoice"
+      ? parseFloat(newLine.tax_percent) || 0
+      : 0;
     const { data, error } = await supabase
       .from("purchase_order_lines")
       .insert({
@@ -234,6 +257,7 @@ export default function PurchaseOrderDetail() {
         godown_id: newLine.godown_id,
         qty,
         unit_cost: unitCost,
+        tax_percent: taxPercent,
         line_total: lineTotal,
       })
       .select("*, item:items(*), godown:godowns(id,name,warehouse_id)")
@@ -246,6 +270,7 @@ export default function PurchaseOrderDetail() {
       godown_id: godowns[0]?.id ?? "",
       qty: "1",
       unit_cost: "0",
+      tax_percent: String(order?.tax_percent ?? 18),
     });
     setError(null);
     recalcTotal(updated);
@@ -785,6 +810,10 @@ export default function PurchaseOrderDetail() {
             formatCurrency(chargesTotal),
           ],
           [
+            "VAT Amount",
+            formatCurrency(vatAmount),
+          ],
+          [
             "Grand Total",
             formatCurrency(Number(order.total || 0)),
           ],
@@ -970,7 +999,17 @@ export default function PurchaseOrderDetail() {
   const charges = chargesFromRecord(order as unknown as Record<string, unknown>);
   const chargeBreakdown = getChargeBreakdown(charges, "purchase");
   const chargesTotal = chargeBreakdown.reduce((s, c) => s + c.amount, 0);
-  const itemsTotal = lines.reduce((s, l) => s + (l.line_total ?? 0), 0);
+  const itemsTotal = lines.reduce((s, l) => s + Number(l.line_total ?? 0), 0);
+  const itemTaxAmount = order.invoice_type === "Tax Invoice"
+    ? lines.reduce(
+        (sum, line) => sum + (Number(line.line_total ?? 0) * Number(line.tax_percent ?? 0)) / 100,
+        0
+      )
+    : 0;
+  const chargeTaxAmount = order.invoice_type === "Tax Invoice"
+    ? (chargesTotal * Number(order.tax_percent ?? 0)) / 100
+    : 0;
+  const vatAmount = itemTaxAmount + chargeTaxAmount;
 
   return (
     <div>
@@ -1055,7 +1094,7 @@ export default function PurchaseOrderDetail() {
           <div className="text-slate-400 text-sm py-4">No line items yet. Add one below. / ابھی کوئی آئٹم شامل نہیں۔</div>
         ) : (
           <table className="w-full text-sm mb-4">
-            <thead><tr className="border-b border-slate-200"><th className="text-left py-2 font-medium text-slate-600">Item / آئٹم</th><th className="text-left py-2 font-medium text-slate-600">Godown / گودام</th><th className="text-right py-2 font-medium text-slate-600">Qty / مقدار</th><th className="text-right py-2 font-medium text-slate-600">Unit Cost / فی یونٹ لاگت</th><th className="text-right py-2 font-medium text-slate-600">Line Total / لائن کل</th><th></th></tr></thead>
+            <thead><tr className="border-b border-slate-200"><th className="text-left py-2 font-medium text-slate-600">Item / آئٹم</th><th className="text-left py-2 font-medium text-slate-600">Godown / گودام</th><th className="text-right py-2 font-medium text-slate-600">Qty / مقدار</th><th className="text-right py-2 font-medium text-slate-600">Unit Cost / فی یونٹ لاگت</th>{order.invoice_type === "Tax Invoice" && <th className="text-right py-2 font-medium text-slate-600">VAT / ویٹ</th>}<th className="text-right py-2 font-medium text-slate-600">Line Total / لائن کل</th><th></th></tr></thead>
             <tbody className="divide-y divide-slate-100">
               {lines.map((line) => (
                 <tr key={line.id}>
@@ -1063,7 +1102,22 @@ export default function PurchaseOrderDetail() {
                   <td className="py-2">{line.godown?.name ?? "—"}</td>
                   <td className="py-2 text-right">{line.qty}</td>
                   <td className="py-2 text-right">{formatCurrency(line.unit_cost)}</td>
-                  <td className="py-2 text-right font-medium">{formatCurrency(line.line_total)}</td>
+                  {order.invoice_type === "Tax Invoice" && (
+                    <td className="py-2 text-right">
+                      {Number(line.tax_percent ?? 0)}%
+                      <div className="text-xs text-slate-500">
+                        {formatCurrency((Number(line.line_total ?? 0) * Number(line.tax_percent ?? 0)) / 100)}
+                      </div>
+                    </td>
+                  )}
+                  <td className="py-2 text-right font-medium">
+                    {formatCurrency(
+                      Number(line.line_total ?? 0) +
+                      (order.invoice_type === "Tax Invoice"
+                        ? (Number(line.line_total ?? 0) * Number(line.tax_percent ?? 0)) / 100
+                        : 0)
+                    )}
+                  </td>
                   <td className="py-2 text-right">
                     {order.status !== "posted" && (
                       <button onClick={() => setDeleteLineId(line.id)} className="text-error-600 hover:text-error-700 text-sm">Remove / ہٹائیں</button>
@@ -1105,12 +1159,15 @@ export default function PurchaseOrderDetail() {
           </div>
           <div><label className="label">Qty / مقدار</label><input className="input w-24" type="number" step="0.01" required value={newLine.qty} onChange={(e) => setNewLine({ ...newLine, qty: e.target.value })} /></div>
           <div><label className="label">Unit Cost / فی یونٹ لاگت</label><input className="input w-32" type="number" step="0.01" required value={newLine.unit_cost} onChange={(e) => setNewLine({ ...newLine, unit_cost: e.target.value })} /></div>
+          {order.invoice_type === "Tax Invoice" && (
+            <div><label className="label">VAT % / ویٹ</label><input className="input w-24 text-right" type="number" min="0" max="100" step="0.01" required value={newLine.tax_percent} onChange={(e) => setNewLine({ ...newLine, tax_percent: e.target.value })} /></div>
+          )}
           <button type="submit" className="btn-primary">Add Line / لائن شامل کریں</button>
         </form>
         )}
       </div>
 
-      {chargeBreakdown.length > 0 && (
+      {(chargeBreakdown.length > 0 || itemsTotal > 0) && (
         <div className="card p-6 mb-6">
           <h3 className="font-semibold text-slate-900 mb-4">Charges & Summary / چارجز اور خلاصہ</h3>
           <div className="flex justify-end">
@@ -1120,6 +1177,13 @@ export default function PurchaseOrderDetail() {
                 <div key={c.label} className="flex justify-between text-sm text-slate-600"><span>{c.label}</span><span>{formatCurrency(c.amount)}</span></div>
               ))}
               <div className="flex justify-between text-sm text-slate-600 border-t border-slate-200 pt-2"><span>Charges Total / چارجز کل</span><span>{formatCurrency(chargesTotal)}</span></div>
+              {order.invoice_type === "Tax Invoice" && (
+                <>
+                  <div className="flex justify-between text-sm text-slate-600"><span>Items VAT / آئٹمز ویٹ</span><span>{formatCurrency(itemTaxAmount)}</span></div>
+                  <div className="flex justify-between text-sm text-slate-600"><span>Charges VAT / چارجز ویٹ</span><span>{formatCurrency(chargeTaxAmount)}</span></div>
+                  <div className="flex justify-between text-sm font-semibold text-slate-700"><span>Total VAT / کل ویٹ</span><span>{formatCurrency(vatAmount)}</span></div>
+                </>
+              )}
               <div className="flex justify-between text-lg font-bold text-slate-900 border-t border-slate-200 pt-2"><span>Grand Total / مجموعی کل</span><span>{formatCurrency(order.total)}</span></div>
             </div>
           </div>
@@ -1329,6 +1393,7 @@ export default function PurchaseOrderDetail() {
           chargeBreakdown={chargeBreakdown}
           itemsTotal={itemsTotal}
           chargesTotal={chargesTotal}
+          taxAmount={vatAmount}
           grandTotal={order.total}
           signatureLabels={[
             companyPrint.prepared_by_label ||

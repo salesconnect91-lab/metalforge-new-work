@@ -659,9 +659,11 @@ export default function PurchaseOrderDetail() {
       pdf.setFontSize(16);
 
       pdf.text(
-        order.status === "posted"
-          ? "PURCHASE INVOICE"
-          : "PURCHASE ORDER",
+        order.invoice_type === "Tax Invoice"
+          ? "PURCHASE TAX INVOICE"
+          : order.status === "posted"
+            ? "PURCHASE INVOICE"
+            : "PURCHASE ORDER",
         pageWidth / 2,
         y,
         { align: "center" }
@@ -718,16 +720,11 @@ export default function PurchaseOrderDetail() {
           fontSize: 8.5,
           cellPadding: 2.5,
         },
-        head: [
-          [
-            "#",
-            "Item",
-            "Godown",
-            "Qty",
-            "Unit Cost",
-            "Amount",
-          ],
-        ],
+        head: [[
+          "#", "Item", "Godown", "Qty", "Unit Cost",
+          ...(order.invoice_type === "Tax Invoice" ? ["VAT", "VAT Amount"] : []),
+          "Amount",
+        ]],
         body:
           lines.length > 0
             ? lines.map((line, index) => [
@@ -738,6 +735,14 @@ export default function PurchaseOrderDetail() {
                 formatCurrency(
                   Number(line.unit_cost || 0)
                 ),
+                ...(order.invoice_type === "Tax Invoice"
+                  ? [
+                      `${Number(line.tax_percent || 0)}%`,
+                      formatCurrency(
+                        (Number(line.line_total || 0) * Number(line.tax_percent || 0)) / 100
+                      ),
+                    ]
+                  : []),
                 formatCurrency(
                   Number(line.line_total || 0)
                 ),
@@ -1317,7 +1322,11 @@ export default function PurchaseOrderDetail() {
 
       {showPrint && (
         <PrintLayout
-          voucherTitle="Purchase Order"
+          voucherTitle={
+            order.invoice_type === "Tax Invoice"
+              ? "Purchase Tax Invoice"
+              : "Purchase Invoice"
+          }
           voucherNo={order.order_no}
           voucherDate={order.order_date}
           company={{
@@ -1389,11 +1398,20 @@ export default function PurchaseOrderDetail() {
             qty: l.qty,
             unitPrice: l.unit_cost,
             lineTotal: l.line_total,
+            taxPercent:
+              order.invoice_type === "Tax Invoice"
+                ? Number(l.tax_percent ?? 0)
+                : 0,
+            taxAmount:
+              order.invoice_type === "Tax Invoice"
+                ? (Number(l.line_total ?? 0) * Number(l.tax_percent ?? 0)) / 100
+                : 0,
           }))}
           chargeBreakdown={chargeBreakdown}
           itemsTotal={itemsTotal}
           chargesTotal={chargesTotal}
           taxAmount={vatAmount}
+          showTaxSummary={order.invoice_type === "Tax Invoice"}
           grandTotal={order.total}
           signatureLabels={[
             companyPrint.prepared_by_label ||

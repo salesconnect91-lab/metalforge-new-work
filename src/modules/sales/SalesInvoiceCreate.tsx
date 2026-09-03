@@ -83,7 +83,16 @@ interface ChargeMaster {
   cost_account_id: string | null;
   tax_applicable: boolean;
   service_party_required: boolean;
+  default_rate: number;
+  unit: "fixed" | "percent" | "per_kg" | "per_ton" | "per_piece";
+  applies_to: "sales" | "purchase" | "both";
+  is_fixed: boolean;
   is_active: boolean;
+}
+
+interface TaxRate {
+  rate: number;
+  is_fixed: boolean;
 }
 
 interface CustomerFinancialSnapshot {
@@ -133,6 +142,7 @@ export default function SalesInvoiceCreate() {
   const [invoiceType, setInvoiceType] = useState<"Sale Invoice" | "Cash Bill" | "Tax Invoice">("Tax Invoice"); 
   const [paymentMode, setPaymentMode] = useState<"Credit" | "Cash" | "Bank">("Credit");
   const [globalTaxPercent, setGlobalTaxPercent] = useState<string>("18");
+  const [taxRateLocked, setTaxRateLocked] = useState(false);
 
   const [rows, setRows] = useState<InvoiceRow[]>([
     { item_id: "", qty: "0", rate: "0", tax_percent: "18", godown_id: "" },
@@ -159,17 +169,8 @@ export default function SalesInvoiceCreate() {
   });
 
   const generateInvoiceNo = useCallback(async (type: string) => {
-    try {
-      const { count } = await supabase
-        .from("sales_orders")
-        .select("*", { count: "exact", head: true });
-      
-      const nextNum = ((count ?? 0) + 1).toString().padStart(4, "0");
-      const prefix = type === "Cash Bill" ? "CSH" : type === "Tax Invoice" ? "TAX" : "INV";
-      setInvoiceNo(`${prefix}-${nextNum}`);
-    } catch (err) {
-      setInvoiceNo(`INV-${Math.floor(1000 + Math.random() * 9000)}`);
-    }
+    const prefix = type === "Cash Bill" ? "CSH" : type === "Tax Invoice" ? "TAX" : "INV";
+    setInvoiceNo(`${prefix}-AUTO`);
   }, []);
 
   const fetchCustomerSnapshot = useCallback(
@@ -268,10 +269,7 @@ export default function SalesInvoiceCreate() {
 
   const fetchData = useCallback(async () => {
     try {
-      const sessionRes = await supabase.auth.getSession();
-      const userId = sessionRes.data.session?.user?.id ?? "";
-
-      const [custRes, itemRes, accRes, salesPersonRes, godownRes, catRes, chargeMasterRes] =
+      const [custRes, itemRes, accRes, salesPersonRes, godownRes, catRes, chargeMasterRes, taxRateRes] =
         await Promise.all([
           supabase.from("customers").select("*").eq("is_active", true).order("name"),
           supabase.from("items").select("*").order("name"),
@@ -295,11 +293,12 @@ export default function SalesInvoiceCreate() {
           supabase
             .from("charge_master")
             .select(
-              "id, charge_key, charge_name, charge_type, revenue_account_id, cost_account_id, tax_applicable, service_party_required, is_active"
+              "id, charge_key, charge_name, charge_type, revenue_account_id, cost_account_id, tax_applicable, service_party_required, default_rate, unit, applies_to, is_fixed, is_active"
             )
-            .eq("user_id", userId)
             .eq("is_active", true)
+            .in("applies_to", ["sales", "both"])
             .order("charge_name"),
+          supabase.from("tax_rates").select("rate,is_fixed").eq("is_active", true).in("applies_to", ["sales", "both"]).order("created_at").limit(1).maybeSingle(),
         ]);
 
       
@@ -315,6 +314,7 @@ export default function SalesInvoiceCreate() {
       }
       if (catRes.error) throw catRes.error;
       if (chargeMasterRes.error) throw chargeMasterRes.error;
+      if (taxRateRes.error) throw taxRateRes.error;
 
       const loadedGodowns = (godownRes.data ?? []) as Godown[];
 
@@ -328,6 +328,13 @@ export default function SalesInvoiceCreate() {
       setGodowns(loadedGodowns);
       setCategories(catRes.data ?? []);
       setSalesCharges((chargeMasterRes.data ?? []) as ChargeMaster[]);
+      if (!isEditing && taxRateRes.data) {
+        const configuredTax = taxRateRes.data as TaxRate;
+        const rate = String(Number(configuredTax.rate) || 0);
+        setGlobalTaxPercent(rate);
+        setTaxRateLocked(Boolean(configuredTax.is_fixed));
+        setRows((currentRows) => currentRows.map((row) => ({ ...row, tax_percent: rate })));
+      }
 
       // If a godown exists, automatically use the first one for new invoice rows.
       // Existing/editing rows are never overwritten.
@@ -540,10 +547,13 @@ export default function SalesInvoiceCreate() {
 
   const handleAddChargeRow = () => {
     if (!chargeToAdd || selectedChargeKeys.includes(chargeToAdd)) return;
+    const selectedCharge = salesCharges.find((charge) => charge.charge_key === chargeToAdd);
+    const defaultRate = String(Number(selectedCharge?.default_rate) || 0);
     setSelectedChargeKeys([...selectedChargeKeys, chargeToAdd]);
     setChargeTaxes((prev) => ({ ...prev, [chargeToAdd]: globalTaxPercent }));
     setChargeQuantities((prev) => ({ ...prev, [chargeToAdd]: prev[chargeToAdd] ?? "1" }));
-    setChargeRates((prev) => ({ ...prev, [chargeToAdd]: prev[chargeToAdd] ?? "0" }));
+    setChargeRates((prev) => ({ ...prev, [chargeToAdd]: prev[chargeToAdd] ?? defaultRate }));
+    setCharges((prev) => ({ ...prev, [chargeToAdd]: prev[chargeToAdd] ?? defaultRate }));
     setChargeToAdd("");
   };
 
@@ -803,7 +813,7 @@ export default function SalesInvoiceCreate() {
         const { data: order, error: orderError } = await supabase
           .from("sales_orders")
           .insert({
-            order_no: invoiceNo,
+            order_no: null,
             ...orderDataPayload,
           })
           .select()
@@ -1203,7 +1213,7 @@ export default function SalesInvoiceCreate() {
                     className="input"
                     type="number"
                     step="0.01"
-                    disabled={isLocked}
+                    disabled={isLocked || taxRateLocked}
                     value={globalTaxPercent}
                     onChange={(event) => {
                       const value = event.target.value;
@@ -1724,7 +1734,7 @@ export default function SalesInvoiceCreate() {
                           <label className="label">Rate / ریٹ</label>
                           <input
                             className="input text-right"
-                            disabled={isLocked}
+                            disabled={isLocked || chargeType.is_fixed}
                             type="number"
                             step="0.01"
                             value={chargeRates[key] ?? "0"}

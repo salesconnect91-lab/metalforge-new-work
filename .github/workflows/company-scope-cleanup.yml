@@ -13,24 +13,35 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Fix legacy company-scoping conflict key
+      - name: Apply company scope cleanup
         run: |
           python - <<'PY'
           from pathlib import Path
+
           p = Path('src/lib/accountService.ts')
           s = p.read_text(encoding='utf-8-sig')
-          old = 'onConflict: "user_id,mapping_key"'
-          new = 'onConflict: "company_id,mapping_key"'
-          if old not in s:
-              raise SystemExit('Legacy mapping conflict key not found')
-          p.write_text(s.replace(old, new), encoding='utf-8')
+          s = s.replace('onConflict: "user_id,mapping_key"', 'onConflict: "company_id,mapping_key"')
+          p.write_text(s, encoding='utf-8')
+
+          p = Path('src/modules/sales/SalesInvoiceDetail.tsx')
+          s = p.read_text(encoding='utf-8')
+          duplicate = '''  const linkedHawalaTotal = linkedHawalaInvoices.reduce(\n    (sum, invoice) => sum + toNumber(invoice.total),\n    0\n  );\n'''
+          if s.count('const linkedHawalaTotal') > 1:
+              if duplicate not in s:
+                  raise SystemExit('Duplicate linkedHawalaTotal block shape changed')
+              s = s.replace(duplicate, '', 1)
+          p.write_text(s, encoding='utf-8')
+
+          offenders = []
+          for path in Path('src').rglob('*'):
+              if path.suffix not in {'.ts', '.tsx'}:
+                  continue
+              text = path.read_text(encoding='utf-8-sig')
+              if '.eq("user_id"' in text or ".eq('user_id'" in text or 'onConflict: "user_id,' in text or "onConflict: 'user_id," in text:
+                  offenders.append(str(path))
+          if offenders:
+              raise SystemExit('Legacy user-scoped frontend references remain: ' + ', '.join(offenders))
           PY
-      - name: Audit active frontend for legacy user scoping
-        run: |
-          if grep -RIn --include='*.ts' --include='*.tsx' -E '\.eq\(["'"']user_id["'"']|onConflict:[[:space:]]*["'"']user_id,' src; then
-            echo 'Legacy user-scoped frontend query remains.'
-            exit 1
-          fi
       - name: Build
         run: |
           npm ci
@@ -39,7 +50,7 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/lib/accountService.ts
+          git add src/lib/accountService.ts src/modules/sales/SalesInvoiceDetail.tsx
           git diff --cached --quiet && exit 0
-          git commit -m 'Use company-scoped accounting mapping conflict key'
+          git commit -m 'Complete frontend company scope cleanup'
           git push

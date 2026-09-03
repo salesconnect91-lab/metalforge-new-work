@@ -34,6 +34,7 @@ export interface PrintLayoutProps {
   chargeBreakdown: ChargeBreakdownEntry[];
   itemsTotal: number;
   chargesTotal: number;
+  taxAmount?: number;
   grandTotal: number;
   extraFields?: { label: string; value: string }[];
 
@@ -90,6 +91,7 @@ export default function PrintLayout({
   chargeBreakdown,
   itemsTotal,
   chargesTotal,
+  taxAmount = 0,
   grandTotal,
   extraFields,
   hawalaDocuments = [],
@@ -395,6 +397,12 @@ export default function PrintLayout({
               <span>Charges Total / کل چارجز</span>
               <span>{formatCurrency(chargesTotal)}</span>
             </div>
+            {taxAmount > 0 && (
+              <div className="print-total-row">
+                <span>VAT Amount / ویلیو ایڈڈ ٹیکس</span>
+                <span>{formatCurrency(taxAmount)}</span>
+              </div>
+            )}
             {hawalaDocuments.length > 0 && (
               <>
                 <div className="print-total-row">

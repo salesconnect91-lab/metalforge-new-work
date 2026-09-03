@@ -12,6 +12,13 @@ interface PurchaseRow {
   tax_percent: string;
 }
 
+interface ConfiguredCharge {
+  charge_key: string;
+  charge_name: string;
+  default_rate: number;
+  is_fixed: boolean;
+}
+
 export default function CreatePurchaseInvoice() {
   const navigate = useNavigate();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -24,6 +31,8 @@ export default function CreatePurchaseInvoice() {
   const [orderDate, setOrderDate] = useState(new Date().toISOString().slice(0, 10));
   const [invoiceType, setInvoiceType] = useState<"Purchase Invoice" | "Tax Invoice">("Tax Invoice");
   const [globalTaxPercent, setGlobalTaxPercent] = useState("18");
+  const [taxRateLocked, setTaxRateLocked] = useState(false);
+  const [configuredCharges, setConfiguredCharges] = useState<ConfiguredCharge[]>([]);
 
   const [rows, setRows] = useState<PurchaseRow[]>([
     { item_id: "", qty: "0", unit_cost: "0", tax_percent: "18" },
@@ -33,13 +42,31 @@ export default function CreatePurchaseInvoice() {
   const purchaseCharges = getChargesForContext("purchase");
 
   const fetchData = useCallback(async () => {
-    const [supRes, itemRes, orderNoRes] = await Promise.all([
+    const [supRes, itemRes, orderNoRes, taxRes, chargeRes] = await Promise.all([
       supabase.from("suppliers").select("*").eq("is_active", true).order("name"),
       supabase.from("items").select("*").order("name"),
       supabase.rpc("next_purchase_order_no"),
+      supabase.from("tax_rates").select("rate,is_fixed").eq("is_active", true).in("applies_to", ["purchase", "both"]).order("created_at").limit(1).maybeSingle(),
+      supabase.from("charge_master").select("charge_key,charge_name,default_rate,is_fixed").eq("is_active", true).in("applies_to", ["purchase", "both"]).order("charge_name"),
     ]);
     setSuppliers(supRes.data ?? []);
     setItems(itemRes.data ?? []);
+    if (taxRes.error || chargeRes.error) {
+      setError(taxRes.error?.message || chargeRes.error?.message || "Settings load failed.");
+      return;
+    }
+    if (taxRes.data) {
+      const rate = String(Number(taxRes.data.rate) || 0);
+      setGlobalTaxPercent(rate);
+      setTaxRateLocked(Boolean(taxRes.data.is_fixed));
+      setRows((current) => current.map((row) => ({ ...row, tax_percent: rate })));
+    }
+    const loadedCharges = (chargeRes.data ?? []) as ConfiguredCharge[];
+    setConfiguredCharges(loadedCharges);
+    setCharges((current) => loadedCharges.reduce((next, charge) => {
+      if (charge.charge_key in next) next[charge.charge_key] = String(Number(charge.default_rate) || 0);
+      return next;
+    }, { ...current }));
     if (orderNoRes.error) {
       setError(orderNoRes.error.message);
       return;
@@ -185,7 +212,7 @@ export default function CreatePurchaseInvoice() {
                 min="0"
                 max="100"
                 step="0.01"
-                disabled={invoiceType !== "Tax Invoice"}
+                disabled={invoiceType !== "Tax Invoice" || taxRateLocked}
                 value={globalTaxPercent}
                 onChange={(e) => {
                   const value = e.target.value;
@@ -276,11 +303,12 @@ export default function CreatePurchaseInvoice() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {purchaseCharges.map((ct) => (
               <div key={ct.key}>
-                <label className="label">{ct.label}</label>
+                <label className="label">{configuredCharges.find((charge) => charge.charge_key === ct.key)?.charge_name ?? ct.label}</label>
                 <input
                   className="input text-right"
                   type="number"
                   step="0.01"
+                  disabled={configuredCharges.find((charge) => charge.charge_key === ct.key)?.is_fixed}
                   value={charges[ct.key]}
                   onChange={(e) => setCharges({ ...charges, [ct.key]: e.target.value })}
                 />

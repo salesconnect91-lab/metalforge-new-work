@@ -17,6 +17,7 @@ type MainItem = {
   end?: boolean;
   excludePaths?: string[];
   children?: ChildItem[];
+  ownerOnly?: boolean;
 };
 
 const navigation: MainItem[] = [
@@ -93,6 +94,12 @@ const navigation: MainItem[] = [
       },
     ],
   },
+  {
+    to: "/owner",
+    label: "Owner Control / مالک کنٹرول",
+    icon: OwnerIcon,
+    ownerOnly: true,
+  },
   { to: "/settings", label: "Settings / سیٹنگز", icon: SettingsIcon },
 ];
 
@@ -119,6 +126,7 @@ const pageLabels: Record<string, string> = {
   "/accounting/controls": "Financial Controls / مالی کنٹرولز",
   "/accounting/customer-invoice-statement": "Customer Statement & Aging",
   "/reports": "Reports / رپورٹس",
+  "/owner": "Owner Control / مالک کنٹرول",
   "/settings": "Settings / سیٹنگز",
 };
 
@@ -187,7 +195,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   }, [appTheme]);
 
 
-  const { user, signOut } = useAuth();
+  const { user, signOut, isPlatformOwner, activeCompany } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -220,6 +228,11 @@ export default function Layout({ children }: { children: ReactNode }) {
   const breadcrumbs = useMemo(
     () => breadcrumbItems(location.pathname),
     [location.pathname]
+  );
+
+  const visibleNavigation = useMemo(
+    () => navigation.filter((item) => !item.ownerOnly || isPlatformOwner),
+    [isPlatformOwner]
   );
 
   const sidebarWidth = collapsed ? "lg:w-[68px]" : "lg:w-[218px]";
@@ -274,7 +287,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
         <nav className="flex-1 overflow-y-auto px-2 py-2.5">
           <div className="space-y-0.5">
-            {navigation.map((item) => {
+            {visibleNavigation.map((item) => {
               const Icon = item.icon;
               const excluded = Boolean(
                 item.excludePaths?.some(
@@ -402,26 +415,42 @@ export default function Layout({ children }: { children: ReactNode }) {
               <LogoutIcon />
             </button>
           ) : (
-            <div className="flex items-center gap-2 rounded-md px-2 py-1.5">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-slate-800 text-[11px] font-semibold text-slate-300">
-                {(user?.email?.[0] ?? "U").toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[10px] font-medium text-slate-300">
-                  {user?.email ?? "Signed in"}
+            <div className="rounded-md px-2 py-1.5">
+              <div className="mb-2 flex items-center gap-2 border-b border-white/10 pb-2">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-slate-800 text-slate-400">
+                  <CompanyIcon />
                 </div>
-                <div className="text-[8px] uppercase tracking-wider text-slate-600">
-                  Active
+                <div className="min-w-0 flex-1">
+                  <div className="text-[8px] uppercase tracking-wider text-slate-600">
+                    Active Company
+                  </div>
+                  <div className="truncate text-[10px] font-semibold text-slate-300">
+                    {activeCompany?.company_name ?? (isPlatformOwner ? "Owner Workspace" : "No company")}
+                  </div>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={logout}
-                className="flex h-7 w-7 items-center justify-center rounded text-slate-500 hover:bg-white/5 hover:text-white"
-                title="Sign out / سائن آؤٹ"
-              >
-                <LogoutIcon />
-              </button>
+
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-slate-800 text-[11px] font-semibold text-slate-300">
+                  {(user?.email?.[0] ?? "U").toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[10px] font-medium text-slate-300">
+                    {user?.email ?? "Signed in"}
+                  </div>
+                  <div className="text-[8px] uppercase tracking-wider text-slate-600">
+                    {isPlatformOwner ? "Platform Owner" : "Active"}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="flex h-7 w-7 items-center justify-center rounded text-slate-500 hover:bg-white/5 hover:text-white"
+                  title="Sign out / سائن آؤٹ"
+                >
+                  <LogoutIcon />
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -476,10 +505,10 @@ export default function Layout({ children }: { children: ReactNode }) {
             <div className="hidden items-center gap-2 md:flex">
               <div className="text-right">
                 <div className="text-[9px] uppercase tracking-wider text-slate-400">
-                  Workspace
+                  Active Company
                 </div>
-                <div className="text-[11px] font-semibold text-slate-700">
-                  {APP_CONFIG.name}
+                <div className="max-w-[220px] truncate text-[11px] font-semibold text-slate-700">
+                  {activeCompany?.company_name ?? (isPlatformOwner ? "Owner Workspace" : APP_CONFIG.name)}
                 </div>
               </div>
               <button
@@ -622,6 +651,26 @@ function AccountingIcon() {
   );
 }
 function ReportsIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4"><path d="M4 19V5M4 19h16"/><path d="M7 15l3-4 3 2 4-6"/></svg>; }
+
+function OwnerIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M12 3 4 7v5c0 5 3.5 8 8 9 4.5-1 8-4 8-9V7l-8-4Z" />
+      <path d="M9 12l2 2 4-4" />
+    </svg>
+  );
+}
+
+function CompanyIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M3 21h18" />
+      <path d="M6 21V5h8v16" />
+      <path d="M14 9h4v12" />
+      <path d="M9 9h2M9 13h2M9 17h2" />
+    </svg>
+  );
+}
 
 function SettingsIcon() {
   return (

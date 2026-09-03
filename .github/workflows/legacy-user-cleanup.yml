@@ -1,0 +1,101 @@
+name: Legacy user cleanup
+
+on:
+  push:
+    branches: [legacy-user-cleanup]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.event.head_commit.message == 'Add one-time legacy user cleanup workflow'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Patch legacy frontend ownership
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8-sig')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected 1 exact match, found {count}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          # Account mappings: company-scoped conflict target.
+          p = Path('src/lib/accountService.ts')
+          text = p.read_text(encoding='utf-8-sig')
+          if 'onConflict: "user_id,mapping_key"' not in text:
+              raise SystemExit('accountService legacy conflict target not found')
+          p.write_text(text.replace('onConflict: "user_id,mapping_key"', 'onConflict: "company_id,mapping_key"'), encoding='utf-8')
+
+          # Purchase detail: use central company-context print settings helper.
+          p = Path('src/modules/purchase/PurchaseOrderDetail.tsx')
+          text = p.read_text(encoding='utf-8-sig')
+          if 'loadDocumentPrintSettings' not in text:
+              text = text.replace('import { supabase } from "@/lib/supabase";\n', 'import { supabase } from "@/lib/supabase";\nimport { loadDocumentPrintSettings } from "@/lib/documentPrintSettings";\n', 1)
+
+          pattern = re.compile(r'  const fetchPrintSettings = useCallback\(async \(\) => \{.*?\n  \}, \[\]\);\n\n  const fetchOrder', re.S)
+          replacement = '''  const fetchPrintSettings = useCallback(async () => {\n    const settings = await loadDocumentPrintSettings("purchase");\n    setCompanyPrint(settings.company as CompanyPrintSettings);\n    setPurchasePrintVisibility({\n      ...DEFAULT_PURCHASE_VISIBILITY,\n      ...settings.visibility,\n    });\n  }, []);\n\n  const fetchOrder'''
+          text, n = pattern.subn(replacement, text, count=1)
+          if n != 1:
+              raise SystemExit(f'Purchase fetchPrintSettings replacement count={n}')
+
+          pattern = re.compile(r'      const \{\n        data: \{ user \},\n      \} = await supabase\.auth\.getUser\(\);\n\n      if \(!user\) \{\n        throw new Error\("Authentication required\."\);\n      \}\n\n      const \[companyResult, visibilityResult\] =\n        await Promise\.all\(\[.*?      const visibility: PurchasePrintVisibility = \{\n        \.\.\.DEFAULT_PURCHASE_VISIBILITY,\n        \.\.\.\(visibilityResult\.data \|\| \{\}\),\n      \};', re.S)
+          replacement = '''      const settings = await loadDocumentPrintSettings("purchase");\n      const company = settings.company as CompanyPrintSettings;\n      const visibility: PurchasePrintVisibility = {\n        ...DEFAULT_PURCHASE_VISIBILITY,\n        ...settings.visibility,\n      };'''
+          text, n = pattern.subn(replacement, text, count=1)
+          if n != 1:
+              raise SystemExit(f'Purchase handlePdf replacement count={n}')
+          p.write_text(text, encoding='utf-8')
+
+          # Sales detail: use central helper for print settings.
+          p = Path('src/modules/sales/SalesInvoiceDetail.tsx')
+          text = p.read_text(encoding='utf-8-sig')
+          if 'loadDocumentPrintSettings' not in text:
+              text = text.replace('import { supabase } from "@/lib/supabase";\n', 'import { supabase } from "@/lib/supabase";\nimport { loadDocumentPrintSettings } from "@/lib/documentPrintSettings";\n', 1)
+          pattern = re.compile(r'  const fetchPrintSettings = useCallback\(async \(\) => \{.*?\n  \}, \[\]\);\n\n  const fetchOrder', re.S)
+          replacement = '''  const fetchPrintSettings = useCallback(async () => {\n    const settings = await loadDocumentPrintSettings("sales_invoice");\n    setCompanyPrint(settings.company as CompanyPrintSettings);\n    setSalesPrintVisibility({\n      ...DEFAULT_SALES_PRINT_VISIBILITY,\n      ...settings.visibility,\n    });\n  }, []);\n\n  const fetchOrder'''
+          text, n = pattern.subn(replacement, text, count=1)
+          if n != 1:
+              raise SystemExit(f'Sales fetchPrintSettings replacement count={n}')
+          p.write_text(text, encoding='utf-8')
+
+          # Audit known legacy frontend ownership patterns.
+          bad = []
+          checks = [
+              ('src/lib/accountService.ts', 'onConflict: "user_id,mapping_key"'),
+              ('src/modules/settings/DocumentPrintSettings.tsx', 'user_id'),
+              ('src/modules/purchase/PurchaseOrderDetail.tsx', '.eq("user_id"'),
+              ('src/modules/sales/SalesInvoiceDetail.tsx', '.eq("user_id"'),
+          ]
+          for path, needle in checks:
+              data = Path(path).read_text(encoding='utf-8-sig')
+              if needle in data:
+                  bad.append(f'{path}: still contains {needle}')
+          if bad:
+              raise SystemExit('\n'.join(bad))
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Commit cleanup
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/accountService.ts src/modules/purchase/PurchaseOrderDetail.tsx src/modules/sales/SalesInvoiceDetail.tsx
+          git commit -m "Complete legacy user_id frontend cleanup"
+          git push origin legacy-user-cleanup

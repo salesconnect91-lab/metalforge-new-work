@@ -5,6 +5,7 @@ import { canViewModule, type ModuleKey } from "@/auth/permissions";
 import Login from "@/auth/Login";
 import ProtectedRoute from "@/auth/ProtectedRoute";
 import Layout from "@/components/Layout";
+import CompanySwitcher from "@/components/CompanySwitcher";
 
 import Dashboard from "@/modules/Dashboard";
 import MasterData from "@/modules/master-data/MasterData";
@@ -61,7 +62,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/*" element={<ProtectedRoute><Layout><Routes>
+      <Route path="/*" element={<ProtectedRoute><><CompanySwitcher /><Layout><Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/owner" element={<OwnerOnly />} />
         <Route path="/master-data/*" element={<ModuleOnly module="master"><MasterData /></ModuleOnly>} />
@@ -81,7 +82,7 @@ export default function App() {
         <Route path="/reports/*" element={<ModuleOnly module="reports"><Reports /></ModuleOnly>} />
         <Route path="/settings/*" element={<ModuleOnly module="settings"><Settings /></ModuleOnly>} />
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes></Layout></ProtectedRoute>} />
+      </Routes></Layout></></ProtectedRoute>} />
     </Routes>
   );
 }

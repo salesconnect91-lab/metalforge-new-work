@@ -16,18 +16,19 @@ const rawSupabase = createClient(url, anonKey, {
 });
 
 /**
- * Company-owned configuration must follow the selected company, not the
- * currently logged-in user. Older screens still contain legacy user_id filters
- * and user-based upsert conflict targets, so this small compatibility layer
- * translates only those obsolete settings-table operations while database RLS
- * continues to enforce current_company_id() and permissions.
+ * Company-owned records must follow the selected company, not the currently
+ * logged-in user. Older screens still contain legacy user_id filters and
+ * user-based upsert conflict targets, so this compatibility layer translates
+ * only those obsolete operations while database RLS continues to enforce
+ * current_company_id() and permissions.
  */
-const COMPANY_SCOPED_SETTINGS_TABLES = new Set([
+const COMPANY_SCOPED_TABLES = new Set([
   "company_settings",
   "company_profile",
   "document_print_visibility",
   "tax_rates",
   "charge_rate_settings",
+  "account_mappings",
 ]);
 
 function companyConflictTarget(table: string, value: unknown) {
@@ -43,6 +44,12 @@ function companyConflictTarget(table: string, value: unknown) {
   if (table === "document_print_visibility") {
     if (onConflict === "user_id,document_type") {
       options.onConflict = "company_id,document_type";
+    }
+  }
+
+  if (table === "account_mappings") {
+    if (onConflict === "user_id,mapping_key") {
+      options.onConflict = "company_id,mapping_key";
     }
   }
 
@@ -115,7 +122,7 @@ export const supabase = new Proxy(rawSupabase, {
 
     return (table: string) => {
       const builder = rawSupabase.from(table);
-      return COMPANY_SCOPED_SETTINGS_TABLES.has(table)
+      return COMPANY_SCOPED_TABLES.has(table)
         ? wrapCompanyScopedBuilder(builder, table)
         : builder;
     };

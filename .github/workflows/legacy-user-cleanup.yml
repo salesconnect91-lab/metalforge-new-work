@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   cleanup:
-    if: github.event.head_commit.message == 'Add one-time legacy user cleanup workflow'
+    if: startsWith(github.event.head_commit.message, 'Run legacy user cleanup')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,66 +26,55 @@ jobs:
           from pathlib import Path
           import re
 
-          def replace_once(path, old, new):
-              p = Path(path)
-              text = p.read_text(encoding='utf-8-sig')
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'{path}: expected 1 exact match, found {count}')
-              p.write_text(text.replace(old, new, 1), encoding='utf-8')
-
-          # Account mappings: company-scoped conflict target.
           p = Path('src/lib/accountService.ts')
           text = p.read_text(encoding='utf-8-sig')
           if 'onConflict: "user_id,mapping_key"' not in text:
               raise SystemExit('accountService legacy conflict target not found')
           p.write_text(text.replace('onConflict: "user_id,mapping_key"', 'onConflict: "company_id,mapping_key"'), encoding='utf-8')
 
-          # Purchase detail: use central company-context print settings helper.
           p = Path('src/modules/purchase/PurchaseOrderDetail.tsx')
           text = p.read_text(encoding='utf-8-sig')
           if 'loadDocumentPrintSettings' not in text:
               text = text.replace('import { supabase } from "@/lib/supabase";\n', 'import { supabase } from "@/lib/supabase";\nimport { loadDocumentPrintSettings } from "@/lib/documentPrintSettings";\n', 1)
-
           pattern = re.compile(r'  const fetchPrintSettings = useCallback\(async \(\) => \{.*?\n  \}, \[\]\);\n\n  const fetchOrder', re.S)
-          replacement = '''  const fetchPrintSettings = useCallback(async () => {\n    const settings = await loadDocumentPrintSettings("purchase");\n    setCompanyPrint(settings.company as CompanyPrintSettings);\n    setPurchasePrintVisibility({\n      ...DEFAULT_PURCHASE_VISIBILITY,\n      ...settings.visibility,\n    });\n  }, []);\n\n  const fetchOrder'''
+          replacement = '''  const fetchPrintSettings = useCallback(async () => {\n    const settings = await loadDocumentPrintSettings("purchase");\n    setCompanyPrint(settings.company as CompanyPrintSettings);\n    setPurchasePrintVisibility({ ...DEFAULT_PURCHASE_VISIBILITY, ...settings.visibility });\n  }, []);\n\n  const fetchOrder'''
           text, n = pattern.subn(replacement, text, count=1)
-          if n != 1:
-              raise SystemExit(f'Purchase fetchPrintSettings replacement count={n}')
-
-          pattern = re.compile(r'      const \{\n        data: \{ user \},\n      \} = await supabase\.auth\.getUser\(\);\n\n      if \(!user\) \{\n        throw new Error\("Authentication required\."\);\n      \}\n\n      const \[companyResult, visibilityResult\] =\n        await Promise\.all\(\[.*?      const visibility: PurchasePrintVisibility = \{\n        \.\.\.DEFAULT_PURCHASE_VISIBILITY,\n        \.\.\.\(visibilityResult\.data \|\| \{\}\),\n      \};', re.S)
-          replacement = '''      const settings = await loadDocumentPrintSettings("purchase");\n      const company = settings.company as CompanyPrintSettings;\n      const visibility: PurchasePrintVisibility = {\n        ...DEFAULT_PURCHASE_VISIBILITY,\n        ...settings.visibility,\n      };'''
+          if n != 1: raise SystemExit(f'Purchase fetchPrintSettings replacement count={n}')
+          pattern = re.compile(r'      const \{\n        data: \{ user \},\n      \} = await supabase\.auth\.getUser\(\);.*?      const visibility: PurchasePrintVisibility = \{\n        \.\.\.DEFAULT_PURCHASE_VISIBILITY,\n        \.\.\.\(visibilityResult\.data \|\| \{\}\),\n      \};', re.S)
+          replacement = '''      const settings = await loadDocumentPrintSettings("purchase");\n      const company = settings.company as CompanyPrintSettings;\n      const visibility: PurchasePrintVisibility = { ...DEFAULT_PURCHASE_VISIBILITY, ...settings.visibility };'''
           text, n = pattern.subn(replacement, text, count=1)
-          if n != 1:
-              raise SystemExit(f'Purchase handlePdf replacement count={n}')
+          if n != 1: raise SystemExit(f'Purchase handlePdf replacement count={n}')
           p.write_text(text, encoding='utf-8')
 
-          # Sales detail: use central helper for print settings.
           p = Path('src/modules/sales/SalesInvoiceDetail.tsx')
           text = p.read_text(encoding='utf-8-sig')
           if 'loadDocumentPrintSettings' not in text:
               text = text.replace('import { supabase } from "@/lib/supabase";\n', 'import { supabase } from "@/lib/supabase";\nimport { loadDocumentPrintSettings } from "@/lib/documentPrintSettings";\n', 1)
           pattern = re.compile(r'  const fetchPrintSettings = useCallback\(async \(\) => \{.*?\n  \}, \[\]\);\n\n  const fetchOrder', re.S)
-          replacement = '''  const fetchPrintSettings = useCallback(async () => {\n    const settings = await loadDocumentPrintSettings("sales_invoice");\n    setCompanyPrint(settings.company as CompanyPrintSettings);\n    setSalesPrintVisibility({\n      ...DEFAULT_SALES_PRINT_VISIBILITY,\n      ...settings.visibility,\n    });\n  }, []);\n\n  const fetchOrder'''
+          replacement = '''  const fetchPrintSettings = useCallback(async () => {\n    const settings = await loadDocumentPrintSettings("sales_invoice");\n    setCompanyPrint(settings.company as CompanyPrintSettings);\n    setSalesPrintVisibility({ ...DEFAULT_SALES_PRINT_VISIBILITY, ...settings.visibility });\n  }, []);\n\n  const fetchOrder'''
           text, n = pattern.subn(replacement, text, count=1)
-          if n != 1:
-              raise SystemExit(f'Sales fetchPrintSettings replacement count={n}')
+          if n != 1: raise SystemExit(f'Sales fetchPrintSettings replacement count={n}')
+          marker_start = '      // Reload settings so PDF always follows latest matrix.\n      await fetchPrintSettings();\n\n'
+          start = text.find(marker_start)
+          if start < 0: raise SystemExit('Sales PDF settings start not found')
+          end_marker = '      const pdf = new jsPDF({'
+          end = text.find(end_marker, start)
+          if end < 0: raise SystemExit('Sales PDF settings end not found')
+          replacement = '''      // Reload from the selected company so PDF always follows latest matrix.\n      const settings = await loadDocumentPrintSettings("sales_invoice");\n      const company = settings.company as CompanyPrintSettings;\n      const visibility: SalesPrintVisibility = { ...DEFAULT_SALES_PRINT_VISIBILITY, ...settings.visibility };\n\n'''
+          text = text[:start] + replacement + text[end:]
           p.write_text(text, encoding='utf-8')
 
-          # Audit known legacy frontend ownership patterns.
-          bad = []
           checks = [
               ('src/lib/accountService.ts', 'onConflict: "user_id,mapping_key"'),
               ('src/modules/settings/DocumentPrintSettings.tsx', 'user_id'),
               ('src/modules/purchase/PurchaseOrderDetail.tsx', '.eq("user_id"'),
               ('src/modules/sales/SalesInvoiceDetail.tsx', '.eq("user_id"'),
           ]
+          bad = []
           for path, needle in checks:
-              data = Path(path).read_text(encoding='utf-8-sig')
-              if needle in data:
+              if needle in Path(path).read_text(encoding='utf-8-sig'):
                   bad.append(f'{path}: still contains {needle}')
-          if bad:
-              raise SystemExit('\n'.join(bad))
+          if bad: raise SystemExit('\n'.join(bad))
           PY
       - name: Install dependencies
         run: npm ci

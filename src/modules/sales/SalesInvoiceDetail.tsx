@@ -1314,10 +1314,6 @@ export default function SalesInvoiceDetail() {
     [lines]
   );
 
-  const linkedHawalaTotal = linkedHawalaInvoices.reduce(
-    (sum, invoice) => sum + toNumber(invoice.total),
-    0
-  );
   const taxAmount = Math.max(
     0,
     toNumber(order?.total) - linkedHawalaTotal - itemsTotal - chargesTotal

@@ -20,24 +20,20 @@ export default function CompanySettings() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const getCurrentCompanyId = useCallback(async () => {
+    const { data, error: companyError } = await supabase.rpc("current_company_id");
+    if (companyError) throw companyError;
+    if (!data) throw new Error("No active company selected.");
+    return String(data);
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      setError("Authentication required.");
-      setLoading(false);
-      return;
-    }
-
     const { data, error: loadError } = await supabase
       .from("company_settings")
       .select("*")
-      .eq("user_id", user.id)
       .maybeSingle();
 
     if (loadError) {
@@ -78,17 +74,12 @@ export default function CompanySettings() {
     setError(null);
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) throw new Error("Authentication required.");
-
+      const companyId = await getCurrentCompanyId();
       const extension =
         file.name.split(".").pop()?.toLowerCase() ||
         (file.type === "image/png" ? "png" : "jpg");
 
-      const path = `${user.id}/logo.${extension}`;
+      const path = `${companyId}/logo.${extension}`;
 
       const { error: uploadError } = await supabase.storage
         .from("company-branding")
@@ -109,13 +100,13 @@ export default function CompanySettings() {
         .from("company_settings")
         .upsert(
           {
-            user_id: user.id,
+            company_id: companyId,
             company_name: name.trim() || "Steel Mill ERP",
             currency: currency.trim() || "PKR",
             logo_url: freshUrl,
             updated_at: new Date().toISOString(),
           },
-          { onConflict: "user_id" }
+          { onConflict: "company_id" }
         );
 
       if (updateError) throw updateError;
@@ -135,21 +126,16 @@ export default function CompanySettings() {
     setError(null);
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) throw new Error("Authentication required.");
-
+      const companyId = await getCurrentCompanyId();
       const { data: files, error: listError } = await supabase.storage
         .from("company-branding")
-        .list(user.id);
+        .list(companyId);
 
       if (listError) throw listError;
 
       const logoFiles = (files || [])
         .filter((f) => f.name.startsWith("logo."))
-        .map((f) => `${user.id}/${f.name}`);
+        .map((f) => `${companyId}/${f.name}`);
 
       if (logoFiles.length > 0) {
         const { error: removeError } = await supabase.storage
@@ -165,7 +151,7 @@ export default function CompanySettings() {
           logo_url: null,
           updated_at: new Date().toISOString(),
         })
-        .eq("user_id", user.id);
+        .eq("company_id", companyId);
 
       if (updateError) throw updateError;
 
@@ -186,17 +172,12 @@ export default function CompanySettings() {
     setError(null);
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) throw new Error("Authentication required.");
-
+      const companyId = await getCurrentCompanyId();
       const { error: saveError } = await supabase
         .from("company_settings")
         .upsert(
           {
-            user_id: user.id,
+            company_id: companyId,
             company_name: name.trim(),
             currency: currency.trim() || "PKR",
             address: address.trim() || null,
@@ -207,7 +188,7 @@ export default function CompanySettings() {
             strn: strn.trim() || null,
             updated_at: new Date().toISOString(),
           },
-          { onConflict: "user_id" }
+          { onConflict: "company_id" }
         );
 
       if (saveError) throw saveError;

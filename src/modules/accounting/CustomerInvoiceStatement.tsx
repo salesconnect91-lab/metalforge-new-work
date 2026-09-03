@@ -28,6 +28,9 @@ type AgingInvoice = {
   overdue_days: number;
   aging_status: string;
   aging_bucket: string;
+  invoice_type?: string;
+  payment_mode?: string;
+  sales_person?: string | null;
 };
 
 type PaymentAllocation = {
@@ -82,6 +85,18 @@ export default function CustomerInvoiceStatement() {
   const [invoiceSearch, setInvoiceSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [agingFilter, setAgingFilter] = useState("all");
+  const [documentFilter, setDocumentFilter] = useState("all");
+  const [paymentModeFilter, setPaymentModeFilter] = useState("all");
+  const [showColumns, setShowColumns] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState({
+    type: true,
+    mode: true,
+    salesperson: true,
+    dueDate: true,
+    age: true,
+    overdue: true,
+    aging: true,
+  });
   const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(
     null
   );
@@ -118,7 +133,7 @@ export default function CustomerInvoiceStatement() {
     setLoading(true);
     setError(null);
 
-    const [invoiceResult, allocationResult] = await Promise.all([
+    const [invoiceResult, allocationResult, metadataResult] = await Promise.all([
       supabase
         .from("customer_invoice_aging")
         .select("*")
@@ -133,13 +148,25 @@ export default function CustomerInvoiceStatement() {
         .eq("customer_id", customerId)
         .order("allocation_date", { ascending: false })
         .order("created_at", { ascending: false }),
+      supabase
+        .from("sales_orders")
+        .select("id,invoice_type,payment_mode,sales_person")
+        .eq("customer_id", customerId),
     ]);
 
     if (invoiceResult.error) {
       setError(invoiceResult.error.message);
       setInvoices([]);
     } else {
-      setInvoices((invoiceResult.data ?? []) as AgingInvoice[]);
+      const metadata = new Map(
+        (metadataResult.data ?? []).map((row: any) => [row.id, row])
+      );
+      setInvoices(
+        ((invoiceResult.data ?? []) as AgingInvoice[]).map((invoice) => ({
+          ...invoice,
+          ...metadata.get(invoice.sales_order_id),
+        }))
+      );
     }
 
     if (allocationResult.error) {
@@ -174,6 +201,8 @@ export default function CustomerInvoiceStatement() {
     setInvoiceSearch("");
     setStatusFilter("all");
     setAgingFilter("all");
+    setDocumentFilter("all");
+    setPaymentModeFilter("all");
     setExpandedInvoiceId(null);
     await loadStatement(customer.id);
   };
@@ -255,10 +284,16 @@ export default function CustomerInvoiceStatement() {
 
       const matchesAging =
         agingFilter === "all" || invoice.aging_bucket === agingFilter;
+      const matchesDocument =
+        documentFilter === "all" || invoice.invoice_type === documentFilter;
+      const matchesPaymentMode =
+        paymentModeFilter === "all" ||
+        (invoice.payment_mode || "Credit") === paymentModeFilter;
 
-      return matchesSearch && matchesStatus && matchesAging;
+      return matchesSearch && matchesStatus && matchesAging &&
+        matchesDocument && matchesPaymentMode;
     });
-  }, [invoices, invoiceSearch, statusFilter, agingFilter]);
+  }, [invoices, invoiceSearch, statusFilter, agingFilter, documentFilter, paymentModeFilter]);
 
   const paymentRowsForInvoice = useCallback(
     (invoiceId: string) =>
@@ -334,7 +369,34 @@ export default function CustomerInvoiceStatement() {
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="relative flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setShowColumns((value) => !value)}
+            className="px-3 py-2 text-sm font-semibold rounded-lg border border-blue-200 bg-blue-50 text-blue-700"
+          >
+            Customize / کالم
+          </button>
+          {showColumns && (
+            <div className="absolute right-0 top-11 z-50 grid w-[300px] grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-white p-3 shadow-xl">
+              {[
+                ["type","Document Type"],["mode","Payment Mode"],["salesperson","Salesperson"],
+                ["dueDate","Due Date"],["age","Invoice Age"],["overdue","Overdue"],["aging","Aging Bucket"],
+              ].map(([key,label]) => (
+                <label key={key} className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={visibleColumns[key as keyof typeof visibleColumns]}
+                    onChange={() => setVisibleColumns((current) => ({
+                      ...current,
+                      [key]: !current[key as keyof typeof current],
+                    }))}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          )}
           <button
             type="button"
             onClick={exportCsv}
@@ -358,7 +420,7 @@ export default function CustomerInvoiceStatement() {
       {error && <ErrorBanner message={error} />}
 
       <div className="rounded-xl border border-slate-200 bg-white p-4 print:hidden">
-        <div className="grid grid-cols-1 xl:grid-cols-[1.3fr_1fr_1fr] gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
           <div className="relative">
             <label className="label">Customer / گاہک</label>
 
@@ -454,6 +516,26 @@ export default function CustomerInvoiceStatement() {
               <option value="90+ Days">90+ Days</option>
               <option value="Paid">Paid / ادا شدہ</option>
               <option value="No Due Date">No Due Date / مقررہ تاریخ نہیں</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="label">Document Type / دستاویز</label>
+            <select className="input" value={documentFilter} onChange={(e) => setDocumentFilter(e.target.value)} disabled={!selectedCustomerId}>
+              <option value="all">All Documents</option>
+              <option value="Sale Invoice">Sale Invoice</option>
+              <option value="Cash Bill">Cash Bill</option>
+              <option value="Tax Invoice">Tax Invoice</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="label">Payment Mode / ادائیگی طریقہ</label>
+            <select className="input" value={paymentModeFilter} onChange={(e) => setPaymentModeFilter(e.target.value)} disabled={!selectedCustomerId}>
+              <option value="all">All Payment Modes</option>
+              <option value="Credit">Credit</option>
+              <option value="Cash">Cash</option>
+              <option value="Bank">Bank</option>
             </select>
           </div>
         </div>
@@ -566,14 +648,17 @@ export default function CustomerInvoiceStatement() {
               <tr className="border-b border-slate-200 text-slate-600">
                 <th className="px-3 py-3 text-left font-medium">Invoice #</th>
                 <th className="px-3 py-3 text-left font-medium">Invoice Date / انوائس تاریخ</th>
-                <th className="px-3 py-3 text-left font-medium">Due Date / مقررہ تاریخ</th>
+                {visibleColumns.type && <th className="px-3 py-3 text-left font-medium">Document Type</th>}
+                {visibleColumns.mode && <th className="px-3 py-3 text-left font-medium">Payment Mode</th>}
+                {visibleColumns.salesperson && <th className="px-3 py-3 text-left font-medium">Salesperson</th>}
+                {visibleColumns.dueDate && <th className="px-3 py-3 text-left font-medium">Due Date / مقررہ تاریخ</th>}
                 <th className="px-3 py-3 text-right font-medium">Invoice / انوائس</th>
                 <th className="px-3 py-3 text-right font-medium">Received / وصول شدہ</th>
                 <th className="px-3 py-3 text-right font-medium">Balance Due / واجب الادا بیلنس</th>
                 <th className="px-3 py-3 text-left font-medium">Payment / ادائیگی</th>
-                <th className="px-3 py-3 text-right font-medium">Invoice Age / انوائس مدت</th>
-                <th className="px-3 py-3 text-right font-medium">Overdue / زائد المیعاد</th>
-                <th className="px-3 py-3 text-left font-medium">Aging Bucket / بقایا مدت</th>
+                {visibleColumns.age && <th className="px-3 py-3 text-right font-medium">Invoice Age / انوائس مدت</th>}
+                {visibleColumns.overdue && <th className="px-3 py-3 text-right font-medium">Overdue / زائد المیعاد</th>}
+                {visibleColumns.aging && <th className="px-3 py-3 text-left font-medium">Aging Bucket / بقایا مدت</th>}
               </tr>
             </thead>
 
@@ -624,11 +709,14 @@ export default function CustomerInvoiceStatement() {
                         <td className="px-3 py-3">
                           {formatDate(invoice.invoice_date)}
                         </td>
-                        <td className="px-3 py-3">
+                        {visibleColumns.type && <td className="px-3 py-3 font-semibold">{invoice.invoice_type || "Sale Invoice"}</td>}
+                        {visibleColumns.mode && <td className="px-3 py-3">{invoice.payment_mode || "Credit"}</td>}
+                        {visibleColumns.salesperson && <td className="px-3 py-3">{invoice.sales_person || "—"}</td>}
+                        {visibleColumns.dueDate && <td className="px-3 py-3">
                           {invoice.due_date
                             ? formatDate(invoice.due_date)
                             : "—"}
-                        </td>
+                        </td>}
                         <td className="px-3 py-3 text-right font-semibold">
                           {formatCurrency(toNumber(invoice.invoice_amount))}
                         </td>
@@ -643,10 +731,10 @@ export default function CustomerInvoiceStatement() {
                         <td className="px-3 py-3">
                           {statusBadge(invoice.payment_status)}
                         </td>
-                        <td className="px-3 py-3 text-right">
+                        {visibleColumns.age && <td className="px-3 py-3 text-right">
                           {Number(invoice.days_outstanding)} days
-                        </td>
-                        <td className="px-3 py-3 text-right">
+                        </td>}
+                        {visibleColumns.overdue && <td className="px-3 py-3 text-right">
                           {Number(invoice.overdue_days) > 0 ? (
                             <span className="font-semibold text-rose-700">
                               {Number(invoice.overdue_days)} days
@@ -654,15 +742,15 @@ export default function CustomerInvoiceStatement() {
                           ) : (
                             <span className="text-emerald-700">Current / موجودہ</span>
                           )}
-                        </td>
-                        <td className="px-3 py-3">
+                        </td>}
+                        {visibleColumns.aging && <td className="px-3 py-3">
                           <div className="font-medium text-slate-700">
                             {invoice.aging_bucket}
                           </div>
                           <div className="text-[12px] capitalize text-slate-400">
                             {invoice.aging_status}
                           </div>
-                        </td>
+                        </td>}
                       </tr>
 
                       {expanded && (
@@ -676,8 +764,10 @@ export default function CustomerInvoiceStatement() {
                             </div>
 
                             {paymentRows.length === 0 ? (
-                              <div className="text-sm text-slate-400">
-                                No payment allocations found.
+                              <div className="text-sm text-slate-500">
+                                {toNumber(invoice.paid_amount) > 0
+                                  ? `${formatCurrency(toNumber(invoice.paid_amount))} received at invoice posting via ${invoice.payment_mode || "Cash/Bank"}. Record remains in customer history.`
+                                  : "No payment allocations found."}
                               </div>
                             ) : (
                               <div className="overflow-x-auto">

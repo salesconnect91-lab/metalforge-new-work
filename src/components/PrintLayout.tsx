@@ -132,7 +132,7 @@ export default function PrintLayout({
             )}
 
             <div>
-              {showCompanyName && company.name && (
+              {showCompanyName && company.name && (!showLogo || !company.logoUrl) && (
                 <h1 className="print-company-name">
                   {company.name}
                 </h1>

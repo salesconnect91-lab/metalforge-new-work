@@ -6,6 +6,7 @@ import Warehouses from "./Warehouses";
 import Uom from "./Uom";
 import Transporters from "./Transporters";
 import Employees from "./Employees";
+import MasterRecordDetail from "./MasterRecordDetail";
 
 export default function MasterData() {
   return (
@@ -17,8 +18,11 @@ export default function MasterData() {
 
       <Routes>
         <Route path="/" element={<Items />} />
+        <Route path="/items/:id" element={<MasterRecordDetail entity="item" />} />
         <Route path="/customers" element={<Customers />} />
+        <Route path="/customers/:id" element={<MasterRecordDetail entity="customer" />} />
         <Route path="/suppliers" element={<Suppliers />} />
+        <Route path="/suppliers/:id" element={<MasterRecordDetail entity="supplier" />} />
         <Route path="/employees" element={<Employees />} />
         <Route path="/warehouses" element={<Warehouses />} />
         <Route path="/uom" element={<Uom />} />

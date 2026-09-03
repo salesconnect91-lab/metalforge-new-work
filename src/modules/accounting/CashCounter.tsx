@@ -579,7 +579,7 @@ export default function CashCounter() {
 
               .label {
                 color: #6b7280;
-                font-size: 10px;
+                font-size: 12px;
                 text-transform: uppercase;
                 letter-spacing: .6px;
                 font-weight: 700;
@@ -615,7 +615,7 @@ export default function CashCounter() {
                 background: #f3f4f6;
                 text-align: left;
                 padding: 10px;
-                font-size: 10px;
+                font-size: 12px;
                 text-transform: uppercase;
               }
 
@@ -645,13 +645,13 @@ export default function CashCounter() {
                 text-align: center;
                 padding-top: 8px;
                 color: #6b7280;
-                font-size: 11px;
+                font-size: 12px;
               }
 
               .print-meta {
                 margin-top: 25px;
                 color: #94a3b8;
-                font-size: 9px;
+                font-size: 12px;
                 display: flex;
                 justify-content: space-between;
               }
@@ -1839,7 +1839,7 @@ export default function CashCounter() {
                                   }
                                 </span>
                                 {customer.phone && (
-                                  <span className="block text-[11px] text-slate-400">
+                                  <span className="block text-[12px] text-slate-400">
                                     {
                                       customer.phone
                                     }
@@ -1980,7 +1980,7 @@ export default function CashCounter() {
                 {selectedInvoice && (
                   <div className="mt-2 grid grid-cols-3 gap-2">
                     <div className="rounded-lg bg-slate-50 p-2.5">
-                      <div className="text-[10px] text-slate-400">
+                      <div className="text-[12px] text-slate-400">
                         Invoice Total
                       </div>
                       <div className="mt-0.5 text-sm font-bold text-slate-800">
@@ -1992,7 +1992,7 @@ export default function CashCounter() {
                     </div>
 
                     <div className="rounded-lg bg-slate-50 p-2.5">
-                      <div className="text-[10px] text-slate-400">
+                      <div className="text-[12px] text-slate-400">
                         Paid
                       </div>
                       <div className="mt-0.5 text-sm font-bold text-slate-800">
@@ -2004,7 +2004,7 @@ export default function CashCounter() {
                     </div>
 
                     <div className="rounded-lg bg-amber-50 p-2.5">
-                      <div className="text-[10px] text-amber-600">
+                      <div className="text-[12px] text-amber-600">
                         Outstanding
                       </div>
                       <div className="mt-0.5 text-sm font-bold text-amber-800">
@@ -2237,7 +2237,7 @@ export default function CashCounter() {
                               payment.party_name
                             }
                           </div>
-                          <div className="mt-0.5 text-[10px] text-slate-400">
+                          <div className="mt-0.5 text-[12px] text-slate-400">
                             {
                               payment.entry_no
                             }{" "}
@@ -2248,7 +2248,7 @@ export default function CashCounter() {
                           </div>
                         </div>
 
-                        <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">
+                        <span className="rounded-full bg-emerald-50 px-2 py-1 text-[12px] font-bold text-emerald-700">
                           Posted
                         </span>
                       </div>

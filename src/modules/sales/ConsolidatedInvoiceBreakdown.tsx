@@ -192,7 +192,7 @@ export default function ConsolidatedInvoiceBreakdown({
               <strong>${money(invoice.sales_order?.total)}</strong>
             </div>
 
-            <div style="font-size:11px;padding:8px 0">
+            <div style="font-size: 12px;padding:8px 0">
               <strong>Date:</strong> ${invoice.sales_order?.order_date || ""}
               &nbsp;&nbsp;
               <strong>Hawala / حوالہ:</strong> ${invoice.reference_name || "—"}
@@ -271,7 +271,7 @@ export default function ConsolidatedInvoiceBreakdown({
           .summary{margin-top:24px;margin-left:auto;width:380px}
           .summary div{display:flex;justify-content:space-between;padding:7px;border-bottom:1px solid #e2e8f0}
           .closing{font-size:16px;font-weight:bold;border-top:2px solid #0f172a!important}
-          .note{margin-top:20px;font-size:10px;color:#64748b}
+          .note{margin-top:20px;font-size: 12px;color:#64748b}
         </style>
       </head>
       <body>

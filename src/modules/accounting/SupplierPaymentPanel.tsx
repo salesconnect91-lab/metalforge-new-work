@@ -289,7 +289,7 @@ export default function SupplierPaymentPanel() {
 
               .label {
                 color: #6b7280;
-                font-size: 10px;
+                font-size: 12px;
                 font-weight: 700;
                 text-transform: uppercase;
               }
@@ -319,7 +319,7 @@ export default function SupplierPaymentPanel() {
                 text-align: center;
                 padding-top: 8px;
                 color: #6b7280;
-                font-size: 11px;
+                font-size: 12px;
               }
 
               .signatures {
@@ -334,7 +334,7 @@ export default function SupplierPaymentPanel() {
 
               .meta {
                 margin-top: 25px;
-                font-size: 9px;
+                font-size: 12px;
                 color: #94a3b8;
                 display: flex;
                 justify-content: space-between;

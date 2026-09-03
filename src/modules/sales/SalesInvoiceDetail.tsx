@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -162,7 +162,7 @@ const paymentStatusBadge = (status?: string | null) => {
 
   return (
     <span
-      className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold capitalize ${className}`}
+      className={`inline-flex rounded-full border px-2 py-0.5 text-[12px] font-semibold capitalize ${className}`}
     >
       {normalized}
     </span>
@@ -1319,7 +1319,7 @@ export default function SalesInvoiceDetail() {
 
   if (loading) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-[11px] text-slate-400">
+      <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-[12px] text-slate-400">
         Loading invoice…
       </div>
     );
@@ -1335,7 +1335,7 @@ export default function SalesInvoiceDetail() {
         <div>
           <Link
             to="/sales"
-            className="mb-1 inline-flex items-center gap-1 text-[10px] font-medium text-slate-500 hover:text-blue-700"
+            className="mb-1 inline-flex items-center gap-1 text-[12px] font-medium text-slate-500 hover:text-blue-700"
           >
             <ArrowLeft className="h-3 w-3" />
             Sales Invoices
@@ -1350,7 +1350,7 @@ export default function SalesInvoiceDetail() {
             {paymentStatusBadge(order.payment_status)}
           </div>
 
-          <p className="mt-0.5 text-[11px] text-slate-500">
+          <p className="mt-0.5 text-[12px] text-slate-500">
             {order.customer?.name
               ? `Customer · ${order.customer.name}`
               : "No customer linked"}
@@ -1397,13 +1397,13 @@ export default function SalesInvoiceDetail() {
           )}
 
           {order.status === "posted" && (
-            <span className="inline-flex h-8 items-center rounded-md border border-emerald-200 bg-emerald-50 px-3 text-[11px] font-semibold text-emerald-700">
+            <span className="inline-flex h-8 items-center rounded-md border border-emerald-200 bg-emerald-50 px-3 text-[12px] font-semibold text-emerald-700">
               Posted / پوسٹ شدہ
             </span>
           )}
 
           {order.status === "closed" && (
-            <span className="inline-flex h-8 items-center rounded-md border border-slate-200 bg-slate-100 px-3 text-[11px] font-semibold text-slate-600">
+            <span className="inline-flex h-8 items-center rounded-md border border-slate-200 bg-slate-100 px-3 text-[12px] font-semibold text-slate-600">
               Closed / بند
             </span>
           )}
@@ -1466,13 +1466,13 @@ export default function SalesInvoiceDetail() {
       </section>
 
       {postSuccess && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] text-emerald-700">
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[12px] text-emerald-700">
           {postSuccess}
         </div>
       )}
 
       {posting && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-700">
           Posting invoice — creating accounting entries and applying stock impact…
         </div>
       )}
@@ -1480,7 +1480,7 @@ export default function SalesInvoiceDetail() {
       {error && <ErrorBanner message={error} />}
 
       {isPostedOrClosed && (
-        <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] text-slate-600">
+        <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
           <LockKeyhole className="h-3.5 w-3.5 text-slate-500" />
           Posted history is locked. Direct edit, delete and status rollback are disabled.
         </div>
@@ -1489,7 +1489,7 @@ export default function SalesInvoiceDetail() {
       <InvoiceFinancialSummary invoiceId={order.id} customerId={order.customer_id} onFinancialChange={setFinancial} />
 
       {order.status === "draft" && (
-        <div className="flex flex-col gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[11px] text-blue-700 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[12px] text-blue-700 sm:flex-row sm:items-center sm:justify-between">
           <span>
             Draft invoice has not yet completed accounting and stock posting.
           </span>
@@ -1508,7 +1508,7 @@ export default function SalesInvoiceDetail() {
 
       <section className="grid grid-cols-2 gap-2.5 lg:grid-cols-6">
         <div className="rounded-lg border border-slate-200 bg-white p-3">
-          <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+          <div className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-slate-400">
             <CalendarDays className="h-3 w-3" />
             Invoice Date / بل تاریخ
           </div>
@@ -1518,7 +1518,7 @@ export default function SalesInvoiceDetail() {
         </div>
 
         <div className="rounded-lg border border-slate-200 bg-white p-3">
-          <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+          <div className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-slate-400">
             <CalendarDays className="h-3 w-3" />
             Due Date / آخری تاریخ
           </div>
@@ -1528,7 +1528,7 @@ export default function SalesInvoiceDetail() {
         </div>
 
         <div className="rounded-lg border border-slate-200 bg-white p-3">
-          <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+          <div className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-slate-400">
             <UserRound className="h-3 w-3" />
             Sales Person / سیلز مین
           </div>
@@ -1538,7 +1538,7 @@ export default function SalesInvoiceDetail() {
         </div>
 
         <div className="rounded-lg border border-slate-200 bg-white p-3">
-          <div className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400">
             Invoice Total / کل بل
           </div>
           <div className="mt-1.5 text-[15px] font-semibold text-slate-900">
@@ -1547,7 +1547,7 @@ export default function SalesInvoiceDetail() {
         </div>
 
         <div className="rounded-lg border border-emerald-200 bg-white p-3">
-          <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wide text-emerald-600">
+          <div className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-emerald-600">
             <Banknote className="h-3 w-3" />
             Received / وصول شدہ
           </div>
@@ -1557,7 +1557,7 @@ export default function SalesInvoiceDetail() {
         </div>
 
         <div className="rounded-lg border border-rose-200 bg-white p-3">
-          <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wide text-rose-600">
+          <div className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-rose-600">
             <WalletCards className="h-3 w-3" />
             Balance Due / بقایا
           </div>
@@ -1575,13 +1575,13 @@ export default function SalesInvoiceDetail() {
                 <div className="text-[12px] font-semibold text-slate-800">
                   Invoice Lines / بل کی تفصیل
                 </div>
-                <div className="mt-0.5 text-[10px] text-slate-400">
+                <div className="mt-0.5 text-[12px] text-slate-400">
                   {lines.length} line{lines.length === 1 ? "" : "s"}
                 </div>
               </div>
 
               <div className="text-right">
-                <div className="text-[9px] uppercase tracking-wide text-slate-400">Items Total / آئٹمز کل</div>
+                <div className="text-[12px] uppercase tracking-wide text-slate-400">Items Total / آئٹمز کل</div>
                 <div className="text-[12px] font-semibold text-slate-800">
                   {formatCurrency(itemsTotal)}
                 </div>
@@ -1589,14 +1589,14 @@ export default function SalesInvoiceDetail() {
             </div>
 
             {lines.length === 0 ? (
-              <div className="px-3 py-8 text-center text-[10px] text-slate-400">
+              <div className="px-3 py-8 text-center text-[12px] text-slate-400">
                 No items on this invoice.
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px] text-[11px]">
+                <table className="w-full min-w-[720px] text-[12px]">
                   <thead className="bg-slate-50">
-                    <tr className="border-b border-slate-200 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                    <tr className="border-b border-slate-200 text-[12px] font-semibold uppercase tracking-wide text-slate-500">
                       <th className="px-3 py-2 text-left">Item / آئٹم</th>
                       <th className="px-2 py-2 text-left">Grade / گریڈ</th>
                       <th className="px-2 py-2 text-left">Size / سائز</th>
@@ -1643,13 +1643,13 @@ export default function SalesInvoiceDetail() {
               <div className="text-[12px] font-semibold text-slate-800">
                 Charge Account Allocations / چارج کھاتے
               </div>
-              <div className="mt-0.5 text-[10px] text-slate-400">
+              <div className="mt-0.5 text-[12px] text-slate-400">
                 Worker / charge posting accounts linked to this invoice
               </div>
             </div>
 
             {workerCharges.length === 0 ? (
-              <div className="px-3 py-5 text-[10px] text-slate-400">
+              <div className="px-3 py-5 text-[12px] text-slate-400">
                 No charge account allocations are linked to this invoice.
               </div>
             ) : (
@@ -1660,23 +1660,23 @@ export default function SalesInvoiceDetail() {
                     className="grid grid-cols-[1fr_auto] gap-3 px-3 py-2.5"
                   >
                     <div className="min-w-0">
-                      <div className="text-[11px] font-semibold text-slate-700">
+                      <div className="text-[12px] font-semibold text-slate-700">
                         {charge.charge_label}
                       </div>
-                      <div className="mt-0.5 truncate text-[9px] text-slate-400">
+                      <div className="mt-0.5 truncate text-[12px] text-slate-400">
                         {charge.service_party_name ? `Party / پارٹی: ${charge.service_party_name} · ` : ""}
                         {charge.account
                           ? `${charge.account.code ? `${charge.account.code} · ` : ""}${charge.account.name}`
                           : "Unassigned posting account"}
                       </div>
                       {charge.rate && charge.rate > 0 && (
-                        <div className="mt-0.5 text-[9px] text-slate-500">
+                        <div className="mt-0.5 text-[12px] text-slate-500">
                           {charge.quantity || 1} {charge.unit || "unit"} × {formatCurrency(charge.rate)} · Tax {charge.tax_percent || 0}%
                         </div>
                       )}
                     </div>
 
-                    <div className="text-right text-[11px] font-semibold text-slate-900">
+                    <div className="text-right text-[12px] font-semibold text-slate-900">
                       {formatCurrency(charge.amount)}
                     </div>
                   </div>
@@ -1693,7 +1693,7 @@ export default function SalesInvoiceDetail() {
                 <div className="text-[12px] font-semibold text-blue-900">
                   Unbilled Dispatch Details / حوالہ تفصیل
                 </div>
-                <div className="mt-0.5 text-[9px] text-blue-600">
+                <div className="mt-0.5 text-[12px] text-blue-600">
                   Unbilled dispatch documents included in this Sales Invoice / اس بل میں شامل حوالہ دستاویزات
                 </div>
               </div>
@@ -1703,16 +1703,16 @@ export default function SalesInvoiceDetail() {
                   <div key={hawala.id} className="p-3">
                     <div className="mb-2 flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+                        <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400">
                           Dispatch No. / حوالہ نمبر
                         </div>
-                        <div className="mt-0.5 text-[11px] font-semibold text-slate-900">
+                        <div className="mt-0.5 text-[12px] font-semibold text-slate-900">
                           {hawala.invoice_no}
                         </div>
                       </div>
 
                       <div className="text-right">
-                        <div className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+                        <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400">
                           Amount / رقم
                         </div>
                         <div className="mt-0.5 text-[12px] font-bold text-blue-700">
@@ -1721,7 +1721,7 @@ export default function SalesInvoiceDetail() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[10px]">
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[12px]">
                       <div>
                         <div className="text-slate-400">Date / تاریخ</div>
                         <div className="font-medium text-slate-700">
@@ -1758,7 +1758,7 @@ export default function SalesInvoiceDetail() {
                     </div>
 
                     {hawala.reference_notes && (
-                      <div className="mt-2 rounded-md bg-slate-50 px-2 py-1.5 text-[9px] text-slate-600">
+                      <div className="mt-2 rounded-md bg-slate-50 px-2 py-1.5 text-[12px] text-slate-600">
                         <span className="font-semibold">
                           Remarks / تفصیل:
                         </span>{" "}
@@ -1770,7 +1770,7 @@ export default function SalesInvoiceDetail() {
               </div>
 
               <div className="flex items-center justify-between border-t border-blue-100 bg-blue-50 px-3 py-2.5">
-                <span className="text-[10px] font-semibold text-blue-900">
+                <span className="text-[12px] font-semibold text-blue-900">
                   Unbilled Dispatch Total / کل حوالہ رقم
                 </span>
                 <span className="text-[13px] font-bold text-blue-900">
@@ -1787,7 +1787,7 @@ export default function SalesInvoiceDetail() {
               </div>
             </div>
 
-            <div className="space-y-2.5 p-3 text-[11px]">
+            <div className="space-y-2.5 p-3 text-[12px]">
               <div className="flex items-center justify-between text-slate-500">
                 <span>Items Total / آئٹمز کل</span>
                 <span className="font-medium text-slate-800">
@@ -1833,7 +1833,7 @@ export default function SalesInvoiceDetail() {
               )}
 
               <div className="border-t border-slate-200 pt-2.5">
-                <div className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+                <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400">
                   Grand Total / کل بل
                 </div>
                 <div className="mt-1 text-[20px] font-semibold tracking-tight text-slate-900">
@@ -1844,24 +1844,24 @@ export default function SalesInvoiceDetail() {
           </section>
 
           <section className="rounded-lg border border-slate-200 bg-white p-3">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+            <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400">
               Collection Position / وصولی پوزیشن
             </div>
 
             <div className="mt-3 space-y-2">
-              <div className="flex items-center justify-between text-[11px]">
+              <div className="flex items-center justify-between text-[12px]">
                 <span className="text-slate-500">Payment Status / ادائیگی حالت</span>
                 {paymentStatusBadge(order.payment_status)}
               </div>
 
-              <div className="flex items-center justify-between text-[11px]">
+              <div className="flex items-center justify-between text-[12px]">
                 <span className="text-slate-500">Received / وصول شدہ</span>
                 <span className="font-semibold text-emerald-700">
                   {formatCurrency(paidAmount)}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between text-[11px]">
+              <div className="flex items-center justify-between text-[12px]">
                 <span className="text-slate-500">Balance Due / بقایا</span>
                 <span className="font-semibold text-rose-700">
                   {formatCurrency(outstandingAmount)}
@@ -1872,10 +1872,10 @@ export default function SalesInvoiceDetail() {
 
           {!isPostedOrClosed && (
             <section className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-blue-600">
+              <div className="text-[12px] font-semibold uppercase tracking-wide text-blue-600">
                 Posting Action / پوسٹ کرنے کا عمل
               </div>
-              <p className="mt-1 text-[10px] leading-4 text-blue-700">
+              <p className="mt-1 text-[12px] leading-4 text-blue-700">
                 Posting should create the accounting/stock impact and lock the invoice history.
               </p>
 

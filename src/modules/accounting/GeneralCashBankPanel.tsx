@@ -470,7 +470,7 @@ body{font-family:Arial,sans-serif;margin:40px;color:#0f172a}
 h1{margin:0;font-size:24px}
 .top{display:flex;justify-content:space-between;border-bottom:2px solid #0f172a;padding-bottom:18px;margin-bottom:25px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-.label{font-size:11px;color:#64748b;margin-bottom:5px}
+.label{font-size: 12px;color:#64748b;margin-bottom:5px}
 .value{font-size:14px;font-weight:700}
 .amount{margin-top:25px;padding:20px;border:1px solid #cbd5e1;display:flex;justify-content:space-between;font-size:16px}
 .amount strong{font-size:26px}
@@ -721,13 +721,13 @@ ${voucher.notes ? `<div class="notes"><strong>Notes:</strong> ${voucher.notes}</
                                 </div>
 
                                 {employee.employee_code && (
-                                  <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                                  <span className="rounded bg-slate-100 px-2 py-0.5 text-[12px] font-bold text-slate-600">
                                     {employee.employee_code}
                                   </span>
                                 )}
                               </div>
 
-                              <div className="mt-1 text-[11px] text-slate-500">
+                              <div className="mt-1 text-[12px] text-slate-500">
                                 {[
                                   employee.designation,
                                   employee.department,
@@ -774,7 +774,7 @@ ${voucher.notes ? `<div class="notes"><strong>Notes:</strong> ${voucher.notes}</
                 </div>
 
                 {partyName && (
-                  <div className="mt-1 text-[11px] font-semibold text-emerald-700">
+                  <div className="mt-1 text-[12px] font-semibold text-emerald-700">
                     Selected: {partyName}
                   </div>
                 )}

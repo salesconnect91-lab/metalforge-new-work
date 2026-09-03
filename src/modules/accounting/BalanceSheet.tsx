@@ -180,7 +180,7 @@ function StatementSection({
                       <span className="block truncate font-medium text-slate-800">
                         {item.name}
                       </span>
-                      <span className="block text-[11px] text-slate-400">
+                      <span className="block text-[12px] text-slate-400">
                         {item.detailType || "General"}
                       </span>
                     </div>
@@ -697,7 +697,7 @@ export default function BalanceSheet() {
               />
               <span>
                 <span className="block text-sm font-medium text-slate-800">Hide zero-balance accounts / صفر بیلنس اکاؤنٹس چھپائیں</span>
-                <span className="block text-[11px] text-slate-500">Untick to display the complete chart of accounts. / مکمل چارٹ آف اکاؤنٹس دیکھنے کیلئے نشان ہٹائیں۔</span>
+                <span className="block text-[12px] text-slate-500">Untick to display the complete chart of accounts. / مکمل چارٹ آف اکاؤنٹس دیکھنے کیلئے نشان ہٹائیں۔</span>
               </span>
             </label>
 
@@ -729,7 +729,7 @@ export default function BalanceSheet() {
                   key={String(label)}
                   className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
                 >
-                  <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                  <span className="block text-[12px] font-bold uppercase tracking-wide text-slate-500">
                     {label}
                   </span>
                   <span className={`mt-1 block font-mono text-lg font-bold ${color}`}>
@@ -763,7 +763,7 @@ export default function BalanceSheet() {
                     <span className="block text-sm font-bold uppercase tracking-wide">
                       Total Assets
                     </span>
-                    <span className="mt-0.5 block text-[11px] text-slate-300">
+                    <span className="mt-0.5 block text-[12px] text-slate-300">
                       Assets as at {formatReportDate(asOfDate)}
                     </span>
                   </div>
@@ -801,7 +801,7 @@ export default function BalanceSheet() {
                     <span className="block text-sm font-bold uppercase tracking-wide">
                       Total Liabilities & Equity
                     </span>
-                    <span className="mt-0.5 block text-[11px] text-slate-300">
+                    <span className="mt-0.5 block text-[12px] text-slate-300">
                       Liabilities {formatCurrency(liabilities.total)} + Equity{" "}
                       {formatCurrency(equity.total)}
                     </span>

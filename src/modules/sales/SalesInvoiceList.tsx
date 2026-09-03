@@ -795,7 +795,7 @@ export default function SalesInvoiceList() {
                           <div className="text-sm font-semibold text-slate-900">
                             {customer.name}
                           </div>
-                          <div className="text-[11px] text-slate-400">Customer / گاہک</div>
+                          <div className="text-[12px] text-slate-400">Customer / گاہک</div>
                         </button>
                       ))
                     )}
@@ -1069,7 +1069,7 @@ export default function SalesInvoiceList() {
                                 <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700">
                                   Overdue {invoice.overdue_days} days
                                 </span>
-                                <div className="text-[11px] text-slate-400 mt-1">
+                                <div className="text-[12px] text-slate-400 mt-1">
                                   {invoice.aging_bucket}
                                 </div>
                               </div>

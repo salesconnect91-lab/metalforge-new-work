@@ -187,7 +187,7 @@ export default function PrintLayout({
               style={{
                 textAlign: "center",
                 margin: "8px 0 12px",
-                fontSize: "11px",
+                fontSize: "12px",
                 color: "#475569",
               }}
             >
@@ -204,7 +204,7 @@ export default function PrintLayout({
               background: "#f8fafc",
               padding: "7px 10px",
               textAlign: "center",
-              fontSize: "10px",
+              fontSize: "12px",
               fontWeight: 700,
               color: "#334155",
             }}
@@ -288,10 +288,10 @@ export default function PrintLayout({
                 borderBottom: "1px solid #cbd5e1",
               }}
             >
-              <div style={{ fontSize: "11px", fontWeight: 700, color: "#0f172a" }}>
+              <div style={{ fontSize: "12px", fontWeight: 700, color: "#0f172a" }}>
                 Unbilled Dispatch Details / حوالہ تفصیل
               </div>
-              <div style={{ marginTop: "2px", fontSize: "9px", color: "#64748b" }}>
+              <div style={{ marginTop: "2px", fontSize: "12px", color: "#64748b" }}>
                 Unbilled dispatch documents included in this Sales Invoice / اس فروخت بل میں شامل حوالہ دستاویزات
               </div>
             </div>
@@ -300,7 +300,7 @@ export default function PrintLayout({
               style={{
                 width: "100%",
                 borderCollapse: "collapse",
-                fontSize: "9px",
+                fontSize: "12px",
               }}
             >
               <thead>
@@ -438,13 +438,13 @@ export default function PrintLayout({
         {paymentSummary && (
           <div className="print-payment-summary" style={{ marginTop: "18px", border: "1px solid #cbd5e1", padding: "12px" }}>
             <div style={{ fontWeight: 700, marginBottom: "8px" }}>Payment & Balance / ادائیگی اور بقایا</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px", fontSize: "11px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px", fontSize: "12px" }}>
               <div>Previous Balance / سابقہ بقایا<br/><strong>{formatCurrency(paymentSummary.previousBalance || 0)}</strong></div>
               <div>Total Received / کل وصولی<br/><strong>{formatCurrency(paymentSummary.totalReceived || 0)}</strong></div>
               <div>Today's Received / آج کی وصولی<br/><strong>{formatCurrency(paymentSummary.todayReceived || 0)}</strong></div>
               <div>Outstanding / موجودہ بقایا<br/><strong>{formatCurrency(paymentSummary.currentOutstanding || 0)}</strong></div>
             </div>
-            <div style={{ marginTop: "8px", fontSize: "11px" }}>Last Payment / آخری وصولی: <strong>{paymentSummary.lastPaymentDate ? formatDate(paymentSummary.lastPaymentDate) : "—"}</strong> · <strong>{formatCurrency(paymentSummary.lastPaymentAmount || 0)}</strong> · {paymentSummary.lastPaymentMode || "—"}</div>
+            <div style={{ marginTop: "8px", fontSize: "12px" }}>Last Payment / آخری وصولی: <strong>{paymentSummary.lastPaymentDate ? formatDate(paymentSummary.lastPaymentDate) : "—"}</strong> · <strong>{formatCurrency(paymentSummary.lastPaymentAmount || 0)}</strong> · {paymentSummary.lastPaymentMode || "—"}</div>
           </div>
         )}
 
@@ -484,7 +484,7 @@ export default function PrintLayout({
             style={{
               marginTop: "8px",
               textAlign: "right",
-              fontSize: "9px",
+              fontSize: "12px",
               color: "#94a3b8",
             }}
           >
@@ -498,7 +498,7 @@ export default function PrintLayout({
             style={{
               marginTop: "4px",
               textAlign: "right",
-              fontSize: "9px",
+              fontSize: "12px",
               color: "#94a3b8",
             }}
           />

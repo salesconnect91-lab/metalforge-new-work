@@ -497,7 +497,7 @@ export default function TrialBalance() {
             </div>
           </div>
           {lastUpdated && (
-            <div className="mt-2 text-right text-[11px] text-slate-400">
+            <div className="mt-2 text-right text-[12px] text-slate-400">
               Posted ledger entries only · Updated {lastUpdated.toLocaleTimeString()}
             </div>
           )}
@@ -506,13 +506,13 @@ export default function TrialBalance() {
         {!loading && (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              <span className="block text-[12px] font-bold uppercase tracking-wide text-slate-500">
                 Accounts
               </span>
               <span className="mt-1 block text-xl font-bold text-slate-900">{rows.length}</span>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              <span className="block text-[12px] font-bold uppercase tracking-wide text-slate-500">
                 Closing Debit
               </span>
               <span className="mt-1 block font-mono text-base font-bold text-blue-700">
@@ -520,7 +520,7 @@ export default function TrialBalance() {
               </span>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              <span className="block text-[12px] font-bold uppercase tracking-wide text-slate-500">
                 Closing Credit
               </span>
               <span className="mt-1 block font-mono text-base font-bold text-rose-700">
@@ -528,7 +528,7 @@ export default function TrialBalance() {
               </span>
             </div>
             <div className={`rounded-xl border p-4 shadow-sm ${isBalanced ? "border-emerald-300 bg-emerald-50" : "border-rose-300 bg-rose-50"}`}>
-              <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              <span className="block text-[12px] font-bold uppercase tracking-wide text-slate-500">
                 Closing Difference
               </span>
               <span className={`mt-1 block font-mono text-base font-bold ${isBalanced ? "text-emerald-700" : "text-rose-700"}`}>
@@ -570,7 +570,7 @@ export default function TrialBalance() {
                     <tr key={row.id} className="hover:bg-slate-50">
                       <td className="px-3 py-2.5 font-mono font-semibold text-slate-900">{row.code}</td>
                       <td className="px-3 py-2.5 text-slate-800">{row.name}</td>
-                      <td className="px-3 py-2.5 text-[10px] font-semibold uppercase text-slate-500">{row.type}</td>
+                      <td className="px-3 py-2.5 text-[12px] font-semibold uppercase text-slate-500">{row.type}</td>
                       <td className="border-l border-slate-100 px-3 py-2.5 text-right font-mono">{amountCell(row.openingDebit)}</td>
                       <td className="px-3 py-2.5 text-right font-mono">{amountCell(row.openingCredit)}</td>
                       <td className="border-l border-slate-100 px-3 py-2.5 text-right font-mono">{amountCell(row.periodDebit)}</td>

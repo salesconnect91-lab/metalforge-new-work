@@ -116,7 +116,7 @@ export default function PrintPreviewController() {
       <div className="mx-auto mb-3 flex w-full max-w-6xl items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-2xl">
         <div>
           <div className="text-sm font-extrabold text-slate-900">Print Preview / پرنٹ پیش منظر</div>
-          <div className="mt-0.5 text-[11px] text-slate-500">Check the document before printing / پرنٹ سے پہلے دستاویز چیک کریں</div>
+          <div className="mt-0.5 text-[12px] text-slate-500">Check the document before printing / پرنٹ سے پہلے دستاویز چیک کریں</div>
         </div>
         <div className="flex gap-2">
           <button type="button" className="btn-secondary" onClick={() => setPreview(null)}>Close / بند کریں</button>

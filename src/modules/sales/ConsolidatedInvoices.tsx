@@ -752,7 +752,7 @@ export default function ConsolidatedInvoices() {
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className="mb-1 inline-flex items-center gap-1 text-[10px] font-medium text-slate-500 hover:text-blue-700"
+              className="mb-1 inline-flex items-center gap-1 text-[12px] font-medium text-slate-500 hover:text-blue-700"
             >
               <ArrowLeft className="h-3 w-3" />
               Hawala Invoices / حوالہ انوائسز
@@ -764,7 +764,7 @@ export default function ConsolidatedInvoices() {
                 : "New Hawala Invoice / نیا حوالہ انوائس"}
             </h1>
 
-            <p className="mt-0.5 text-[11px] text-slate-500">
+            <p className="mt-0.5 text-[12px] text-slate-500">
               Unbilled Dispatch / حوالہ ڈسپیچ — operational unbilled delivery document. Accounting is recognized through the Main Sales Invoice / اکاؤنٹنگ مین سیلز انوائس پر ہوگی۔
             </p>
           </div>
@@ -818,7 +818,7 @@ export default function ConsolidatedInvoices() {
             )}
 
             {isLocked && (
-              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-3 py-2 text-[11px] font-semibold text-emerald-700">
+              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-3 py-2 text-[12px] font-semibold text-emerald-700">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 Stock Posted / اسٹاک پوسٹ شدہ
               </span>
@@ -827,13 +827,13 @@ export default function ConsolidatedInvoices() {
         </section>
 
         {error && (
-          <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-700">
+          <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] text-rose-700">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] text-emerald-700">
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[12px] text-emerald-700">
             {success}
           </div>
         )}
@@ -969,7 +969,7 @@ export default function ConsolidatedInvoices() {
               <div className="text-[12px] font-semibold text-slate-800">
                 Invoice Items / انوائس آئٹمز
               </div>
-              <div className="text-[10px] text-slate-400">
+              <div className="text-[12px] text-slate-400">
                 Item, godown, quantity, rate and tax
               </div>
             </div>
@@ -987,9 +987,9 @@ export default function ConsolidatedInvoices() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[800px] text-[11px]">
+            <table className="w-full min-w-[800px] text-[12px]">
               <thead className="bg-slate-50">
-                <tr className="border-b border-slate-200 text-[10px] uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-slate-200 text-[12px] uppercase tracking-wide text-slate-500">
                   <th className="px-3 py-2 text-left">Item / آئٹم</th>
                   <th className="px-2 py-2 text-left">Godown / گودام</th>
                   <th className="px-2 py-2 text-right">Qty</th>
@@ -1139,7 +1139,7 @@ export default function ConsolidatedInvoices() {
               <div className="text-[12px] font-semibold text-slate-800">
                 Applicable Charges / قابل اطلاق چارجز
               </div>
-              <div className="text-[10px] text-slate-400">
+              <div className="text-[12px] text-slate-400">
                 Optional charges from Charge Master
               </div>
             </div>
@@ -1183,7 +1183,7 @@ export default function ConsolidatedInvoices() {
           </div>
 
           {!charges.length ? (
-            <div className="p-4 text-[10px] text-slate-400">
+            <div className="p-4 text-[12px] text-slate-400">
               No additional charges / کوئی اضافی چارج نہیں۔
             </div>
           ) : (
@@ -1199,7 +1199,7 @@ export default function ConsolidatedInvoices() {
                     className="rounded-lg border border-slate-200 bg-slate-50 p-3"
                   >
                     <div className="mb-2 flex items-center justify-between">
-                      <span className="text-[11px] font-semibold">
+                      <span className="text-[12px] font-semibold">
                         {master?.charge_name || charge.charge_key}
                       </span>
 
@@ -1278,7 +1278,7 @@ export default function ConsolidatedInvoices() {
           )}
         </section>
 
-        <section className="ml-auto w-full max-w-md rounded-lg border border-slate-200 bg-white p-3 text-[11px]">
+        <section className="ml-auto w-full max-w-md rounded-lg border border-slate-200 bg-white p-3 text-[12px]">
           <div className="flex justify-between py-1">
             <span>Items Subtotal / آئٹمز</span>
             <strong>{money(rowsSubtotal)}</strong>
@@ -1365,7 +1365,7 @@ export default function ConsolidatedInvoices() {
         <div>
           <Link
             to="/sales"
-            className="mb-1 inline-flex items-center gap-1 text-[10px] text-slate-500 hover:text-blue-700"
+            className="mb-1 inline-flex items-center gap-1 text-[12px] text-slate-500 hover:text-blue-700"
           >
             <ArrowLeft className="h-3 w-3" />
             Sales / فروخت
@@ -1375,7 +1375,7 @@ export default function ConsolidatedInvoices() {
             Hawala / Consolidated Invoices / حوالہ انوائسز
           </h1>
 
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[12px] text-slate-500">
             Separate stock-only invoices. Accounting will be recognized later through the Main Sales Invoice.
           </p>
         </div>
@@ -1402,7 +1402,7 @@ export default function ConsolidatedInvoices() {
       </section>
 
       {error && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-700">
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] text-rose-700">
           {error}
         </div>
       )}
@@ -1419,9 +1419,9 @@ export default function ConsolidatedInvoices() {
 
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-[11px]">
+          <table className="w-full min-w-[900px] text-[12px]">
             <thead className="bg-slate-50">
-              <tr className="border-b border-slate-200 text-[10px] uppercase tracking-wide text-slate-500">
+              <tr className="border-b border-slate-200 text-[12px] uppercase tracking-wide text-slate-500">
                 <th className="px-3 py-2 text-left">Hawala No.</th>
                 <th className="px-3 py-2 text-left">Date</th>
                 <th className="px-3 py-2 text-left">Customer</th>
@@ -1471,7 +1471,7 @@ export default function ConsolidatedInvoices() {
                         {invoice.reference_name || "—"}
                       </div>
                       {invoice.reference_no && (
-                        <div className="text-[9px] text-slate-400">
+                        <div className="text-[12px] text-slate-400">
                           {invoice.reference_no}
                         </div>
                       )}
@@ -1483,8 +1483,8 @@ export default function ConsolidatedInvoices() {
                       <span
                         className={
                           invoice.status === "posted"
-                            ? "rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-semibold text-emerald-700"
-                            : "rounded-full bg-amber-50 px-2 py-1 text-[9px] font-semibold text-amber-700"
+                            ? "rounded-full bg-emerald-50 px-2 py-1 text-[12px] font-semibold text-emerald-700"
+                            : "rounded-full bg-amber-50 px-2 py-1 text-[12px] font-semibold text-amber-700"
                         }
                       >
                         {invoice.status}

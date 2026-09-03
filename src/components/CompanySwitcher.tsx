@@ -13,7 +13,7 @@ export default function CompanySwitcher() {
   return (
     <div className="fixed right-[116px] top-[7px] z-40 hidden min-w-[250px] md:block" data-no-bilingual>
       <div className="relative rounded-xl border border-slate-200/90 bg-white/95 px-2.5 py-1.5 shadow-sm backdrop-blur-xl">
-        <div className="mb-0.5 flex items-center gap-1.5 px-1 text-[8px] font-bold uppercase tracking-[0.13em] text-slate-400">
+        <div className="mb-0.5 flex items-center gap-1.5 px-1 text-[12px] font-bold uppercase tracking-[0.13em] text-slate-400">
           <Building2 size={10} />
           <span>Active Company / فعال کمپنی</span>
         </div>
@@ -21,7 +21,7 @@ export default function CompanySwitcher() {
           <select
             aria-label="Active company / فعال کمپنی"
             title="Active company / فعال کمپنی"
-            className="h-7 w-full appearance-none rounded-md border-0 bg-transparent pl-1 pr-8 text-[11px] font-bold text-slate-800 outline-none focus:ring-0 disabled:cursor-wait disabled:opacity-60"
+            className="h-7 w-full appearance-none rounded-md border-0 bg-transparent pl-1 pr-8 text-[12px] font-bold text-slate-800 outline-none focus:ring-0 disabled:cursor-wait disabled:opacity-60"
             value={activeCompany?.company_id ?? ""}
             disabled={switchingCompany}
             onChange={(event) => {
@@ -49,7 +49,7 @@ export default function CompanySwitcher() {
         </div>
       </div>
       {error && (
-        <div className="mt-1 rounded-lg border border-red-100 bg-red-50 px-2.5 py-1.5 text-[9px] font-medium text-red-600 shadow-sm">
+        <div className="mt-1 rounded-lg border border-red-100 bg-red-50 px-2.5 py-1.5 text-[12px] font-medium text-red-600 shadow-sm">
           {error}
         </div>
       )}

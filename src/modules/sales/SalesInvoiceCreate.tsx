@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Customer, Item } from "@/types";
@@ -913,7 +913,7 @@ export default function SalesInvoiceCreate() {
           <style>
             @page { size: A4; margin: 12mm; }
             * { box-sizing: border-box; }
-            body { margin: 0; background: #fff; color: #1f2937; font-family: Arial, Helvetica, sans-serif; font-size: 10px; }
+            body { margin: 0; background: #fff; color: #1f2937; font-family: Arial, Helvetica, sans-serif; font-size: 12px; }
             #printable-invoice-area { width: 100%; max-width: 100%; margin: 0 auto; padding: 4px; }
             .flex { display: flex; }
             .items-start { align-items: flex-start; }
@@ -950,10 +950,10 @@ export default function SalesInvoiceCreate() {
             .text-xl { font-size: 20px; }
             .text-lg { font-size: 16px; }
             .text-sm { font-size: 12px; }
-            .text-xs { font-size: 10px; }
-            .text-\[10px\] { font-size: 10px; }
-            .text-\[9px\] { font-size: 9px; }
-            .text-\[8px\] { font-size: 8px; }
+            .text-xs { font-size: 12px; }
+            .text-\[10px\] { font-size: 12px; }
+            .text-\[9px\] { font-size: 12px; }
+            .text-\[8px\] { font-size: 12px; }
             .text-slate-400 { color: #94a3b8; }
             .text-slate-500 { color: #64748b; }
             .text-slate-700 { color: #334155; }
@@ -986,7 +986,7 @@ export default function SalesInvoiceCreate() {
           <button
             type="button"
             onClick={() => navigate("/sales")}
-            className="mb-1 inline-flex items-center gap-1 text-[10px] font-medium text-slate-500 hover:text-blue-700"
+            className="mb-1 inline-flex items-center gap-1 text-[12px] font-medium text-slate-500 hover:text-blue-700"
           >
             <ArrowLeft className="h-3 w-3" />
             Sales Invoices
@@ -1001,7 +1001,7 @@ export default function SalesInvoiceCreate() {
             </h1>
           </div>
 
-          <p className="mt-0.5 text-[11px] text-slate-500">
+          <p className="mt-0.5 text-[12px] text-slate-500">
             {isLocked
               ? "Posted or closed invoice is locked to preserve accounting and stock integrity."
               : "Prepare invoice lines, taxes and charges. Posting is completed from the invoice detail screen."}
@@ -1058,7 +1058,7 @@ export default function SalesInvoiceCreate() {
       {error && <ErrorBanner message={error} />}
 
       {isLocked && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
           This invoice is posted/closed and locked. Editing is disabled for audit compliance.
         </div>
       )}
@@ -1073,7 +1073,7 @@ export default function SalesInvoiceCreate() {
               <div className="text-[12px] font-semibold text-slate-800">
                 Invoice Information
               </div>
-              <div className="mt-0.5 text-[10px] text-slate-400">
+              <div className="mt-0.5 text-[12px] text-slate-400">
                 Customer, invoice type, tax and salesperson details
               </div>
             </div>
@@ -1214,7 +1214,7 @@ export default function SalesInvoiceCreate() {
                 <div className="text-[13px] font-bold text-blue-900">
                   Select Consolidated / Hawala Invoice / حوالہ انوائس منتخب کریں
                 </div>
-                <div className="mt-1 text-[10px] text-blue-700">
+                <div className="mt-1 text-[12px] text-blue-700">
                   Select one or more posted Hawala invoices to add into this Main Sales Invoice.
                 </div>
               </div>
@@ -1233,7 +1233,7 @@ export default function SalesInvoiceCreate() {
                 />
 
                 {hawalaLoading ? (
-                  <div className="rounded border border-slate-200 p-4 text-center text-[11px] text-slate-500">
+                  <div className="rounded border border-slate-200 p-4 text-center text-[12px] text-slate-500">
                     Loading Hawala invoices...
                   </div>
                 ) : (
@@ -1281,7 +1281,7 @@ export default function SalesInvoiceCreate() {
                                 {h.invoice_no}
                               </div>
 
-                              <div className="text-[10px] text-slate-500">
+                              <div className="text-[12px] text-slate-500">
                                 {h.reference_name || "No Reference"}
                                 {h.reference_no ? ` · ${h.reference_no}` : ""}
                                 {` · ${h.invoice_date}`}
@@ -1296,7 +1296,7 @@ export default function SalesInvoiceCreate() {
                       })}
 
                     {hawalaOptions.length === 0 && (
-                      <div className="p-5 text-center text-[11px] text-slate-400">
+                      <div className="p-5 text-center text-[12px] text-slate-400">
                         No posted unused Hawala invoices available for this customer.
                         / اس کسٹمر کے لیے کوئی دستیاب حوالہ انوائس نہیں۔
                       </div>
@@ -1306,7 +1306,7 @@ export default function SalesInvoiceCreate() {
 
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <div className="rounded bg-slate-50 px-3 py-2">
-                    <div className="text-[9px] uppercase tracking-wide text-slate-400">
+                    <div className="text-[12px] uppercase tracking-wide text-slate-400">
                       Selected Invoices / منتخب انوائسز
                     </div>
                     <div className="mt-1 text-sm font-bold text-slate-800">
@@ -1315,7 +1315,7 @@ export default function SalesInvoiceCreate() {
                   </div>
 
                   <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-right">
-                    <div className="text-[9px] uppercase tracking-wide text-blue-500">
+                    <div className="text-[12px] uppercase tracking-wide text-blue-500">
                       Selected Hawala Total / حوالہ کل
                     </div>
                     <div className="mt-1 text-base font-bold text-blue-700">
@@ -1331,31 +1331,31 @@ export default function SalesInvoiceCreate() {
             <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
               <div className="border-b border-slate-200 bg-slate-50 px-3 py-2.5">
                 <div className="text-[12px] font-semibold text-slate-800">Customer Financial Position / کسٹمر مالی پوزیشن</div>
-                <div className="mt-0.5 text-[10px] text-slate-400">Previous balance, latest payment and projected balance / سابقہ بقایا، آخری ادائیگی اور متوقع بقایا</div>
+                <div className="mt-0.5 text-[12px] text-slate-400">Previous balance, latest payment and projected balance / سابقہ بقایا، آخری ادائیگی اور متوقع بقایا</div>
               </div>
               {customerSnapshotLoading ? (
-                <div className="px-3 py-4 text-[10px] text-slate-400">Loading customer ledger position… / کسٹمر کھاتہ لوڈ ہو رہا ہے…</div>
+                <div className="px-3 py-4 text-[12px] text-slate-400">Loading customer ledger position… / کسٹمر کھاتہ لوڈ ہو رہا ہے…</div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-5">
                   <div className="border-b border-r border-slate-100 p-3 md:border-b-0">
-                    <div className="text-[9px] uppercase tracking-wide text-slate-400">Previous Balance / سابقہ بقایا</div>
+                    <div className="text-[12px] uppercase tracking-wide text-slate-400">Previous Balance / سابقہ بقایا</div>
                     <div className="mt-1 text-sm font-bold text-amber-700">{formatCurrency(customerSnapshot?.previousBalance ?? 0)}</div>
                   </div>
                   <div className="border-b border-r border-slate-100 p-3 md:border-b-0">
-                    <div className="text-[9px] uppercase tracking-wide text-slate-400">Last Payment / آخری ادائیگی</div>
+                    <div className="text-[12px] uppercase tracking-wide text-slate-400">Last Payment / آخری ادائیگی</div>
                     <div className="mt-1 text-sm font-bold text-emerald-700">{formatCurrency(customerSnapshot?.lastPaymentAmount ?? 0)}</div>
-                    <div className="mt-0.5 text-[9px] text-slate-400">{customerSnapshot?.lastPaymentDate || "No payment / کوئی ادائیگی نہیں"}</div>
+                    <div className="mt-0.5 text-[12px] text-slate-400">{customerSnapshot?.lastPaymentDate || "No payment / کوئی ادائیگی نہیں"}</div>
                   </div>
                   <div className="border-b border-r border-slate-100 p-3 md:border-b-0">
-                    <div className="text-[9px] uppercase tracking-wide text-slate-400">Received Today / آج وصولی</div>
+                    <div className="text-[12px] uppercase tracking-wide text-slate-400">Received Today / آج وصولی</div>
                     <div className="mt-1 text-sm font-bold text-blue-700">{formatCurrency(customerSnapshot?.todayReceived ?? 0)}</div>
                   </div>
                   <div className="border-b border-r border-slate-100 p-3 md:border-b-0">
-                    <div className="text-[9px] uppercase tracking-wide text-slate-400">Invoice Balance / موجودہ بل بقایا</div>
+                    <div className="text-[12px] uppercase tracking-wide text-slate-400">Invoice Balance / موجودہ بل بقایا</div>
                     <div className="mt-1 text-sm font-bold text-slate-800">{formatCurrency(currentInvoiceBalance)}</div>
                   </div>
                   <div className="p-3">
-                    <div className="text-[9px] uppercase tracking-wide text-slate-400">Projected Balance / متوقع بقایا</div>
+                    <div className="text-[12px] uppercase tracking-wide text-slate-400">Projected Balance / متوقع بقایا</div>
                     <div className="mt-1 text-sm font-bold text-rose-700">{formatCurrency(projectedCustomerBalance)}</div>
                   </div>
                 </div>
@@ -1369,7 +1369,7 @@ export default function SalesInvoiceCreate() {
                 <div className="text-[12px] font-semibold text-slate-800">
                   Invoice Items
                 </div>
-                <div className="mt-0.5 text-[10px] text-slate-400">
+                <div className="mt-0.5 text-[12px] text-slate-400">
                   Products, quantity, selling rate and tax
                 </div>
               </div>
@@ -1398,9 +1398,9 @@ export default function SalesInvoiceCreate() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-[11px]">
+              <table className="w-full min-w-[760px] text-[12px]">
                 <thead className="bg-slate-50">
-                  <tr className="border-b border-slate-200 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                  <tr className="border-b border-slate-200 text-[12px] font-semibold uppercase tracking-wide text-slate-500">
                     <th className="w-[36%] px-3 py-2 text-left">Item / آئٹم</th>
                     <th className="w-[18%] px-2 py-2 text-left">
                       Godown / گودام
@@ -1481,7 +1481,7 @@ export default function SalesInvoiceCreate() {
                             ))}
                           </select>
                           {godowns.length === 0 && (
-                            <div className="mt-1 text-[9px] text-rose-600">
+                            <div className="mt-1 text-[12px] text-rose-600">
                               No godown loaded. Create one in Godown Master and refresh.
                             </div>
                           )}
@@ -1545,7 +1545,7 @@ export default function SalesInvoiceCreate() {
                             {formatCurrency(lineTotal)}
                           </div>
                           {invoiceType === "Tax Invoice" && (
-                            <div className="mt-0.5 text-[9px] text-slate-400">
+                            <div className="mt-0.5 text-[12px] text-slate-400">
                               Base {formatCurrency(lineAmount)}
                             </div>
                           )}
@@ -1571,11 +1571,11 @@ export default function SalesInvoiceCreate() {
             </div>
 
             <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-3 py-2">
-              <div className="text-[10px] text-slate-400">
+              <div className="text-[12px] text-slate-400">
                 {rows.length} line{rows.length === 1 ? "" : "s"}
               </div>
               <div className="text-right">
-                <div className="text-[9px] uppercase tracking-wide text-slate-400">
+                <div className="text-[12px] uppercase tracking-wide text-slate-400">
                   Items Total
                 </div>
                 <div className="text-[13px] font-semibold text-slate-900">
@@ -1593,7 +1593,7 @@ export default function SalesInvoiceCreate() {
                 <div className="text-[12px] font-semibold text-slate-800">
                   Applicable Charges / قابل اطلاق چارجز
                 </div>
-                <div className="mt-0.5 text-[10px] text-slate-400">
+                <div className="mt-0.5 text-[12px] text-slate-400">
                   Charges come from Charge Master. Revenue and cost accounts are mapped automatically. / چارجز چارج ماسٹر سے آتے ہیں، ریونیو اور لاگت کے اکاؤنٹس خودکار طور پر منسلک ہوتے ہیں۔
                 </div>
               </div>
@@ -1626,7 +1626,7 @@ export default function SalesInvoiceCreate() {
             </div>
 
             {selectedChargeKeys.length === 0 ? (
-              <div className="px-3 py-5 text-[10px] text-slate-400">
+              <div className="px-3 py-5 text-[12px] text-slate-400">
                 No additional charges selected. / کوئی اضافی چارج منتخب نہیں کیا گیا۔
               </div>
             ) : (
@@ -1657,10 +1657,10 @@ export default function SalesInvoiceCreate() {
                     >
                       <div className="mb-2 flex items-center justify-between gap-2">
                         <div>
-                          <div className="text-[11px] font-semibold text-slate-700">
+                          <div className="text-[12px] font-semibold text-slate-700">
                             {chargeType.charge_name}
                           </div>
-                          <div className="text-[9px] text-slate-400">
+                          <div className="text-[12px] text-slate-400">
                             {chargeType.charge_key}
                           </div>
                         </div>
@@ -1753,7 +1753,7 @@ export default function SalesInvoiceCreate() {
                         )}
                       </div>
 
-                      <div className="mt-2 grid grid-cols-1 gap-1 border-t border-slate-200 pt-2 text-[9px]">
+                      <div className="mt-2 grid grid-cols-1 gap-1 border-t border-slate-200 pt-2 text-[12px]">
                         <div className="flex justify-between gap-2">
                           <span className="text-slate-400">Recovery / Revenue Account / وصولی یا ریونیو اکاؤنٹ</span>
                           <span className="font-medium text-slate-600">
@@ -1770,7 +1770,7 @@ export default function SalesInvoiceCreate() {
                               : "Not mapped"}
                           </span>
                         </div>
-                        <div className="flex justify-between border-t border-slate-200 pt-1 text-[10px] text-slate-500">
+                        <div className="flex justify-between border-t border-slate-200 pt-1 text-[12px] text-slate-500">
                           <span>Total / کل</span>
                           <span className="font-semibold text-slate-700">
                             {formatCurrency(chargeTotal)}
@@ -1793,7 +1793,7 @@ export default function SalesInvoiceCreate() {
               </div>
             </div>
 
-            <div className="space-y-2.5 p-3 text-[11px]">
+            <div className="space-y-2.5 p-3 text-[12px]">
               <div className="flex items-center justify-between text-slate-500">
                 <span>Items Subtotal / آئٹمز ذیلی کل</span>
                 <span className="font-medium text-slate-800">
@@ -1830,7 +1830,7 @@ export default function SalesInvoiceCreate() {
                 )}
 
               <div className="border-t border-slate-200 pt-2.5">
-                <div className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+                <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400">
                   Grand Total
                 </div>
                 <div className="mt-1 text-[20px] font-semibold tracking-tight text-slate-900">
@@ -1841,7 +1841,7 @@ export default function SalesInvoiceCreate() {
           </section>
 
           <section className="rounded-lg border border-slate-200 bg-white p-3">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Customer / گاہک</div>
+            <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400">Customer / گاہک</div>
             <div className="mt-1 text-[12px] font-semibold text-slate-800">
               {selectedCustomerObj?.name ||
                 "No customer selected"}
@@ -1849,19 +1849,19 @@ export default function SalesInvoiceCreate() {
 
             <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
               <div>
-                <div className="text-[9px] uppercase tracking-wide text-slate-400">
+                <div className="text-[12px] uppercase tracking-wide text-slate-400">
                   Invoice
                 </div>
-                <div className="mt-0.5 text-[11px] font-medium text-slate-700">
+                <div className="mt-0.5 text-[12px] font-medium text-slate-700">
                   {invoiceNo || "Pending"}
                 </div>
               </div>
 
               <div>
-                <div className="text-[9px] uppercase tracking-wide text-slate-400">Status / حالت</div>
+                <div className="text-[12px] uppercase tracking-wide text-slate-400">Status / حالت</div>
                 <div
                   className={[
-                    "mt-0.5 text-[11px] font-semibold",
+                    "mt-0.5 text-[12px] font-semibold",
                     isLocked
                       ? "text-emerald-700"
                       : "text-amber-700",
@@ -1927,12 +1927,12 @@ export default function SalesInvoiceCreate() {
             <div className="flex items-start justify-between gap-5 border-b-2 border-slate-800 pb-4">
               <div>
                 <div className="text-xl font-bold tracking-tight">MetalForge Steel Industries</div>
-                <div className="mt-0.5 text-[10px] text-slate-500">MetalForge OS · Sales & Accounts</div>
+                <div className="mt-0.5 text-[12px] text-slate-500">MetalForge OS · Sales & Accounts</div>
                 <div className="mt-3 text-lg font-bold">
                   {invoiceType === "Cash Bill" ? "CASH BILL / نقد بل" : invoiceType === "Tax Invoice" ? "TAX INVOICE / ٹیکس انوائس" : "SALES INVOICE / فروخت انوائس"}
                 </div>
               </div>
-              <div className="flex items-start gap-4 text-right text-[10px]">
+              <div className="flex items-start gap-4 text-right text-[12px]">
                 <div className="space-y-1 pt-1">
                   <div><strong>Invoice # / انوائس نمبر:</strong> {invoiceNo || "—"}</div>
                   <div><strong>Date / تاریخ:</strong> {invoiceDate}</div>
@@ -1940,29 +1940,29 @@ export default function SalesInvoiceCreate() {
                 </div>
                 <div className="rounded border border-slate-300 p-1.5 text-center">
                   <QRCodeCanvas value={invoiceQrPayload} size={88} level="M" />
-                  <div className="mt-1 text-[8px] text-slate-500">Scan to Verify / تصدیق کے لیے اسکین کریں</div>
+                  <div className="mt-1 text-[12px] text-slate-500">Scan to Verify / تصدیق کے لیے اسکین کریں</div>
                 </div>
               </div>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3">
               <div className="rounded border border-slate-200 p-3">
-                <div className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">Bill To / بل برائے</div>
+                <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400">Bill To / بل برائے</div>
                 <div className="mt-1 text-sm font-bold">{selectedCustomerObj?.name || "—"}</div>
-                <div className="mt-2 text-[10px] text-slate-500">Previous Balance / سابقہ بقایا</div>
+                <div className="mt-2 text-[12px] text-slate-500">Previous Balance / سابقہ بقایا</div>
                 <div className="font-bold">{formatCurrency(customerSnapshot?.previousBalance ?? 0)}</div>
               </div>
               <div className="rounded border border-slate-200 p-3">
-                <div className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">Sales Person / سیلز پرسن</div>
+                <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400">Sales Person / سیلز پرسن</div>
                 <div className="mt-1 text-sm font-bold">{selectedSalesPersonObj?.name || "—"}</div>
-                <div className="mt-2 text-[10px] text-slate-500">Payment / ادائیگی</div>
+                <div className="mt-2 text-[12px] text-slate-500">Payment / ادائیگی</div>
                 <div className="font-semibold">{invoiceType === "Cash Bill" ? "Cash / نقد" : "Credit / ادھار"}</div>
               </div>
             </div>
 
             <div className="mt-5">
               <div className="mb-2 border-b border-slate-800 pb-1 text-xs font-bold uppercase">Items / اشیاء</div>
-              <table className="w-full border-collapse text-[10px]">
+              <table className="w-full border-collapse text-[12px]">
                 <thead>
                   <tr className="bg-slate-100">
                     <th className="border border-slate-300 px-2 py-2 text-left">Item Description / آئٹم کی تفصیل</th>
@@ -1980,11 +1980,11 @@ export default function SalesInvoiceCreate() {
                     const tax = invoiceType === "Tax Invoice" ? (base * (Number(r.tax_percent) || 0)) / 100 : 0;
                     return (
                       <tr key={idx}>
-                        <td className="border border-slate-300 px-2 py-2 font-semibold">{item?.name || "—"}<div className="text-[8px] font-normal text-slate-400">SKU: {item?.sku || "—"}</div></td>
+                        <td className="border border-slate-300 px-2 py-2 font-semibold">{item?.name || "—"}<div className="text-[12px] font-normal text-slate-400">SKU: {item?.sku || "—"}</div></td>
                         <td className="border border-slate-300 px-2 py-2">{godowns.find((g) => g.id === r.godown_id)?.name || "—"}</td>
                         <td className="border border-slate-300 px-2 py-2 text-right">{r.qty}</td>
                         <td className="border border-slate-300 px-2 py-2 text-right">{formatCurrency(Number(r.rate) || 0)}</td>
-                        {invoiceType === "Tax Invoice" && <td className="border border-slate-300 px-2 py-2 text-right">{r.tax_percent}%<div className="text-[8px] text-slate-400">{formatCurrency(tax)}</div></td>}
+                        {invoiceType === "Tax Invoice" && <td className="border border-slate-300 px-2 py-2 text-right">{r.tax_percent}%<div className="text-[12px] text-slate-400">{formatCurrency(tax)}</div></td>}
                         <td className="border border-slate-300 px-2 py-2 text-right font-bold">{formatCurrency(base + tax)}</td>
                       </tr>
                     );
@@ -1996,7 +1996,7 @@ export default function SalesInvoiceCreate() {
             {selectedChargeKeys.some((key) => Number(charges[key]) > 0) && (
               <div className="mt-5">
                 <div className="mb-2 border-b border-slate-800 pb-1 text-xs font-bold uppercase">Additional Charges / اضافی چارجز</div>
-                <table className="w-full border-collapse text-[10px]">
+                <table className="w-full border-collapse text-[12px]">
                   <tbody>
                     {selectedChargeKeys.map((key) => {
                       const charge = salesCharges.find((c) => c.charge_key === key);
@@ -2004,7 +2004,7 @@ export default function SalesInvoiceCreate() {
                       if (amount <= 0) return null;
                       const taxRate = invoiceType === "Tax Invoice" ? Number(chargeTaxes[key]) || 0 : 0;
                       const tax = (amount * taxRate) / 100;
-                      return <tr key={key}><td className="border border-slate-300 px-2 py-2">{charge?.charge_name || key}<div className="text-[8px] text-slate-400">{key}{taxRate > 0 ? ` · Tax ${taxRate}%` : ""}</div></td><td className="border border-slate-300 px-2 py-2 text-right font-bold">{formatCurrency(amount + tax)}</td></tr>;
+                      return <tr key={key}><td className="border border-slate-300 px-2 py-2">{charge?.charge_name || key}<div className="text-[12px] text-slate-400">{key}{taxRate > 0 ? ` · Tax ${taxRate}%` : ""}</div></td><td className="border border-slate-300 px-2 py-2 text-right font-bold">{formatCurrency(amount + tax)}</td></tr>;
                     })}
                   </tbody>
                 </table>
@@ -2014,7 +2014,7 @@ export default function SalesInvoiceCreate() {
             <div className="mt-5 grid grid-cols-2 gap-4">
               <div className="rounded border border-slate-300 p-3">
                 <div className="mb-2 text-xs font-bold">Customer Account / کسٹمر کھاتہ</div>
-                <div className="space-y-1.5 text-[10px]">
+                <div className="space-y-1.5 text-[12px]">
                   <div className="flex justify-between"><span>Previous Balance / سابقہ بقایا</span><strong>{formatCurrency(customerSnapshot?.previousBalance ?? 0)}</strong></div>
                   <div className="flex justify-between"><span>Last Payment / آخری ادائیگی</span><strong>{formatCurrency(customerSnapshot?.lastPaymentAmount ?? 0)}</strong></div>
                   <div className="flex justify-between"><span>Payment Date / ادائیگی کی تاریخ</span><strong>{customerSnapshot?.lastPaymentDate || "—"}</strong></div>
@@ -2026,7 +2026,7 @@ export default function SalesInvoiceCreate() {
 
               <div className="rounded border border-slate-300 p-3">
                 <div className="mb-2 text-xs font-bold">Invoice Summary / بل کا خلاصہ</div>
-                <div className="space-y-1.5 text-[10px]">
+                <div className="space-y-1.5 text-[12px]">
                   <div className="flex justify-between"><span>Items Subtotal / آئٹمز ذیلی کل</span><strong>{formatCurrency(rowsSubtotal)}</strong></div>
                   {selectedHawalaTotal > 0 && (
                     <div className="flex justify-between text-blue-700">
@@ -2043,7 +2043,7 @@ export default function SalesInvoiceCreate() {
               </div>
             </div>
 
-            <div className="mt-6 border-t border-slate-300 pt-3 text-center text-[8px] text-slate-500">This is a computer-generated official document and does not require a physical signature. / یہ کمپیوٹر سے تیار کردہ سرکاری دستاویز ہے اور دستخط ضروری نہیں۔</div>
+            <div className="mt-6 border-t border-slate-300 pt-3 text-center text-[12px] text-slate-500">This is a computer-generated official document and does not require a physical signature. / یہ کمپیوٹر سے تیار کردہ سرکاری دستاویز ہے اور دستخط ضروری نہیں۔</div>
           </div>
 
           <div className="mt-4 flex justify-end gap-2 border-t pt-3">
@@ -2082,7 +2082,7 @@ export default function SalesInvoiceCreate() {
                 ))}
               </select>
               {godowns.length === 0 && (
-                <div className="mt-1 text-[9px] text-rose-600">
+                <div className="mt-1 text-[12px] text-rose-600">
                   No godown loaded. Create one in Godown Master and refresh.
                 </div>
               )}

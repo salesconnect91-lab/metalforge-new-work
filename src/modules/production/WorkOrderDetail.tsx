@@ -883,7 +883,7 @@ export default function WorkOrderDetail() {
     .custom-header {
       margin-top: 10px;
       text-align: center;
-      font-size: 11px;
+      font-size: 12px;
       color: #475569;
     }
 
@@ -921,7 +921,7 @@ export default function WorkOrderDetail() {
     .label {
       margin-bottom: 3px;
       color: #64748b;
-      font-size: 10px;
+      font-size: 12px;
       text-transform: uppercase;
     }
 
@@ -945,7 +945,7 @@ export default function WorkOrderDetail() {
       border: 1px solid #cbd5e1;
       background: #f1f5f9;
       text-align: left;
-      font-size: 11px;
+      font-size: 12px;
     }
 
     td {
@@ -964,7 +964,7 @@ export default function WorkOrderDetail() {
 
     .muted {
       color: #64748b;
-      font-size: 10px;
+      font-size: 12px;
     }
 
     .locked {
@@ -972,7 +972,7 @@ export default function WorkOrderDetail() {
       padding: 8px 10px;
       border: 1px solid #cbd5e1;
       background: #f8fafc;
-      font-size: 10px;
+      font-size: 12px;
       color: #475569;
     }
 
@@ -997,14 +997,14 @@ export default function WorkOrderDetail() {
       border-top: 1px solid #cbd5e1;
       text-align: center;
       color: #64748b;
-      font-size: 10px;
+      font-size: 12px;
     }
 
     .print-meta {
       margin-top: 8px;
       text-align: right;
       color: #94a3b8;
-      font-size: 9px;
+      font-size: 12px;
     }
 
     ${

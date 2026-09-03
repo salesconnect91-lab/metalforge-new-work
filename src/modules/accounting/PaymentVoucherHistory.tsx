@@ -225,7 +225,7 @@ body{font-family:Arial,sans-serif;margin:36px;color:#0f172a}
 .company{font-size:26px;font-weight:800}
 .title{text-align:right;font-size:22px;font-weight:800}
 .meta{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
-.label{font-size:11px;color:#64748b;text-transform:uppercase;margin-bottom:5px}
+.label{font-size: 12px;color:#64748b;text-transform:uppercase;margin-bottom:5px}
 .value{font-size:15px;font-weight:700}
 .amount{display:flex;justify-content:space-between;align-items:center;border:1px solid #cbd5e1;padding:18px;margin:14px 0}
 .amount strong{font-size:25px}

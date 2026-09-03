@@ -540,7 +540,7 @@ export default function SalespersonReport() {
     <div className="space-y-3">
       <section className="flex flex-col gap-3 border-b border-slate-200 pb-3 xl:flex-row xl:items-center xl:justify-between">
         <div>
-          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+          <div className="text-[12px] font-semibold uppercase tracking-[0.16em] text-slate-400">
             Sales Analytics
           </div>
           <div className="mt-0.5 flex items-center gap-2">
@@ -549,7 +549,7 @@ export default function SalespersonReport() {
               Salesperson Performance
             </h1>
           </div>
-          <p className="mt-0.5 text-[11px] text-slate-500">
+          <p className="mt-0.5 text-[12px] text-slate-500">
             Posted sales, collections, customer coverage and outstanding balances.
           </p>
         </div>
@@ -588,7 +588,7 @@ export default function SalespersonReport() {
 
       <section className="grid grid-cols-2 gap-2.5 lg:grid-cols-6">
         <div className="rounded-lg border border-slate-200 bg-white p-3">
-          <div className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400">
             Salespersons
           </div>
           <div className="mt-1.5 text-[17px] font-semibold text-slate-900">
@@ -597,7 +597,7 @@ export default function SalespersonReport() {
         </div>
 
         <div className="rounded-lg border border-slate-200 bg-white p-3">
-          <div className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400">
             Posted Invoices
           </div>
           <div className="mt-1.5 text-[17px] font-semibold text-slate-900">
@@ -606,14 +606,14 @@ export default function SalespersonReport() {
         </div>
 
         <div className="rounded-lg border border-blue-200 bg-white p-3">
-          <div className="text-[9px] font-semibold uppercase tracking-wide text-blue-600">Sales / فروخت</div>
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-blue-600">Sales / فروخت</div>
           <div className="mt-1.5 text-[16px] font-semibold text-blue-700">
             {formatCurrency(totals.sales)}
           </div>
         </div>
 
         <div className="rounded-lg border border-emerald-200 bg-white p-3">
-          <div className="text-[9px] font-semibold uppercase tracking-wide text-emerald-600">
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-emerald-600">
             Received
           </div>
           <div className="mt-1.5 text-[16px] font-semibold text-emerald-700">
@@ -622,7 +622,7 @@ export default function SalespersonReport() {
         </div>
 
         <div className="rounded-lg border border-blue-200 bg-white p-3">
-          <div className="text-[9px] font-semibold uppercase tracking-wide text-blue-600">
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-blue-600">
             Debit Balance
           </div>
           <div className="mt-1.5 text-[16px] font-semibold text-blue-700">
@@ -631,7 +631,7 @@ export default function SalespersonReport() {
         </div>
 
         <div className="rounded-lg border border-rose-200 bg-white p-3">
-          <div className="text-[9px] font-semibold uppercase tracking-wide text-rose-600">
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-rose-600">
             Credit Balance
           </div>
           <div className="mt-1.5 text-[16px] font-semibold text-rose-700">
@@ -700,7 +700,7 @@ export default function SalespersonReport() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2.5 print:hidden">
-          <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+          <span className="mr-1 text-[12px] font-semibold uppercase tracking-wide text-slate-500">
             Balance View:
           </span>
 
@@ -708,7 +708,7 @@ export default function SalespersonReport() {
             type="button"
             onClick={() => setBalanceSideFilter("all")}
             className={[
-              "rounded-lg border px-3 py-2 text-[11px] font-bold",
+              "rounded-lg border px-3 py-2 text-[12px] font-bold",
               balanceSideFilter === "all"
                 ? "border-slate-800 bg-slate-800 text-white"
                 : "border-slate-200 bg-white text-slate-600",
@@ -721,7 +721,7 @@ export default function SalespersonReport() {
             type="button"
             onClick={() => setBalanceSideFilter("debit")}
             className={[
-              "rounded-lg border px-3 py-2 text-[11px] font-bold",
+              "rounded-lg border px-3 py-2 text-[12px] font-bold",
               balanceSideFilter === "debit"
                 ? "border-blue-600 bg-blue-600 text-white"
                 : "border-blue-200 bg-blue-50 text-blue-700",
@@ -734,7 +734,7 @@ export default function SalespersonReport() {
             type="button"
             onClick={() => setBalanceSideFilter("credit")}
             className={[
-              "rounded-lg border px-3 py-2 text-[11px] font-bold",
+              "rounded-lg border px-3 py-2 text-[12px] font-bold",
               balanceSideFilter === "credit"
                 ? "border-rose-600 bg-rose-600 text-white"
                 : "border-rose-200 bg-rose-50 text-rose-700",
@@ -745,9 +745,9 @@ export default function SalespersonReport() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1050px] text-[11px]">
+          <table className="w-full min-w-[1050px] text-[12px]">
             <thead className="bg-slate-50">
-              <tr className="border-b border-slate-200 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <tr className="border-b border-slate-200 text-[12px] font-semibold uppercase tracking-wide text-slate-500">
                 <th className="px-3 py-2 text-left">
                   Salesperson
                 </th>
@@ -780,7 +780,7 @@ export default function SalespersonReport() {
                 <tr>
                   <td
                     colSpan={10}
-                    className="px-3 py-8 text-center text-[10px] text-slate-400"
+                    className="px-3 py-8 text-center text-[12px] text-slate-400"
                   >
                     Loading salesperson report…
                   </td>
@@ -789,7 +789,7 @@ export default function SalespersonReport() {
                 <tr>
                   <td
                     colSpan={10}
-                    className="px-3 py-8 text-center text-[10px] text-slate-400"
+                    className="px-3 py-8 text-center text-[12px] text-slate-400"
                   >
                     No salesperson records match the current filters.
                   </td>
@@ -815,10 +815,10 @@ export default function SalespersonReport() {
                           </div>
 
                           <div>
-                            <div className="text-[11px] font-semibold text-slate-800">
+                            <div className="text-[12px] font-semibold text-slate-800">
                               {row.salesPerson}
                             </div>
-                            <div className="mt-0.5 flex items-center gap-1.5 text-[9px] text-slate-400">
+                            <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-slate-400">
                               <span>
                                 {row.code ??
                                   "Historical only"}
@@ -854,7 +854,7 @@ export default function SalespersonReport() {
                             : "—"}
                         </div>
                         {row.customers.length > 0 && (
-                          <div className="mt-0.5 text-[9px] text-slate-400">
+                          <div className="mt-0.5 text-[12px] text-slate-400">
                             {row.customers.length} customer
                             {row.customers.length === 1
                               ? ""
@@ -863,7 +863,7 @@ export default function SalespersonReport() {
                         )}
                       </td>
 
-                      <td className="px-2 py-2.5 text-[10px] text-slate-500">
+                      <td className="px-2 py-2.5 text-[12px] text-slate-500">
                         {row.dateRange}
                       </td>
 
@@ -917,7 +917,7 @@ export default function SalespersonReport() {
                               openEdit(row)
                             }
                             disabled={!row.id}
-                            className="inline-flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-semibold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="inline-flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[12px] font-semibold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                           >
                             <Pencil className="h-3 w-3" />Edit / ترمیم</button>
 
@@ -928,7 +928,7 @@ export default function SalespersonReport() {
                             }
                             disabled={!row.id}
                             className={[
-                              "inline-flex h-7 items-center rounded-md border px-2 text-[10px] font-semibold disabled:cursor-not-allowed disabled:opacity-40",
+                              "inline-flex h-7 items-center rounded-md border px-2 text-[12px] font-semibold disabled:cursor-not-allowed disabled:opacity-40",
                               row.isActive === false
                                 ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                                 : "border-rose-200 bg-rose-50 text-rose-700",
@@ -948,10 +948,10 @@ export default function SalespersonReport() {
 
             {!loading && filteredData.length > 0 && (
               <tfoot className="border-t-2 border-slate-300 bg-slate-100">
-                <tr className="text-[11px] font-bold">
+                <tr className="text-[12px] font-bold">
                   <td className="px-3 py-3 text-slate-900">
                     GRAND TOTAL
-                    <div className="mt-0.5 text-[9px] font-medium text-slate-500">
+                    <div className="mt-0.5 text-[12px] font-medium text-slate-500">
                       Filtered: {filteredData.length} salesperson
                       {filteredData.length === 1 ? "" : "s"}
                     </div>
@@ -1010,7 +1010,7 @@ export default function SalespersonReport() {
           onSubmit={handleSaveSalesPerson}
           className="space-y-3"
         >
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] text-slate-500">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-500">
             Salesperson records are non-posting role records used by the sales invoice workflow.
           </div>
 

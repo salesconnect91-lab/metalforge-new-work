@@ -2583,7 +2583,7 @@ export default function JournalEntryDetail() {
                               </select>
 
                               {partyRequired && (
-                                <div className="text-[11px] text-amber-600 mt-1">
+                                <div className="text-[12px] text-amber-600 mt-1">
                                   Party required for this account
                                 </div>
                               )}

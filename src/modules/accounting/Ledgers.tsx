@@ -565,7 +565,7 @@ export default function Ledgers() {
                           <div className="text-sm font-medium text-slate-900">
                             {party.name}
                           </div>
-                          <div className="text-[11px] text-slate-400">
+                          <div className="text-[12px] text-slate-400">
                             {party.type === "customer"
                               ? "Customer"
                               : "Supplier"}
@@ -774,7 +774,7 @@ export default function Ledgers() {
                         <div className="font-medium text-slate-900">
                           {row.party_name || "—"}
                         </div>
-                        <div className="text-[11px] text-slate-400 capitalize">
+                        <div className="text-[12px] text-slate-400 capitalize">
                           {row.party_type}
                         </div>
                       </td>

@@ -159,7 +159,7 @@ function StatementSection({
                 <span className="block truncate font-medium text-slate-800">
                   {item.name}
                 </span>
-                <span className="block text-[11px] text-slate-400">
+                <span className="block text-[12px] text-slate-400">
                   {item.detailType}
                 </span>
               </div>
@@ -638,7 +638,7 @@ export default function ProfitLoss() {
             </div>
           </div>
           {lastUpdated && (
-            <div className="mt-2 text-right text-[11px] text-slate-400">
+            <div className="mt-2 text-right text-[12px] text-slate-400">
               Posted ledger entries only · Updated {lastUpdated.toLocaleTimeString()}
             </div>
           )}
@@ -659,7 +659,7 @@ export default function ProfitLoss() {
                 ["Net Profit / Loss", metrics.netProfit, metrics.netProfit >= 0 ? "text-blue-700" : "text-rose-700"],
               ] as Array<[string, number, string]>).map(([label, amount, color]) => (
                 <div key={label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  <span className="block text-[12px] font-bold uppercase tracking-wide text-slate-500">
                     {label}
                   </span>
                   <span className={`mt-1 block font-mono text-base font-bold ${color}`}>

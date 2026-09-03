@@ -303,7 +303,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 <div className="truncate text-[13px] font-semibold text-white">
                   {APP_CONFIG.name}
                 </div>
-                <div className="truncate text-[9px] font-medium uppercase tracking-[0.18em] text-slate-500">
+                <div className="truncate text-[12px] font-medium uppercase tracking-[0.18em] text-slate-500">
                   {APP_CONFIG.tagline}
                 </div>
               </div>
@@ -381,7 +381,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                             onClick={() => setMobileOpen(false)}
                             className={({ isActive }) =>
                               [
-                                "block rounded px-2 py-1.5 text-[11px] transition-colors",
+                                "block rounded px-2 py-1.5 text-[12px] transition-colors",
                                 isActive
                                   ? "bg-blue-600/15 font-medium text-blue-300"
                                   : "text-slate-500 hover:bg-white/5 hover:text-slate-300",
@@ -447,24 +447,24 @@ export default function Layout({ children }: { children: ReactNode }) {
                   <CompanyIcon />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[8px] uppercase tracking-wider text-slate-600">
+                  <div className="text-[12px] uppercase tracking-wider text-slate-600">
                     Active Company
                   </div>
-                  <div className="truncate text-[10px] font-semibold text-slate-300">
+                  <div className="truncate text-[12px] font-semibold text-slate-300">
                     {activeCompany?.company_name ?? (isPlatformOwner ? "Owner Workspace" : "No company")}
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-slate-800 text-[11px] font-semibold text-slate-300">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-slate-800 text-[12px] font-semibold text-slate-300">
                   {(user?.email?.[0] ?? "U").toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[10px] font-medium text-slate-300">
+                  <div className="truncate text-[12px] font-medium text-slate-300">
                     {user?.email ?? "Signed in"}
                   </div>
-                  <div className="text-[8px] uppercase tracking-wider text-slate-600">
+                  <div className="text-[12px] uppercase tracking-wider text-slate-600">
                     {isPlatformOwner ? "Platform Owner" : roleLabel(role)}
                   </div>
                 </div>
@@ -503,7 +503,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             </button>
 
             <div className="min-w-0 flex-1">
-              <div className="hidden items-center gap-1 text-[10px] text-slate-400 sm:flex">
+              <div className="hidden items-center gap-1 text-[12px] text-slate-400 sm:flex">
                 {breadcrumbs.map((crumb, index) => (
                   <div key={crumb.to} className="flex min-w-0 items-center gap-1">
                     {index > 0 && <span>/</span>}
@@ -530,10 +530,10 @@ export default function Layout({ children }: { children: ReactNode }) {
 
             <div className="hidden items-center gap-2 md:flex">
               <div className="text-right">
-                <div className="text-[9px] uppercase tracking-wider text-slate-400">
+                <div className="text-[12px] uppercase tracking-wider text-slate-400">
                   Active Company
                 </div>
-                <div className="max-w-[220px] truncate text-[11px] font-semibold text-slate-700">
+                <div className="max-w-[220px] truncate text-[12px] font-semibold text-slate-700">
                   {activeCompany?.company_name ?? (isPlatformOwner ? "Owner Workspace" : APP_CONFIG.name)}
                 </div>
               </div>

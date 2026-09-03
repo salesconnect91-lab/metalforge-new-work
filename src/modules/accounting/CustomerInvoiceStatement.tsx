@@ -409,7 +409,7 @@ export default function CustomerInvoiceStatement() {
                       <div className="font-semibold text-sm text-slate-900">
                         {customer.name}
                       </div>
-                      <div className="text-[11px] text-slate-400">Customer / گاہک</div>
+                      <div className="text-[12px] text-slate-400">Customer / گاہک</div>
                     </button>
                   ))
                 )}
@@ -617,7 +617,7 @@ export default function CustomerInvoiceStatement() {
                       >
                         <td className="px-3 py-3 font-semibold text-blue-700">
                           {invoice.invoice_no}
-                          <span className="ml-2 text-[11px] text-slate-400 print:hidden">
+                          <span className="ml-2 text-[12px] text-slate-400 print:hidden">
                             {expanded ? "▲" : "▼"}
                           </span>
                         </td>
@@ -659,7 +659,7 @@ export default function CustomerInvoiceStatement() {
                           <div className="font-medium text-slate-700">
                             {invoice.aging_bucket}
                           </div>
-                          <div className="text-[11px] capitalize text-slate-400">
+                          <div className="text-[12px] capitalize text-slate-400">
                             {invoice.aging_status}
                           </div>
                         </td>

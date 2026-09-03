@@ -671,7 +671,7 @@ export default function Uom() {
 
             <form onSubmit={handleSaveRecord} className="space-y-4">
               <div>
-                <label className="text-[11px] font-bold uppercase text-slate-600">Unit Name / اکائی نام</label>
+                <label className="text-[12px] font-bold uppercase text-slate-600">Unit Name / اکائی نام</label>
 
                 <input
                   type="text"
@@ -690,7 +690,7 @@ export default function Uom() {
               </div>
 
               <div>
-                <label className="text-[11px] font-bold uppercase text-slate-600">Symbol / علامت</label>
+                <label className="text-[12px] font-bold uppercase text-slate-600">Symbol / علامت</label>
 
                 <input
                   type="text"

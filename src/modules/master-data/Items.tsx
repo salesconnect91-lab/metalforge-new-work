@@ -1082,7 +1082,7 @@ export default function Items() {
                     placeholder="Auto generated / خودکار"
                     className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-bold text-slate-700 outline-none"
                   />
-                  <p className="mt-1 text-[11px] text-slate-500">
+                  <p className="mt-1 text-[12px] text-slate-500">
                     Auto-generated / خودکار بنے گا
                   </p>
                 </div>

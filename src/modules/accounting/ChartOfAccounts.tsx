@@ -1284,7 +1284,7 @@
                 </div>
 
                 <div>
-                  <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.18em] text-blue-600">
+                  <div className="mb-1 text-[12px] font-bold uppercase tracking-[0.18em] text-blue-600">
                     Accounting Master
                   </div>
 
@@ -1498,25 +1498,25 @@
               <table className="w-full min-w-[1100px] border-collapse">
                 <thead>
                   <tr className="border-b border-slate-800 bg-slate-900">
-                    <th className="w-[39%] px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-200">Account / اکاؤنٹ</th>
+                    <th className="w-[39%] px-5 py-3.5 text-left text-[12px] font-bold uppercase tracking-wider text-slate-200">Account / اکاؤنٹ</th>
 
-                    <th className="w-[10%] px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-200">
+                    <th className="w-[10%] px-4 py-3.5 text-left text-[12px] font-bold uppercase tracking-wider text-slate-200">
                       Code
                     </th>
 
-                    <th className="w-[12%] px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-200">
+                    <th className="w-[12%] px-4 py-3.5 text-left text-[12px] font-bold uppercase tracking-wider text-slate-200">
                       Type
                     </th>
 
-                    <th className="w-[15%] px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-200">Detail type / تفصیلی قسم</th>
+                    <th className="w-[15%] px-4 py-3.5 text-left text-[12px] font-bold uppercase tracking-wider text-slate-200">Detail type / تفصیلی قسم</th>
 
-                    <th className="w-[12%] px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-200">
+                    <th className="w-[12%] px-4 py-3.5 text-left text-[12px] font-bold uppercase tracking-wider text-slate-200">
                       Statement
                     </th>
 
-                    <th className="w-[8%] px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-200">Status / حالت</th>
+                    <th className="w-[8%] px-4 py-3.5 text-left text-[12px] font-bold uppercase tracking-wider text-slate-200">Status / حالت</th>
 
-                    <th className="w-[6%] px-4 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-slate-200">Actions / کارروائیاں</th>
+                    <th className="w-[6%] px-4 py-3.5 text-right text-[12px] font-bold uppercase tracking-wider text-slate-200">Actions / کارروائیاں</th>
                   </tr>
                 </thead>
 
@@ -1638,7 +1638,7 @@
               <div className="shrink-0 border-b border-slate-200 px-5 py-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-blue-600">
+                    <div className="text-[12px] font-semibold uppercase tracking-wider text-blue-600">
                       Accounting setup
                     </div>
 
@@ -1777,7 +1777,7 @@
                               "Auto"}
                           </span>
 
-                          <span className="text-[11px] font-medium text-blue-500">
+                          <span className="text-[12px] font-medium text-blue-500">
                             AUTO
                           </span>
                         </div>
@@ -2257,7 +2257,7 @@
 
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <div className="text-[12px] font-bold uppercase tracking-wider text-slate-500">
               {label}
             </div>
 
@@ -2276,7 +2276,7 @@
         </div>
 
         {active && (
-          <span className="absolute bottom-2 right-3 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+          <span className="absolute bottom-2 right-3 text-[12px] font-bold uppercase tracking-wider text-slate-400">
             Filter active
           </span>
         )}
@@ -2338,7 +2338,7 @@
         {children}
 
         {hint && (
-          <p className="mt-1 text-[11px] leading-4 text-slate-400">
+          <p className="mt-1 text-[12px] leading-4 text-slate-400">
             {hint}
           </p>
         )}
@@ -2359,7 +2359,7 @@
   }) {
     return (
       <div>
-        <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+        <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400">
           {label}
         </div>
 

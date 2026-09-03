@@ -128,6 +128,10 @@ export interface SalesOrder {
   status: OrderStatus;
 
   total: number;
+  invoice_type?: "Sale Invoice" | "Cash Bill" | "Tax Invoice";
+  tax_percent?: number;
+  payment_mode?: "Credit" | "Cash" | "Bank";
+  payment_account_id?: string | null;
 
   loading_charge: number;
   unloading_charge: number;
@@ -157,6 +161,7 @@ export interface SalesOrderLine {
   qty: number;
   unit_price: number;
   line_total: number;
+  tax_percent?: number;
 
   item?: Item | null;
   godown?: {

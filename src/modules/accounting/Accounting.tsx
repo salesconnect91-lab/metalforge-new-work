@@ -16,6 +16,9 @@ import BankReconciliation from "./BankReconciliation";
 import FiscalYearClosing from "./FiscalYearClosing";
 import CashFlowStatement from "./CashFlowStatement";
 import FinancialControls from "./FinancialControls";
+import ReportSurface from "@/components/reports/ReportSurface";
+
+const report = (node: React.ReactNode) => <ReportSurface>{node}</ReportSurface>;
 
 export default function Accounting() {
   return (
@@ -23,20 +26,20 @@ export default function Accounting() {
       <Routes>
         <Route path="/" element={<JournalEntryList />} />
         <Route path="/cash-counter" element={<CashCounter />} />
-        <Route path="/day-book" element={<DayBook />} />
+        <Route path="/day-book" element={report(<DayBook />)} />
         <Route path="/accounts" element={<ChartOfAccounts />} />
         <Route path="/mappings" element={<AccountMappingSetup />} />
         <Route path="/periods" element={<AccountingPeriods />} />
         <Route path="/returns" element={<ReturnNotes />} />
-        <Route path="/bank-reconciliation" element={<BankReconciliation />} />
-        <Route path="/year-closing" element={<FiscalYearClosing />} />
-        <Route path="/cash-flow" element={<CashFlowStatement />} />
+        <Route path="/bank-reconciliation" element={report(<BankReconciliation />)} />
+        <Route path="/year-closing" element={report(<FiscalYearClosing />)} />
+        <Route path="/cash-flow" element={report(<CashFlowStatement />)} />
         <Route path="/controls" element={<FinancialControls />} />
-        <Route path="/ledgers" element={<Ledgers />} />
-        <Route path="/trial-balance" element={<TrialBalance />} />
-        <Route path="/profit-loss" element={<ProfitLoss />} />
-        <Route path="/balance-sheet" element={<BalanceSheet />} />
-        <Route path="/audit-trail" element={<AuditTrail />} />
+        <Route path="/ledgers" element={report(<Ledgers />)} />
+        <Route path="/trial-balance" element={report(<TrialBalance />)} />
+        <Route path="/profit-loss" element={report(<ProfitLoss />)} />
+        <Route path="/balance-sheet" element={report(<BalanceSheet />)} />
+        <Route path="/audit-trail" element={report(<AuditTrail />)} />
         <Route path="/:id" element={<JournalEntryDetail />} />
       </Routes>
     </div>

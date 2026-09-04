@@ -29,10 +29,12 @@ import Reports from "@/modules/reports/Reports";
 import SteelStockControl from "@/modules/reports/SteelStockControl";
 import ConsolidatedInvoices from "@/modules/sales/ConsolidatedInvoices";
 import OwnerPanel from "@/modules/platform/OwnerPanel";
+import OpeningBalanceMigration from "@/modules/platform/OpeningBalanceMigration";
 
-function OwnerOnly() {
+function OwnerOnly({ children }: { children?: ReactNode }) {
   const { isPlatformOwner } = useAuth();
-  return isPlatformOwner ? <OwnerPanel /> : <Navigate to="/" replace />;
+  if (!isPlatformOwner) return <Navigate to="/" replace />;
+  return <>{children ?? <OwnerPanel />}</>;
 }
 
 function ModuleOnly({ module, children }: { module: ModuleKey; children: ReactNode }) {
@@ -107,6 +109,7 @@ export default function App() {
         <Route path="/*" element={<ProtectedRoute><><CompanySwitcher /><Layout key={companyKey}><Routes>
           <Route path="/" element={<DashboardHome />} />
           <Route path="/owner" element={<OwnerOnly />} />
+          <Route path="/owner/opening-balances" element={<OwnerOnly><OpeningBalanceMigration /></OwnerOnly>} />
           <Route path="/master-data/*" element={<ModuleOnly module="master"><MasterData /></ModuleOnly>} />
           <Route path="/sales" element={<ModuleOnly module="sales"><SalesInvoiceList /></ModuleOnly>} />
           <Route path="/sales/new" element={<ModuleActionOnly module="sales" action="create"><SalesInvoiceCreate /></ModuleActionOnly>} />

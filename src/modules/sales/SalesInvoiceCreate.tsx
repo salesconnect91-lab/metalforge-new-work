@@ -1553,7 +1553,7 @@ export default function SalesInvoiceCreate() {
                           <td className="px-2 py-2">
                             <input
                               className="input text-right"
-                              disabled={isLocked}
+                              disabled={isLocked || taxRateLocked}
                               type="number"
                               step="0.01"
                               value={row.tax_percent}
@@ -1766,7 +1766,7 @@ export default function SalesInvoiceCreate() {
                             <label className="label">Tax % / ٹیکس</label>
                             <input
                               className="input text-right"
-                              disabled={isLocked}
+                              disabled={isLocked || taxRateLocked}
                               type="number"
                               step="0.01"
                               value={chargeTaxes[key] ?? globalTaxPercent}

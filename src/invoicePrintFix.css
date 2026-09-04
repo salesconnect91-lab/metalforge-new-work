@@ -38,18 +38,35 @@
   .print-meta-value, .print-party-name { font-size: 7.5pt !important; font-weight: 700 !important; overflow-wrap: anywhere !important; }
   .print-party-addr, .print-party-phone, .print-party-email { font-size: 7pt !important; line-height: 1.25 !important; overflow-wrap: anywhere !important; }
 
+  /* Force deterministic invoice columns in Chrome print. */
   .print-table {
+    display: block !important;
     width: 100% !important;
     max-width: 100% !important;
-    table-layout: auto !important;
-    border-collapse: collapse !important;
     margin: 0 0 3mm !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
   }
-  .print-table thead { display: table-header-group !important; }
-  .print-table tr { break-inside: avoid !important; page-break-inside: avoid !important; }
+  .print-table thead,
+  .print-table tbody { display: block !important; width: 100% !important; }
+  .print-table tr {
+    display: grid !important;
+    width: 100% !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+  .print-table:not(:has(th:nth-child(8))) tr {
+    grid-template-columns: 5% 30% 11% 10% 10% 15% 19% !important;
+  }
+  .print-table:has(th:nth-child(8)) tr {
+    grid-template-columns: 5% 27% 9% 8% 9% 13% 12% 17% !important;
+  }
   .print-th, .print-td {
+    width: auto !important;
+    min-width: 0 !important;
     box-sizing: border-box !important;
-    border: 1px solid #d6dde6 !important;
+    border-right: 1px solid #d6dde6 !important;
+    border-bottom: 1px solid #d6dde6 !important;
     padding: 1.6mm 1.2mm !important;
     font-size: 7pt !important;
     line-height: 1.2 !important;
@@ -57,43 +74,22 @@
     word-break: normal !important;
     overflow-wrap: normal !important;
   }
+  .print-th:first-child, .print-td:first-child { border-left: 1px solid #d6dde6 !important; }
+  .print-table thead .print-th { border-top: 1px solid #d6dde6 !important; }
   .print-th { background: #eef2f7 !important; font-weight: 800 !important; }
 
-  html body .print-document table.print-table th:nth-child(1),
-  html body .print-document table.print-table td:nth-child(1) { width: 5% !important; }
-  html body .print-document table.print-table th:nth-child(2),
-  html body .print-document table.print-table td:nth-child(2) { width: 27% !important; }
-  html body .print-document table.print-table th:nth-child(3),
-  html body .print-document table.print-table td:nth-child(3) { width: 10% !important; }
-  html body .print-document table.print-table th:nth-child(4),
-  html body .print-document table.print-table td:nth-child(4) { width: 9% !important; }
-  html body .print-document table.print-table th:nth-child(5),
-  html body .print-document table.print-table td:nth-child(5) { width: 10% !important; }
-  html body .print-document table.print-table th:nth-child(6),
-  html body .print-document table.print-table td:nth-child(6) { width: 13% !important; }
-
-  html body .print-document table.print-table th:nth-child(7):not(:last-child),
-  html body .print-document table.print-table td:nth-child(7):not(:last-child) {
-    width: 12% !important;
-    min-width: 22mm !important;
-    white-space: nowrap !important;
-  }
-
-  html body .print-document table.print-table th:last-child,
-  html body .print-document table.print-table td:last-child {
-    width: 14% !important;
-    min-width: 26mm !important;
-    white-space: nowrap !important;
-    word-break: keep-all !important;
-    overflow-wrap: normal !important;
-  }
-
-  html body .print-document table.print-table th:nth-child(n+5),
-  html body .print-document table.print-table td:nth-child(n+5) {
+  .print-table th:nth-child(n+5),
+  .print-table td:nth-child(n+5) {
     white-space: nowrap !important;
     word-break: keep-all !important;
     overflow-wrap: normal !important;
     font-variant-numeric: tabular-nums !important;
+  }
+  .print-table th:last-child,
+  .print-table td:last-child {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
   }
 
   .print-totals-section { display: grid !important; grid-template-columns: minmax(0,1fr) 70mm !important; gap: 4mm !important; align-items: start !important; margin-top: 3mm !important; break-inside: avoid !important; }

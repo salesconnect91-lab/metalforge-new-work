@@ -852,6 +852,8 @@ export default function SalesInvoiceCreate() {
             order_id: orderId,
             charge_key: ct.charge_key,
             charge_label: ct.charge_name,
+            quantity: Number(chargeQuantities[ct.charge_key] ?? 1) || 1,
+            rate: Number(chargeRates[ct.charge_key] ?? enteredAmount) || 0,
             // Store the charge EXCLUDING VAT.
             // tax_percent is stored separately so the posting engine
             // recognizes Output VAT exactly once.

@@ -1,35 +1,17 @@
-/* Invoice print is intentionally compact and A4-safe. */
+/* Compact, deterministic A4 invoice print. */
 @media print {
   @page { size: A4 portrait; margin: 8mm; }
-
   html, body { margin: 0 !important; padding: 0 !important; }
   .print-document { width: 100% !important; margin: 0 !important; padding: 0 !important; }
-  .print-page {
-    width: 100% !important;
-    max-width: 194mm !important;
-    margin: 0 auto !important;
-    padding: 0 !important;
-    color: #111827 !important;
-    font-family: Arial, Helvetica, sans-serif !important;
-    font-size: 8.5pt !important;
-    line-height: 1.25 !important;
-  }
+  .print-page { width: 100% !important; max-width: 194mm !important; margin: 0 auto !important; padding: 0 !important; color: #111827 !important; font-family: Arial, Helvetica, sans-serif !important; font-size: 8.5pt !important; line-height: 1.25 !important; }
 
-  .print-header {
-    display: flex !important;
-    justify-content: space-between !important;
-    align-items: flex-start !important;
-    gap: 8mm !important;
-    margin: 0 0 3mm !important;
-    padding: 0 0 3mm !important;
-    border-bottom: 1.2px solid #111827 !important;
-  }
+  .print-header { display: flex !important; justify-content: space-between !important; align-items: flex-start !important; gap: 8mm !important; margin: 0 0 3mm !important; padding: 0 0 3mm !important; border-bottom: 1.2px solid #111827 !important; }
   .print-company { display: flex !important; align-items: flex-start !important; gap: 3mm !important; min-width: 0 !important; }
   .print-logo { width: auto !important; height: 16mm !important; max-width: 60mm !important; max-height: 16mm !important; object-fit: contain !important; object-position: left top !important; }
   .print-company-name { margin: 0 !important; font-size: 15pt !important; line-height: 1.05 !important; }
   .print-company-addr, .print-company-tax { margin: 1mm 0 0 !important; font-size: 7pt !important; line-height: 1.25 !important; }
   .print-voucher-title-box { flex: 0 0 50mm !important; text-align: right !important; }
-  .print-voucher-title { margin: 0 !important; font-size: 13pt !important; line-height: 1.15 !important; white-space: normal !important; }
+  .print-voucher-title { margin: 0 !important; font-size: 13pt !important; line-height: 1.15 !important; }
 
   .print-meta { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 3mm !important; margin: 0 0 3mm !important; }
   .print-meta-col, .print-party-box { min-width: 0 !important; border: 1px solid #cbd5e1 !important; padding: 2mm !important; }
@@ -38,59 +20,20 @@
   .print-meta-value, .print-party-name { font-size: 7.5pt !important; font-weight: 700 !important; overflow-wrap: anywhere !important; }
   .print-party-addr, .print-party-phone, .print-party-email { font-size: 7pt !important; line-height: 1.25 !important; overflow-wrap: anywhere !important; }
 
-  /* Force deterministic invoice columns in Chrome print. */
-  .print-table {
-    display: block !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 0 3mm !important;
-    border-collapse: separate !important;
-    border-spacing: 0 !important;
-  }
-  .print-table thead,
-  .print-table tbody { display: block !important; width: 100% !important; }
-  .print-table tr {
-    display: grid !important;
-    width: 100% !important;
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-  }
-  .print-table:not(:has(th:nth-child(8))) tr {
-    grid-template-columns: 5% 30% 11% 10% 10% 15% 19% !important;
-  }
-  .print-table:has(th:nth-child(8)) tr {
-    grid-template-columns: 5% 27% 9% 8% 9% 13% 12% 17% !important;
-  }
-  .print-th, .print-td {
-    width: auto !important;
-    min-width: 0 !important;
-    box-sizing: border-box !important;
-    border-right: 1px solid #d6dde6 !important;
-    border-bottom: 1px solid #d6dde6 !important;
-    padding: 1.6mm 1.2mm !important;
-    font-size: 7pt !important;
-    line-height: 1.2 !important;
-    vertical-align: top !important;
-    word-break: normal !important;
-    overflow-wrap: normal !important;
-  }
-  .print-th:first-child, .print-td:first-child { border-left: 1px solid #d6dde6 !important; }
-  .print-table thead .print-th { border-top: 1px solid #d6dde6 !important; }
-  .print-th { background: #eef2f7 !important; font-weight: 800 !important; }
-
-  .print-table th:nth-child(n+5),
-  .print-table td:nth-child(n+5) {
-    white-space: nowrap !important;
-    word-break: keep-all !important;
-    overflow-wrap: normal !important;
-    font-variant-numeric: tabular-nums !important;
-  }
-  .print-table th:last-child,
-  .print-table td:last-child {
-    white-space: nowrap !important;
-    word-break: keep-all !important;
-    overflow-wrap: normal !important;
-  }
+  /* Item list is real div/grid markup, not a table converted by CSS. */
+  .invoice-items-wrap { width: 100% !important; margin: 0 0 3mm !important; border-top: 1px solid #cbd5e1 !important; border-left: 1px solid #cbd5e1 !important; break-inside: auto !important; }
+  .invoice-items-grid { display: grid !important; width: 100% !important; box-sizing: border-box !important; }
+  .invoice-items-grid-tax { grid-template-columns: 5% 27% 9% 8% 9% 13% 12% 17% !important; }
+  .invoice-items-grid-no-tax { grid-template-columns: 5% 31% 11% 10% 10% 14% 19% !important; }
+  .invoice-items-head { background: #eef2f7 !important; font-weight: 800 !important; break-after: avoid !important; }
+  .invoice-items-row { break-inside: avoid !important; page-break-inside: avoid !important; }
+  .invoice-items-grid > div { min-width: 0 !important; box-sizing: border-box !important; padding: 1.7mm 1.2mm !important; border-right: 1px solid #cbd5e1 !important; border-bottom: 1px solid #cbd5e1 !important; font-size: 7pt !important; line-height: 1.2 !important; overflow: hidden !important; }
+  .invoice-num { text-align: right !important; white-space: nowrap !important; word-break: keep-all !important; font-variant-numeric: tabular-nums !important; }
+  .invoice-center { text-align: center !important; }
+  .invoice-item-name { font-weight: 600 !important; }
+  .invoice-item-description { margin-top: .7mm !important; font-size: 6.5pt !important; font-weight: 400 !important; color: #64748b !important; white-space: normal !important; overflow-wrap: anywhere !important; }
+  .invoice-amount-col { font-weight: 700 !important; white-space: nowrap !important; }
+  .invoice-tax-rate { margin-top: .5mm !important; font-size: 6.3pt !important; color: #64748b !important; }
 
   .print-totals-section { display: grid !important; grid-template-columns: minmax(0,1fr) 70mm !important; gap: 4mm !important; align-items: start !important; margin-top: 3mm !important; break-inside: avoid !important; }
   .print-charges-box, .print-totals-side { min-width: 0 !important; border: 1px solid #cbd5e1 !important; padding: 2mm !important; }
@@ -107,7 +50,6 @@
   .print-signature-label { font-size: 7pt !important; }
   .print-footer { margin-top: 4mm !important; padding-top: 2mm !important; border-top: 1px solid #e2e8f0 !important; text-align: center !important; }
   .print-footer p { margin: .5mm 0 !important; font-size: 6.8pt !important; }
-
   .print-document .mt-6, .print-document .mt-5, .print-document .mt-4 { margin-top: 3mm !important; }
   .print-document .p-5 { padding: 2mm !important; }
 }

@@ -268,13 +268,11 @@ export default function WorkOrderDetail() {
         supabase
           .from("company_settings")
           .select("*")
-          .eq("user_id", user.id)
           .maybeSingle(),
 
         supabase
           .from("document_print_visibility")
           .select("*")
-          .eq("user_id", user.id)
           .eq("document_type", "work_order")
           .maybeSingle(),
       ]);
@@ -730,13 +728,11 @@ export default function WorkOrderDetail() {
         supabase
           .from("company_settings")
           .select("*")
-          .eq("user_id", user.id)
           .maybeSingle(),
 
         supabase
           .from("document_print_visibility")
           .select("*")
-          .eq("user_id", user.id)
           .eq("document_type", "work_order")
           .maybeSingle(),
       ]);

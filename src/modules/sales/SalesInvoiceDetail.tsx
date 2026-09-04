@@ -2064,8 +2064,8 @@ export default function SalesInvoiceDetail() {
           }
           extraFields={[
             {
-              label: "Payment Mode / ادائیگی طریقہ",
-              value: order.payment_mode || "Credit",
+              label: "Settlement / ادائیگی",
+              value: "Receipts recorded separately / وصولی الگ درج ہوتی ہے",
             },
             ...(order.sales_person
               ? [

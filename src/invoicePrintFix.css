@@ -38,7 +38,13 @@
   .print-meta-value, .print-party-name { font-size: 7.5pt !important; font-weight: 700 !important; overflow-wrap: anywhere !important; }
   .print-party-addr, .print-party-phone, .print-party-email { font-size: 7pt !important; line-height: 1.25 !important; overflow-wrap: anywhere !important; }
 
-  .print-table { width: 100% !important; max-width: 100% !important; table-layout: fixed !important; border-collapse: collapse !important; margin: 0 0 3mm !important; }
+  .print-table {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: auto !important;
+    border-collapse: collapse !important;
+    margin: 0 0 3mm !important;
+  }
   .print-table thead { display: table-header-group !important; }
   .print-table tr { break-inside: avoid !important; page-break-inside: avoid !important; }
   .print-th, .print-td {
@@ -48,21 +54,47 @@
     font-size: 7pt !important;
     line-height: 1.2 !important;
     vertical-align: top !important;
-    white-space: normal !important;
     word-break: normal !important;
     overflow-wrap: normal !important;
   }
   .print-th { background: #eef2f7 !important; font-weight: 800 !important; }
-  .print-table th:nth-child(1), .print-table td:nth-child(1) { width: 5% !important; }
-  .print-table th:nth-child(2), .print-table td:nth-child(2) { width: 28% !important; }
-  .print-table th:nth-child(3), .print-table td:nth-child(3) { width: 10% !important; }
-  .print-table th:nth-child(4), .print-table td:nth-child(4) { width: 9% !important; }
-  .print-table th:nth-child(5), .print-table td:nth-child(5) { width: 10% !important; }
-  .print-table th:nth-child(6), .print-table td:nth-child(6) { width: 13% !important; }
-  /* Tax invoice: VAT is col 7 and Amount is col 8. */
-  .print-table th:nth-child(7):not(:last-child), .print-table td:nth-child(7):not(:last-child) { width: 12% !important; }
-  .print-table th:last-child, .print-table td:last-child { width: 13% !important; }
-  .print-table th:nth-child(n+5), .print-table td:nth-child(n+5) { white-space: nowrap !important; font-variant-numeric: tabular-nums !important; }
+
+  html body .print-document table.print-table th:nth-child(1),
+  html body .print-document table.print-table td:nth-child(1) { width: 5% !important; }
+  html body .print-document table.print-table th:nth-child(2),
+  html body .print-document table.print-table td:nth-child(2) { width: 27% !important; }
+  html body .print-document table.print-table th:nth-child(3),
+  html body .print-document table.print-table td:nth-child(3) { width: 10% !important; }
+  html body .print-document table.print-table th:nth-child(4),
+  html body .print-document table.print-table td:nth-child(4) { width: 9% !important; }
+  html body .print-document table.print-table th:nth-child(5),
+  html body .print-document table.print-table td:nth-child(5) { width: 10% !important; }
+  html body .print-document table.print-table th:nth-child(6),
+  html body .print-document table.print-table td:nth-child(6) { width: 13% !important; }
+
+  html body .print-document table.print-table th:nth-child(7):not(:last-child),
+  html body .print-document table.print-table td:nth-child(7):not(:last-child) {
+    width: 12% !important;
+    min-width: 22mm !important;
+    white-space: nowrap !important;
+  }
+
+  html body .print-document table.print-table th:last-child,
+  html body .print-document table.print-table td:last-child {
+    width: 14% !important;
+    min-width: 26mm !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+  }
+
+  html body .print-document table.print-table th:nth-child(n+5),
+  html body .print-document table.print-table td:nth-child(n+5) {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+    font-variant-numeric: tabular-nums !important;
+  }
 
   .print-totals-section { display: grid !important; grid-template-columns: minmax(0,1fr) 70mm !important; gap: 4mm !important; align-items: start !important; margin-top: 3mm !important; break-inside: avoid !important; }
   .print-charges-box, .print-totals-side { min-width: 0 !important; border: 1px solid #cbd5e1 !important; padding: 2mm !important; }

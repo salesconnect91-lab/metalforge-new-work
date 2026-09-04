@@ -6,6 +6,7 @@ import { AuthProvider } from "./auth/AuthContext";
 import "./index.css";
 import "./contrast.css";
 import "./reportPrint.css";
+import "./invoicePrintFix.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

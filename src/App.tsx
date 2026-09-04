@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
-import { canViewModule, type ModuleKey } from "@/auth/permissions";
+import { canPerformModule, canViewModule, type ModuleAction, type ModuleKey } from "@/auth/permissions";
 
 import Login from "@/auth/Login";
 import ProtectedRoute from "@/auth/ProtectedRoute";
@@ -41,6 +41,12 @@ function ModuleOnly({ module, children }: { module: ModuleKey; children: ReactNo
   return allowed ? <>{children}</> : <Navigate to="/" replace />;
 }
 
+function ModuleActionOnly({ module, action, children }: { module: ModuleKey; action: ModuleAction; children: ReactNode }) {
+  const { isPlatformOwner, activeCompany } = useAuth();
+  const allowed = canPerformModule(activeCompany?.membership_role, module, action, activeCompany?.permissions, isPlatformOwner);
+  return allowed ? <>{children}</> : <Navigate to="/" replace />;
+}
+
 function GlobalExperience() {
   return <><ErpExperienceBridge /><PrintPreviewController /></>;
 }
@@ -71,8 +77,8 @@ export default function App() {
           <Route path="/owner" element={<OwnerOnly />} />
           <Route path="/master-data/*" element={<ModuleOnly module="master"><MasterData /></ModuleOnly>} />
           <Route path="/sales" element={<ModuleOnly module="sales"><SalesInvoiceList /></ModuleOnly>} />
-          <Route path="/sales/new" element={<ModuleOnly module="sales"><SalesInvoiceCreate /></ModuleOnly>} />
-          <Route path="/sales/:id/edit" element={<ModuleOnly module="sales"><SalesInvoiceCreate /></ModuleOnly>} />
+          <Route path="/sales/new" element={<ModuleActionOnly module="sales" action="create"><SalesInvoiceCreate /></ModuleActionOnly>} />
+          <Route path="/sales/:id/edit" element={<ModuleActionOnly module="sales" action="edit"><SalesInvoiceCreate /></ModuleActionOnly>} />
           <Route path="/sales/report" element={<ModuleOnly module="reports"><SalespersonReport /></ModuleOnly>} />
           <Route path="/sales/charges" element={<ModuleOnly module="master"><ChargeMaster /></ModuleOnly>} />
           <Route path="/sales/consolidated" element={<ModuleOnly module="sales"><ConsolidatedInvoices /></ModuleOnly>} />

@@ -1,0 +1,199 @@
+/* Professional invoice print overrides. Keeps every invoice within A4 width. */
+@media print {
+  @page { size: A4 portrait; margin: 10mm 9mm 12mm; }
+
+  .print-document { width: 100% !important; }
+  .print-page {
+    width: 100% !important;
+    max-width: none !important;
+    color: #0f172a !important;
+    font-family: Inter, Arial, Helvetica, sans-serif !important;
+    font-size: 9pt !important;
+    line-height: 1.35 !important;
+  }
+
+  .print-header {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 8mm !important;
+    align-items: start !important;
+    border-bottom: 1.5px solid #0f172a !important;
+    padding-bottom: 4mm !important;
+    margin-bottom: 4mm !important;
+  }
+
+  .print-company { min-width: 0 !important; gap: 1.5mm !important; }
+  .print-logo {
+    width: auto !important;
+    max-width: 68mm !important;
+    height: 18mm !important;
+    max-height: 18mm !important;
+    object-fit: contain !important;
+    object-position: left center !important;
+  }
+  .print-company-name { font-size: 16pt !important; line-height: 1.1 !important; }
+  .print-company-addr,
+  .print-company-tax { margin: 1mm 0 0 !important; font-size: 7.6pt !important; line-height: 1.35 !important; }
+
+  .print-voucher-title-box { text-align: right !important; min-width: 45mm !important; }
+  .print-voucher-title {
+    font-size: 14pt !important;
+    line-height: 1.2 !important;
+    letter-spacing: 0 !important;
+    white-space: normal !important;
+  }
+
+  .print-meta {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 5mm !important;
+    margin: 0 0 4mm !important;
+  }
+  .print-meta-col,
+  .print-party-box {
+    border: 1px solid #cbd5e1 !important;
+    padding: 3mm !important;
+    min-width: 0 !important;
+  }
+  .print-meta-row {
+    display: grid !important;
+    grid-template-columns: minmax(34mm, auto) 1fr !important;
+    gap: 2mm !important;
+    padding: 1mm 0 !important;
+  }
+  .print-meta-label,
+  .print-party-label { color: #64748b !important; font-size: 7.4pt !important; font-weight: 700 !important; }
+  .print-meta-value,
+  .print-party-name { color: #0f172a !important; font-weight: 700 !important; overflow-wrap: anywhere !important; }
+  .print-party-addr,
+  .print-party-phone,
+  .print-party-email { font-size: 7.4pt !important; color: #475569 !important; overflow-wrap: anywhere !important; }
+
+  .print-table {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+    margin: 0 0 4mm !important;
+  }
+  .print-table thead { display: table-header-group !important; }
+  .print-table tr { break-inside: avoid !important; page-break-inside: avoid !important; }
+  .print-th,
+  .print-td {
+    box-sizing: border-box !important;
+    padding: 2mm 1.4mm !important;
+    font-size: 7.6pt !important;
+    line-height: 1.25 !important;
+    vertical-align: top !important;
+    overflow-wrap: break-word !important;
+    word-break: normal !important;
+    white-space: normal !important;
+  }
+  .print-th { background: #eef2f7 !important; font-weight: 800 !important; }
+
+  /* Without-tax invoice: seven columns. */
+  .print-table:not(:has(th:nth-child(8))) th:nth-child(1),
+  .print-table:not(:has(th:nth-child(8))) td:nth-child(1) { width: 4% !important; }
+  .print-table:not(:has(th:nth-child(8))) th:nth-child(2),
+  .print-table:not(:has(th:nth-child(8))) td:nth-child(2) { width: 31% !important; }
+  .print-table:not(:has(th:nth-child(8))) th:nth-child(3),
+  .print-table:not(:has(th:nth-child(8))) td:nth-child(3) { width: 11% !important; }
+  .print-table:not(:has(th:nth-child(8))) th:nth-child(4),
+  .print-table:not(:has(th:nth-child(8))) td:nth-child(4) { width: 10% !important; }
+  .print-table:not(:has(th:nth-child(8))) th:nth-child(5),
+  .print-table:not(:has(th:nth-child(8))) td:nth-child(5) { width: 10% !important; }
+  .print-table:not(:has(th:nth-child(8))) th:nth-child(6),
+  .print-table:not(:has(th:nth-child(8))) td:nth-child(6) { width: 15% !important; }
+  .print-table:not(:has(th:nth-child(8))) th:last-child,
+  .print-table:not(:has(th:nth-child(8))) td:last-child { width: 19% !important; }
+
+  /* Tax invoice: eight columns. Prevent VAT/Amount from collapsing vertically. */
+  .print-table:has(th:nth-child(8)) th:nth-child(1),
+  .print-table:has(th:nth-child(8)) td:nth-child(1) { width: 4% !important; }
+  .print-table:has(th:nth-child(8)) th:nth-child(2),
+  .print-table:has(th:nth-child(8)) td:nth-child(2) { width: 27% !important; }
+  .print-table:has(th:nth-child(8)) th:nth-child(3),
+  .print-table:has(th:nth-child(8)) td:nth-child(3) { width: 9% !important; }
+  .print-table:has(th:nth-child(8)) th:nth-child(4),
+  .print-table:has(th:nth-child(8)) td:nth-child(4) { width: 8% !important; }
+  .print-table:has(th:nth-child(8)) th:nth-child(5),
+  .print-table:has(th:nth-child(8)) td:nth-child(5) { width: 9% !important; }
+  .print-table:has(th:nth-child(8)) th:nth-child(6),
+  .print-table:has(th:nth-child(8)) td:nth-child(6) { width: 13% !important; }
+  .print-table:has(th:nth-child(8)) th:nth-child(7),
+  .print-table:has(th:nth-child(8)) td:nth-child(7) { width: 13% !important; }
+  .print-table:has(th:nth-child(8)) th:nth-child(8),
+  .print-table:has(th:nth-child(8)) td:nth-child(8) { width: 17% !important; }
+
+  .print-table th:nth-child(n+5),
+  .print-table td:nth-child(n+5) { font-variant-numeric: tabular-nums !important; }
+
+  .print-totals-section {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(62mm, 76mm) !important;
+    gap: 6mm !important;
+    align-items: start !important;
+    margin-top: 4mm !important;
+    break-inside: avoid !important;
+  }
+  .print-charges-box,
+  .print-totals-side {
+    border: 1px solid #cbd5e1 !important;
+    padding: 3mm !important;
+    min-width: 0 !important;
+  }
+  .print-charges-title { font-weight: 800 !important; margin-bottom: 1.5mm !important; }
+  .print-charge-row,
+  .print-total-row {
+    display: flex !important;
+    justify-content: space-between !important;
+    gap: 4mm !important;
+    padding: 1.2mm 0 !important;
+    border-bottom: 1px solid #eef2f7 !important;
+  }
+  .print-charge-row span:last-child,
+  .print-total-row span:last-child { white-space: nowrap !important; font-variant-numeric: tabular-nums !important; }
+  .print-grand-total {
+    margin-top: 1mm !important;
+    padding-top: 2mm !important;
+    border-top: 1.5px solid #0f172a !important;
+    border-bottom: 0 !important;
+    font-size: 10.5pt !important;
+    font-weight: 900 !important;
+  }
+
+  .print-payment-summary {
+    margin-top: 4mm !important;
+    padding: 3mm !important;
+    break-inside: avoid !important;
+  }
+  .print-payment-summary > div:nth-child(2) {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 3mm !important;
+  }
+
+  .print-signatures {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8mm !important;
+    margin-top: 14mm !important;
+    break-inside: avoid !important;
+  }
+  .print-signature-block { text-align: center !important; }
+  .print-signature-line { border-top: 1px solid #64748b !important; margin-bottom: 2mm !important; }
+  .print-signature-label { font-size: 7.4pt !important; color: #475569 !important; }
+
+  .print-footer {
+    margin-top: 6mm !important;
+    padding-top: 2.5mm !important;
+    border-top: 1px solid #e2e8f0 !important;
+    text-align: center !important;
+  }
+  .print-footer p { margin: 0.5mm 0 !important; font-size: 7pt !important; color: #64748b !important; }
+
+  /* Avoid giant blank regions created by inherited app spacing. */
+  .print-document .mt-6 { margin-top: 5mm !important; }
+  .print-document .mt-5 { margin-top: 4mm !important; }
+  .print-document .mt-4 { margin-top: 3mm !important; }
+  .print-document .p-5 { padding: 3mm !important; }
+}

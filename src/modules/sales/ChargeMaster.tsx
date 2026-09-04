@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Plus, Pencil, Power, Trash2, Save, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { PageHeader, ErrorBanner, Modal } from "@/components/ui";
+import { useAuth } from "@/auth/AuthContext";
+import { canPerformModule } from "@/auth/permissions";
 
 type ChargeType = "recovery" | "cost" | "both";
 type ChargeContext = "sales" | "purchase" | "both";
@@ -58,6 +60,10 @@ function makeKey(name: string) {
 }
 
 export default function ChargeMaster() {
+  const { activeCompany, isPlatformOwner } = useAuth();
+  const canCreate = canPerformModule(activeCompany?.membership_role, "master", "create", activeCompany?.permissions, isPlatformOwner);
+  const canEdit = canPerformModule(activeCompany?.membership_role, "master", "edit", activeCompany?.permissions, isPlatformOwner);
+  const canDelete = canPerformModule(activeCompany?.membership_role, "master", "delete", activeCompany?.permissions, isPlatformOwner);
   const [charges, setCharges] = useState<Charge[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [form, setForm] = useState(emptyForm);
@@ -254,7 +260,7 @@ export default function ChargeMaster() {
       <PageHeader
         title="Charge Master / چارج ماسٹر"
         subtitle="Configure invoice charges and their actual COA revenue/cost accounts. / انوائس چارجز اور متعلقہ آمدنی یا لاگت اکاؤنٹس ترتیب دیں۔"
-        action={
+        action={canCreate ? (
           <button
             type="button"
             onClick={startAdd}
@@ -263,7 +269,7 @@ export default function ChargeMaster() {
             <Plus size={16} />
             Add Charge / چارج شامل کریں
           </button>
-        }
+        ) : null}
       />
 
       {error && <ErrorBanner message={error} />}
@@ -317,15 +323,15 @@ export default function ChargeMaster() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-2">
-                        <button onClick={() => startEdit(charge)} className="rounded-md border p-2 hover:bg-slate-100" title="Edit / ترمیم">
+                        {canEdit && <button onClick={() => startEdit(charge)} className="rounded-md border p-2 hover:bg-slate-100" title="Edit / ترمیم">
                           <Pencil size={15} />
-                        </button>
-                        <button onClick={() => void toggleActive(charge)} className="rounded-md border p-2 hover:bg-slate-100" title="Activate/Deactivate / فعال یا غیر فعال">
+                        </button>}
+                        {canEdit && <button onClick={() => void toggleActive(charge)} className="rounded-md border p-2 hover:bg-slate-100" title="Activate/Deactivate / فعال یا غیر فعال">
                           <Power size={15} />
-                        </button>
-                        <button onClick={() => void remove(charge)} className="rounded-md border p-2 text-red-600 hover:bg-red-50" title="Delete / حذف">
+                        </button>}
+                        {canDelete && <button onClick={() => void remove(charge)} className="rounded-md border p-2 text-red-600 hover:bg-red-50" title="Delete / حذف">
                           <Trash2 size={15} />
-                        </button>
+                        </button>}
                       </div>
                     </td>
                   </tr>

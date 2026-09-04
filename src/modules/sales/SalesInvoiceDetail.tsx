@@ -267,13 +267,11 @@ export default function SalesInvoiceDetail() {
         supabase
           .from("company_settings")
           .select("*")
-          .eq("user_id", user.id)
           .maybeSingle(),
 
         supabase
           .from("document_print_visibility")
           .select("*")
-          .eq("user_id", user.id)
           .eq("document_type", "sales_invoice")
           .maybeSingle(),
       ]);
@@ -593,13 +591,11 @@ export default function SalesInvoiceDetail() {
           supabase
             .from("company_settings")
             .select("*")
-            .eq("user_id", user.id)
             .maybeSingle(),
 
           supabase
             .from("document_print_visibility")
             .select("*")
-            .eq("user_id", user.id)
             .eq("document_type", "sales_invoice")
             .maybeSingle(),
         ]);

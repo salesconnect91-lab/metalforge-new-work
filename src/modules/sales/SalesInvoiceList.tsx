@@ -18,6 +18,8 @@ import {
   formatDate,
 } from "@/components/ui";
 import Papa from "papaparse";
+import { useAuth } from "@/auth/AuthContext";
+import { canPerformModule } from "@/auth/permissions";
 
 type PaymentStatus = "unpaid" | "partial" | "paid" | "overpaid";
 
@@ -88,6 +90,9 @@ const paymentStatusBadge = (status?: string | null) => {
 
 export default function SalesInvoiceList() {
   const navigate = useNavigate();
+  const { activeCompany, isPlatformOwner } = useAuth();
+  const canCreateSales = canPerformModule(activeCompany?.membership_role, "sales", "create", activeCompany?.permissions, isPlatformOwner);
+  const canReceivePayment = canPerformModule(activeCompany?.membership_role, "accounting", "post", activeCompany?.permissions, isPlatformOwner);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [rows, setRows] = useState<SalesInvoiceRow[]>([]);
@@ -644,7 +649,7 @@ export default function SalesInvoiceList() {
       className: "text-right",
       render: (r) => (
         <div className="flex justify-end items-center gap-3">
-          {r.customer_id && toNumber(r.outstanding_amount) > 0 && (
+          {canReceivePayment && r.customer_id && toNumber(r.outstanding_amount) > 0 && (
             <button
               onClick={() => openReceivePayment(r.customer_id)}
               className="text-emerald-700 hover:text-emerald-800 text-sm font-semibold"
@@ -686,12 +691,7 @@ export default function SalesInvoiceList() {
               📈 Sales Person Report
             </Link>
 
-            <button
-              onClick={() => openReceivePayment()}
-              className="px-3 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors"
-            >
-              💵 Receive Payment
-            </button>
+            {canReceivePayment && <button onClick={() => openReceivePayment()} className="px-3 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">💵 Receive Payment</button>}
 
             <button
               onClick={downloadTemplate}
@@ -700,13 +700,13 @@ export default function SalesInvoiceList() {
               📥 Download Template
             </button>
 
-            <button
+            {canCreateSales && <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
               className="px-4 py-2 text-sm font-medium border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
               {uploading ? "Uploading..." : "📁 Bulk Upload (CSV)"}
-            </button>
+            </button>}
 
             <Link
               to="/sales/consolidated"
@@ -715,12 +715,12 @@ export default function SalesInvoiceList() {
               📚 Consolidated Bills / مجموعی بل
             </Link>
 
-            <button
+            {canCreateSales && <button
               onClick={() => navigate("/sales/new")}
               className="btn-primary"
             >
               + Create Sales Invoice
-            </button>
+            </button>}
           </div>
         }
       />

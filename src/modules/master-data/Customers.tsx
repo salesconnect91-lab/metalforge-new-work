@@ -5,11 +5,13 @@ import * as XLSX from "xlsx";
 import { Customer } from "@/types";
 import DataTable, { Column } from "@/components/DataTable";
 import { PageHeader, Modal, ErrorBanner, ConfirmModal } from "@/components/ui";
+import { useAuth } from "@/auth/AuthContext";
 
 type CustomerRow = Customer & { name_urdu?: string | null };
-const EMPTY = { name: "", name_urdu: "", email: "", phone: "", address: "" };
+const EMPTY = { name: "", name_urdu: "", email: "", phone: "", address: "", opening_amount: "", balance_side: "debit", opening_date: new Date().toISOString().slice(0, 10) };
 
 export default function Customers() {
+  const { isPlatformOwner } = useAuth();
   const [rows, setRows] = useState<CustomerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,10 +31,10 @@ export default function Customers() {
 
   useEffect(() => { void fetchRows(); }, [fetchRows]);
 
-  const openCreate = () => { setEditing(null); setForm(EMPTY); setUrduTouched(false); setError(null); setModalOpen(true); };
+  const openCreate = () => { setEditing(null); setForm({ ...EMPTY, opening_date: new Date().toISOString().slice(0, 10) }); setUrduTouched(false); setError(null); setModalOpen(true); };
   const openEdit = (row: CustomerRow) => {
     setEditing(row); setUrduTouched(Boolean(row.name_urdu));
-    setForm({ name: row.name, name_urdu: row.name_urdu ?? toUrduName(row.name), email: row.email ?? "", phone: row.phone ?? "", address: row.address ?? "" });
+    setForm({ name: row.name, name_urdu: row.name_urdu ?? toUrduName(row.name), email: row.email ?? "", phone: row.phone ?? "", address: row.address ?? "", opening_amount: "", balance_side: "debit", opening_date: new Date().toISOString().slice(0, 10) });
     setError(null); setModalOpen(true);
   };
 
@@ -40,8 +42,25 @@ export default function Customers() {
     e.preventDefault(); setError(null);
     const payload = { name: form.name.trim(), name_urdu: form.name_urdu.trim() || toUrduName(form.name), email: form.email.trim() || null, phone: form.phone.trim() || null, address: form.address.trim() || null };
     if (!payload.name) return setError("Customer name is required.");
+    const openingAmount = Number(String(form.opening_amount || "0").replace(/,/g, ""));
+    if (!Number.isFinite(openingAmount) || openingAmount < 0) return setError("Opening balance must be zero or a positive number.");
+    if (!editing && isPlatformOwner && openingAmount > 0 && !form.opening_date) return setError("Opening date is required.");
+
     if (editing) {
       const { error } = await supabase.from("customers").update(payload).eq("id", editing.id);
+      if (error) return setError(error.message);
+    } else if (isPlatformOwner) {
+      const { error } = await supabase.rpc("create_party_with_opening_balance", {
+        p_party_type: "customer",
+        p_name: payload.name,
+        p_name_urdu: payload.name_urdu,
+        p_email: payload.email,
+        p_phone: payload.phone,
+        p_address: payload.address,
+        p_opening_amount: openingAmount,
+        p_balance_side: form.balance_side,
+        p_opening_date: form.opening_date,
+      });
       if (error) return setError(error.message);
     } else {
       const { data, error } = await supabase.rpc("create_customer_with_ar", { p_name: payload.name, p_email: payload.email, p_phone: payload.phone, p_address: payload.address });
@@ -52,7 +71,7 @@ export default function Customers() {
         if (urduError) return setError(urduError.message);
       }
     }
-    setModalOpen(false); setEditing(null); setForm(EMPTY); await fetchRows();
+    setModalOpen(false); setEditing(null); setForm({ ...EMPTY, opening_date: new Date().toISOString().slice(0, 10) }); await fetchRows();
   };
 
   const handleStatusChange = async () => {
@@ -111,6 +130,7 @@ export default function Customers() {
       <div><label className="label">Email / ای میل</label><input className="input" type="email" value={form.email} onChange={e => setForm({...form,email:e.target.value})} /></div>
       <div><label className="label">Phone / فون</label><input className="input" value={form.phone} onChange={e => setForm({...form,phone:e.target.value})} /></div>
       <div><label className="label">Address / پتہ</label><textarea className="input" rows={2} value={form.address} onChange={e => setForm({...form,address:e.target.value})} /></div>
+      {!editing && isPlatformOwner && <div className="rounded-xl border border-blue-200 bg-blue-50 p-3"><div className="mb-3"><div className="text-sm font-semibold text-blue-900">Opening Balance / اوپننگ بیلنس</div><div className="text-xs text-blue-700">Platform Owner only. Leave amount blank or 0 for no opening balance.</div></div><div className="grid gap-3 sm:grid-cols-3"><div><label className="label">Amount</label><input className="input" type="number" min="0" step="0.01" value={form.opening_amount} onChange={e=>setForm({...form,opening_amount:e.target.value})} placeholder="0.00" /></div><div><label className="label">Balance Side</label><select className="input" value={form.balance_side} onChange={e=>setForm({...form,balance_side:e.target.value})}><option value="debit">Debit / Dr</option><option value="credit">Credit / Cr</option></select></div><div><label className="label">Opening Date</label><input className="input" type="date" value={form.opening_date} onChange={e=>setForm({...form,opening_date:e.target.value})} /></div></div><div className="mt-2 text-xs text-blue-700">Customer Debit = amount receivable from customer. Customer Credit = advance/credit balance payable to customer.</div></div>}
       <div className="flex gap-3 justify-end pt-2"><button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">Cancel / منسوخ کریں</button><button type="submit" className="btn-primary">{editing ? "Save Changes" : "Create Customer"}</button></div>
     </form></Modal>
     <ConfirmModal open={!!deleteId} title={`${rows.find(r => r.id === deleteId)?.is_active === false ? "Activate" : "Deactivate"} Customer`} message="Historical transactions will remain safe. Inactive customers cannot be selected for new transactions." onConfirm={handleStatusChange} onCancel={() => setDeleteId(null)} />

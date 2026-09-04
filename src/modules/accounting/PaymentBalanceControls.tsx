@@ -36,7 +36,6 @@ export default function PaymentBalanceControls() {
         .select(
           "show_previous_balance,show_closing_balance"
         )
-        .eq("user_id", user.id)
         .eq("document_type", "receipt_payment")
         .maybeSingle();
 
@@ -82,7 +81,6 @@ export default function PaymentBalanceControls() {
         await supabase
           .from("document_print_visibility")
           .select("id")
-          .eq("user_id", user.id)
           .eq("document_type", "receipt_payment")
           .maybeSingle();
 

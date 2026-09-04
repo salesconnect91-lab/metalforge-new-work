@@ -12,6 +12,8 @@ import {
   formatDate,
   ConfirmModal,
 } from "@/components/ui";
+import { useAuth } from "@/auth/AuthContext";
+import { canPerformModule } from "@/auth/permissions";
 
 type CompanyPrintSettings = {
   company_name?: string | null;
@@ -76,6 +78,13 @@ function prettyStatus(value: string) {
 export default function WorkOrderDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { activeCompany, isPlatformOwner } = useAuth();
+  const role = activeCompany?.membership_role;
+  const permissions = activeCompany?.permissions;
+  const canEditProduction = canPerformModule(role, "production", "edit", permissions, isPlatformOwner);
+  const canDeleteProduction = canPerformModule(role, "production", "delete", permissions, isPlatformOwner);
+  const canPostProduction = canPerformModule(role, "production", "post", permissions, isPlatformOwner);
+  const canPrintProduction = canPerformModule(role, "production", "print", permissions, isPlatformOwner);
 
   const [order, setOrder] = useState<WorkOrder | null>(null);
   const [lines, setLines] = useState<WorkOrderLine[]>([]);
@@ -1271,7 +1280,7 @@ export default function WorkOrderDetail() {
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={order.status} />
 
-            <button
+            {canPrintProduction && <button
               type="button"
               onClick={() => void handlePrint()}
               className="btn btn-secondary"
@@ -1279,9 +1288,9 @@ export default function WorkOrderDetail() {
             >
               <Printer className="h-4 w-4" />
               Print / پرنٹ
-            </button>
+            </button>}
 
-            <button
+            {canPrintProduction && <button
               type="button"
               onClick={() => void handlePdf()}
               className="btn btn-secondary"
@@ -1289,9 +1298,9 @@ export default function WorkOrderDetail() {
             >
               <FileDown className="h-4 w-4" />
               PDF / پی ڈی ایف
-            </button>
+            </button>}
 
-            {order.status === "planned" && (
+            {order.status === "planned" && canEditProduction && (
               <button
                 type="button"
                 onClick={() =>
@@ -1303,7 +1312,7 @@ export default function WorkOrderDetail() {
               </button>
             )}
 
-            {order.status === "in_progress" && (
+            {order.status === "in_progress" && canPostProduction && (
               <button
                 type="button"
                 onClick={() =>
@@ -1315,7 +1324,7 @@ export default function WorkOrderDetail() {
               </button>
             )}
 
-            {order.status === "completed" && (
+            {order.status === "completed" && canEditProduction && (
               <button
                 type="button"
                 onClick={() =>
@@ -1333,7 +1342,7 @@ export default function WorkOrderDetail() {
               </span>
             )}
 
-            {order.status === "planned" && (
+            {order.status === "planned" && canDeleteProduction && (
               <button
                 type="button"
                 onClick={handleDeleteOrder}
@@ -1422,7 +1431,7 @@ export default function WorkOrderDetail() {
                   Qty / مقدار
                 </th>
 
-                {!isLocked && <th />}
+                {!isLocked && canEditProduction && <th />}
               </tr>
             </thead>
 
@@ -1437,7 +1446,7 @@ export default function WorkOrderDetail() {
                     {line.qty}
                   </td>
 
-                  {!isLocked && (
+                  {!isLocked && canEditProduction && (
                     <td className="py-2 text-right">
                       <button
                         type="button"
@@ -1456,7 +1465,7 @@ export default function WorkOrderDetail() {
           </table>
         )}
 
-        {!isLocked && (
+        {!isLocked && canEditProduction && (
           <form
             onSubmit={handleAddLine}
             className="flex flex-wrap items-end gap-3 border-t border-slate-100 pt-4"

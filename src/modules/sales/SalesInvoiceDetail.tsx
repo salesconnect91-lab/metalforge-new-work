@@ -37,6 +37,8 @@ import {
 } from "@/lib/chargeTypes";
 import PrintLayout from "@/components/PrintLayout";
 import InvoiceFinancialSummary from "./InvoiceFinancialSummary";
+import { useAuth } from "@/auth/AuthContext";
+import { canPerformModule } from "@/auth/permissions";
 
 type LinkedHawalaPrintRow = {
   id: string;
@@ -174,6 +176,13 @@ const paymentStatusBadge = (status?: string | null) => {
 export default function SalesInvoiceDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { activeCompany, isPlatformOwner } = useAuth();
+  const salesRole = activeCompany?.membership_role;
+  const salesPermissions = activeCompany?.permissions;
+  const canEditSales = canPerformModule(salesRole, "sales", "edit", salesPermissions, isPlatformOwner);
+  const canDeleteSales = canPerformModule(salesRole, "sales", "delete", salesPermissions, isPlatformOwner);
+  const canPostSales = canPerformModule(salesRole, "sales", "post", salesPermissions, isPlatformOwner);
+  const canPrintSales = canPerformModule(salesRole, "sales", "print", salesPermissions, isPlatformOwner);
 
   const [order, setOrder] = useState<SalesInvoiceDetailOrder | null>(null);
   const [lines, setLines] = useState<SalesOrderLine[]>([]);
@@ -1434,7 +1443,7 @@ export default function SalesInvoiceDetail() {
             </span>
           )}
 
-          {!isPostedOrClosed && (
+          {!isPostedOrClosed && canEditSales && (
             <button
               type="button"
               onClick={() => navigate(`/sales/${order.id}/edit`)}
@@ -1443,34 +1452,34 @@ export default function SalesInvoiceDetail() {
               <Pencil className="h-3.5 w-3.5" />Edit / ترمیم</button>
           )}
 
-          <button
+          {canPrintSales && <button
             type="button"
             onClick={handleExportCSV}
             className="btn-secondary"
           >
             <Download className="h-3.5 w-3.5" />
             CSV
-          </button>
+          </button>}
 
-          <button
+          {canPrintSales && <button
             type="button"
             onClick={handleExportExcel}
             className="btn-secondary"
           >
             <FileSpreadsheet className="h-3.5 w-3.5" />
             Excel
-          </button>
+          </button>}
 
-          <button
+          {canPrintSales && <button
             type="button"
             onClick={handlePrint}
             className="btn-secondary"
           >
             <Printer className="h-3.5 w-3.5" />
             Print / پرنٹ
-          </button>
+          </button>}
 
-          <button
+          {canPrintSales && <button
             type="button"
             onClick={() => void handlePdf()}
             className="btn-secondary"
@@ -1478,9 +1487,9 @@ export default function SalesInvoiceDetail() {
           >
             <Download className="h-3.5 w-3.5" />
             PDF / پی ڈی ایف
-          </button>
+          </button>}
 
-          {!isPostedOrClosed && (
+          {!isPostedOrClosed && canDeleteSales && (
             <button
               type="button"
               onClick={() => setConfirmDelete(true)}
@@ -1514,7 +1523,7 @@ export default function SalesInvoiceDetail() {
 
       <InvoiceFinancialSummary invoiceId={order.id} customerId={order.customer_id} onFinancialChange={setFinancial} />
 
-      {order.status === "draft" && (
+      {order.status === "draft" && canPostSales && (
         <div className="flex flex-col gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[12px] text-blue-700 sm:flex-row sm:items-center sm:justify-between">
           <span>
             Draft invoice has not yet completed accounting and stock posting.
@@ -1905,7 +1914,7 @@ export default function SalesInvoiceDetail() {
             </div>
           </section>
 
-          {!isPostedOrClosed && (
+          {!isPostedOrClosed && canPostSales && (
             <section className="rounded-lg border border-blue-200 bg-blue-50 p-3">
               <div className="text-[12px] font-semibold uppercase tracking-wide text-blue-600">
                 Posting Action / پوسٹ کرنے کا عمل

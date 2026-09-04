@@ -1,6 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import PurchaseOrderList from "./PurchaseOrderList";
-import MainPurchaseInvoice from "./MainPurchaseInvoice";
+import MainPurchaseInvoice from "./MainPurchaseInvoiceV2";
 import ConsolidatedPurchaseInvoices from "./ConsolidatedPurchaseInvoices";
 import PurchaseInvoiceDetail from "./PurchaseInvoiceDetail";
 

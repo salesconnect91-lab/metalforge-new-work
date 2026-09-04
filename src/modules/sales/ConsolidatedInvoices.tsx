@@ -1134,7 +1134,7 @@ export default function ConsolidatedInvoices() {
                             className="input text-right"
                             type="number"
                             step="0.01"
-                            disabled={isLocked}
+                            disabled
                             value={row.tax_percent}
                             onChange={(e) =>
                               updateRow(
@@ -1289,7 +1289,7 @@ export default function ConsolidatedInvoices() {
                               className="input text-right"
                               type="number"
                               step="0.01"
-                              disabled={isLocked}
+                              disabled
                               value={charge.tax_percent}
                               onChange={(e) =>
                                 setCharges((current) =>

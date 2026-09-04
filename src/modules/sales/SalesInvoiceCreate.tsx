@@ -141,11 +141,12 @@ export default function SalesInvoiceCreate() {
   
   const [invoiceType, setInvoiceType] = useState<"Sale Invoice" | "Cash Bill" | "Tax Invoice">("Tax Invoice"); 
   const [paymentMode, setPaymentMode] = useState<"Credit" | "Cash" | "Bank">("Credit");
-  const [globalTaxPercent, setGlobalTaxPercent] = useState<string>("18");
+  const [globalTaxPercent, setGlobalTaxPercent] = useState<string>("0");
   const [taxRateLocked, setTaxRateLocked] = useState(false);
+  const [taxRateConfigured, setTaxRateConfigured] = useState(false);
 
   const [rows, setRows] = useState<InvoiceRow[]>([
-    { item_id: "", qty: "0", rate: "0", tax_percent: "18", godown_id: "" },
+    { item_id: "", qty: "0", rate: "0", tax_percent: "0", godown_id: "" },
   ]);
 
   const [charges, setCharges] = useState<Record<string, string>>({});
@@ -298,7 +299,15 @@ export default function SalesInvoiceCreate() {
             .eq("is_active", true)
             .in("applies_to", ["sales", "both"])
             .order("charge_name"),
-          supabase.from("tax_rates").select("rate,is_fixed").eq("is_active", true).in("applies_to", ["sales", "both"]).order("created_at").limit(1).maybeSingle(),
+          supabase
+            .from("tax_rates")
+            .select("rate,is_fixed")
+            .eq("is_active", true)
+            .eq("is_fixed", true)
+            .in("applies_to", ["sales", "both"])
+            .order("created_at")
+            .limit(1)
+            .maybeSingle(),
         ]);
 
       
@@ -333,6 +342,7 @@ export default function SalesInvoiceCreate() {
         const rate = String(Number(configuredTax.rate) || 0);
         setGlobalTaxPercent(rate);
         setTaxRateLocked(Boolean(configuredTax.is_fixed));
+        setTaxRateConfigured(true);
         setRows((currentRows) => currentRows.map((row) => ({ ...row, tax_percent: rate })));
       }
 
@@ -738,6 +748,12 @@ export default function SalesInvoiceCreate() {
 
     if (!customerId) {
       setError("Please select a customer.");
+      setSaving(false);
+      return;
+    }
+
+    if (!isEditing && invoiceType === "Tax Invoice" && !taxRateConfigured) {
+      setError("Add and fix an active Sales/Both tax rate in Tax Settings before creating a Tax Invoice.");
       setSaving(false);
       return;
     }

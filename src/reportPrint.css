@@ -1,0 +1,137 @@
+/* Shared professional report language for accounting and operational reports. */
+.professional-report {
+  --report-ink: #0f172a;
+  --report-muted: #475569;
+  --report-line: #cbd5e1;
+  --report-soft: #f8fafc;
+}
+
+.professional-report table {
+  font-variant-numeric: tabular-nums;
+}
+
+@media print {
+  @page { size: A4; margin: 12mm 10mm 14mm; }
+
+  html, body { background: #fff !important; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  .professional-report,
+  .professional-report * {
+    visibility: visible !important;
+  }
+
+  .professional-report {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: var(--report-ink) !important;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+    font-size: 9.5pt !important;
+    line-height: 1.35 !important;
+  }
+
+  .professional-report .print\:hidden,
+  .professional-report .no-print,
+  .professional-report button,
+  .professional-report input,
+  .professional-report select,
+  .professional-report textarea {
+    display: none !important;
+  }
+
+  .professional-report .page-header,
+  .professional-report > div > .page-header,
+  .professional-report header {
+    border: 0 !important;
+    border-bottom: 2px solid var(--report-ink) !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    padding: 0 0 4mm !important;
+    margin: 0 0 5mm !important;
+  }
+
+  .professional-report h1,
+  .professional-report .page-title {
+    color: var(--report-ink) !important;
+    font-size: 17pt !important;
+    line-height: 1.15 !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.015em !important;
+  }
+
+  .professional-report h2 { font-size: 13pt !important; font-weight: 750 !important; }
+  .professional-report h3 { font-size: 11.5pt !important; font-weight: 750 !important; }
+  .professional-report p,
+  .professional-report .page-subtitle { color: var(--report-muted) !important; }
+
+  .professional-report .card,
+  .professional-report .summary-card,
+  .professional-report [class*="rounded-xl"],
+  .professional-report [class*="rounded-lg"] {
+    border-color: var(--report-line) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
+
+  .professional-report .card { padding: 4mm !important; }
+
+  .professional-report table {
+    width: 100% !important;
+    min-width: 0 !important;
+    border-collapse: collapse !important;
+    font-size: 8.6pt !important;
+  }
+
+  .professional-report thead { display: table-header-group; }
+  .professional-report tfoot { display: table-footer-group; }
+  .professional-report tr { break-inside: avoid; page-break-inside: avoid; }
+
+  .professional-report th {
+    background: #eef2f7 !important;
+    color: #1e293b !important;
+    border-top: 1px solid #94a3b8 !important;
+    border-bottom: 1px solid #94a3b8 !important;
+    padding: 2.2mm 2mm !important;
+    font-size: 7.8pt !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .035em !important;
+    vertical-align: bottom !important;
+  }
+
+  .professional-report td {
+    color: #1e293b !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    padding: 2.1mm 2mm !important;
+    vertical-align: top !important;
+  }
+
+  .professional-report tbody tr:nth-child(even) td { background: #fbfdff !important; }
+  .professional-report tbody tr:last-child td { border-bottom-color: #94a3b8 !important; }
+
+  .professional-report td.text-right,
+  .professional-report th.text-right { text-align: right !important; white-space: nowrap !important; }
+
+  .professional-report [class*="font-bold"],
+  .professional-report [class*="font-semibold"] { color: #0f172a !important; }
+
+  .professional-report .overflow-x-auto { overflow: visible !important; }
+  .professional-report .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 4mm !important; }
+  .professional-report .space-y-5 > :not([hidden]) ~ :not([hidden]) { margin-top: 3.5mm !important; }
+
+  .professional-report .report-total,
+  .professional-report tfoot tr,
+  .professional-report tr[class*="font-bold"] {
+    background: #eef2f7 !important;
+    font-weight: 800 !important;
+  }
+
+  .professional-report a { color: inherit !important; text-decoration: none !important; }
+}

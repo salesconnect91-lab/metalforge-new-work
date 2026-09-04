@@ -288,6 +288,7 @@ export default function CreatePurchaseInvoice() {
                             min="0"
                             max="100"
                             step="0.01"
+                            disabled
                             value={row.tax_percent}
                             onChange={(e) => updateRow(i, "tax_percent", e.target.value)}
                           />

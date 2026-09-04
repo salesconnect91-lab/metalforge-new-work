@@ -30,12 +30,13 @@ export default function CreatePurchaseInvoice() {
   const [supplierId, setSupplierId] = useState("");
   const [orderDate, setOrderDate] = useState(new Date().toISOString().slice(0, 10));
   const [invoiceType, setInvoiceType] = useState<"Purchase Invoice" | "Tax Invoice">("Tax Invoice");
-  const [globalTaxPercent, setGlobalTaxPercent] = useState("18");
+  const [globalTaxPercent, setGlobalTaxPercent] = useState("0");
   const [taxRateLocked, setTaxRateLocked] = useState(false);
+  const [taxRateConfigured, setTaxRateConfigured] = useState(false);
   const [configuredCharges, setConfiguredCharges] = useState<ConfiguredCharge[]>([]);
 
   const [rows, setRows] = useState<PurchaseRow[]>([
-    { item_id: "", qty: "0", unit_cost: "0", tax_percent: "18" },
+    { item_id: "", qty: "0", unit_cost: "0", tax_percent: "0" },
   ]);
 
   const [charges, setCharges] = useState<ChargeValues>(createEmptyCharges());
@@ -46,7 +47,15 @@ export default function CreatePurchaseInvoice() {
       supabase.from("suppliers").select("*").eq("is_active", true).order("name"),
       supabase.from("items").select("*").order("name"),
       supabase.rpc("next_purchase_order_no"),
-      supabase.from("tax_rates").select("rate,is_fixed").eq("is_active", true).in("applies_to", ["purchase", "both"]).order("created_at").limit(1).maybeSingle(),
+      supabase
+        .from("tax_rates")
+        .select("rate,is_fixed")
+        .eq("is_active", true)
+        .eq("is_fixed", true)
+        .in("applies_to", ["purchase", "both"])
+        .order("created_at")
+        .limit(1)
+        .maybeSingle(),
       supabase.from("charge_master").select("charge_key,charge_name,default_rate,is_fixed").eq("is_active", true).in("applies_to", ["purchase", "both"]).order("charge_name"),
     ]);
     setSuppliers(supRes.data ?? []);
@@ -59,6 +68,7 @@ export default function CreatePurchaseInvoice() {
       const rate = String(Number(taxRes.data.rate) || 0);
       setGlobalTaxPercent(rate);
       setTaxRateLocked(Boolean(taxRes.data.is_fixed));
+      setTaxRateConfigured(true);
       setRows((current) => current.map((row) => ({ ...row, tax_percent: rate })));
     }
     const loadedCharges = (chargeRes.data ?? []) as ConfiguredCharge[];
@@ -113,6 +123,12 @@ export default function CreatePurchaseInvoice() {
 
     if (!supplierId) {
       setError("Please select a supplier.");
+      setSaving(false);
+      return;
+    }
+
+    if (invoiceType === "Tax Invoice" && !taxRateConfigured) {
+      setError("Add and fix an active Purchase/Both tax rate in Tax Settings before creating a Tax Invoice.");
       setSaving(false);
       return;
     }

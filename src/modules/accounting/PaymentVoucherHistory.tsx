@@ -112,7 +112,6 @@ export default function PaymentVoucherHistory({
       .select(
         "show_previous_balance,show_closing_balance"
       )
-      .eq("user_id", user.id)
       .eq("document_type", "receipt_payment")
       .maybeSingle();
 
@@ -134,7 +133,6 @@ export default function PaymentVoucherHistory({
     const { data } = await supabase
       .from("company_settings")
       .select("*")
-      .eq("user_id", user.id)
       .maybeSingle();
 
     return data as any;

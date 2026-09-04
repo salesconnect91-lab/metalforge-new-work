@@ -1,0 +1,21 @@
+-- Live migration applied to Supabase: business_unit_transaction_isolation_phase1
+-- Adds business_unit_id to core operational/accounting transaction tables,
+-- backfills existing rows to each company's default unit, adds FK/index/default,
+-- enforces immutable business-unit stamping, restrictive RLS by active unit,
+-- and owner RPCs for assigning/removing users from business units.
+
+-- Transaction tables covered:
+-- sales_orders, sales_order_lines, sales_order_charges, sales_order_hawala_invoices,
+-- sales_consolidations, sales_consolidation_invoices, consolidated_sales_invoices,
+-- consolidated_sales_invoice_lines, consolidated_sales_invoice_charges,
+-- purchase_orders, purchase_order_lines, purchase_order_consolidated_invoices,
+-- consolidated_purchase_invoices, consolidated_purchase_invoice_lines,
+-- consolidated_purchase_invoice_charges, work_orders, work_order_lines,
+-- furnace_yields, cutting_orders, gate_passes, stock_movements, warehouse_stock,
+-- inventory_costs, hawala_pending_stock, journal_entries, journal_lines, ledgers,
+-- party_ledgers, invoice_payment_allocations, purchase_payment_allocations,
+-- return_notes, return_note_lines, bank_reconciliations, bank_reconciliation_items,
+-- fiscal_year_closures, fiscal_year_opening_balances, opening_balance_batches,
+-- account_budgets, fixed_assets, fixed_asset_depreciation.
+
+-- Canonical implementation lives in the applied Supabase migration history.

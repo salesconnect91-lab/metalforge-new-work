@@ -8,6 +8,8 @@ import { PageHeader, Modal, ErrorBanner, StatusBadge, formatCurrency, formatDate
 import { exportToCSV, exportToExcel, triggerPrint } from "@/lib/exportUtils";
 import { chargesFromRecord, getChargeBreakdown } from "@/lib/chargeTypes";
 import PrintLayout from "@/components/PrintLayout";
+import { useAuth } from "@/auth/AuthContext";
+import { canPerformModule } from "@/auth/permissions";
 
 interface Godown {
   id: string;
@@ -63,6 +65,14 @@ const DEFAULT_PURCHASE_VISIBILITY: PurchasePrintVisibility = {
 export default function PurchaseOrderDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { activeCompany, isPlatformOwner } = useAuth();
+  const role = activeCompany?.membership_role;
+  const permissions = activeCompany?.permissions;
+  const canEditPurchase = canPerformModule(role, "purchase", "edit", permissions, isPlatformOwner);
+  const canDeletePurchase = canPerformModule(role, "purchase", "delete", permissions, isPlatformOwner);
+  const canPostPurchase = canPerformModule(role, "purchase", "post", permissions, isPlatformOwner);
+  const canPrintPurchase = canPerformModule(role, "purchase", "print", permissions, isPlatformOwner);
+  const canPostAccounting = canPerformModule(role, "accounting", "post", permissions, isPlatformOwner);
   const [order, setOrder] = useState<PurchaseOrder | null>(null);
   const [lines, setLines] = useState<PurchaseOrderLine[]>([]);
   const [items, setItems] = useState<Item[]>([]);
@@ -1020,7 +1030,7 @@ export default function PurchaseOrderDetail() {
         subtitle={order.supplier ? `Supplier: ${order.supplier.name}` : "No supplier assigned"}
         action={
           <div className="flex items-center gap-3">
-            {order.status !== "posted" && (
+            {order.status !== "posted" && canPostPurchase && (
               <button
                 onClick={() => setShowPostConfirm(true)}
                 className="btn-primary"
@@ -1030,6 +1040,7 @@ export default function PurchaseOrderDetail() {
               </button>
             )}
             {order.status === "posted" &&
+              canPostAccounting &&
               Number(order.outstanding_amount ?? order.total ?? 0) > 0 &&
               order.supplier_id && (
                 <button
@@ -1037,22 +1048,22 @@ export default function PurchaseOrderDetail() {
                   className="btn-primary"
                 >Pay Supplier / سپلائر کو ادائیگی</button>
               )}
-            <button onClick={handleExportCSV} className="btn-secondary text-sm">CSV</button>
-            <button onClick={handleExportExcel} className="btn-secondary text-sm">Excel</button>
-            <button
+            {canPrintPurchase && <button onClick={handleExportCSV} className="btn-secondary text-sm">CSV</button>}
+            {canPrintPurchase && <button onClick={handleExportExcel} className="btn-secondary text-sm">Excel</button>}
+            {canPrintPurchase && <button
               onClick={handlePrint}
               className="btn-secondary text-sm"
             >
               Print / پرنٹ
-            </button>
+            </button>}
 
-            <button
+            {canPrintPurchase && <button
               onClick={() => void handlePdf()}
               className="btn-secondary text-sm"
             >
               PDF / پی ڈی ایف
-            </button>
-            {order.status !== "posted" && (
+            </button>}
+            {order.status !== "posted" && canDeletePurchase && (
               <button onClick={handleDeleteOrder} className="btn-danger">Delete / حذف کریں</button>
             )}
           </div>
@@ -1120,7 +1131,7 @@ export default function PurchaseOrderDetail() {
                     )}
                   </td>
                   <td className="py-2 text-right">
-                    {order.status !== "posted" && (
+                    {order.status !== "posted" && canEditPurchase && (
                       <button onClick={() => setDeleteLineId(line.id)} className="text-error-600 hover:text-error-700 text-sm">Remove / ہٹائیں</button>
                     )}
                   </td>
@@ -1130,7 +1141,7 @@ export default function PurchaseOrderDetail() {
           </table>
         )}
 
-        {order.status !== "posted" && (
+        {order.status !== "posted" && canEditPurchase && (
         <form onSubmit={handleAddLine} className="flex flex-wrap gap-3 items-end pt-4 border-t border-slate-100">
           <div className="flex-1 min-w-[200px]">
             <label className="label">Add Item / آئٹم شامل کریں</label>

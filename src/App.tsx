@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { useEffect, type ReactNode } from "react";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { canPerformModule, canViewModule, type ModuleAction, type ModuleKey } from "@/auth/permissions";
 
@@ -47,8 +47,40 @@ function ModuleActionOnly({ module, action, children }: { module: ModuleKey; act
   return allowed ? <>{children}</> : <Navigate to="/" replace />;
 }
 
+function LockedPurchaseTaxInputs() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    if (!pathname.startsWith("/purchase")) return;
+
+    const lockVatFields = () => {
+      document.querySelectorAll("label").forEach((label) => {
+        const text = label.textContent?.trim() ?? "";
+        if (!text.includes("VAT %") && !text.includes("Global VAT %")) return;
+
+        const input = label.nextElementSibling;
+        if (!(input instanceof HTMLInputElement)) return;
+        if (input.type !== "number") return;
+
+        input.disabled = true;
+        input.setAttribute("aria-readonly", "true");
+        input.title = "VAT rate is controlled from Tax Settings";
+        input.classList.add("cursor-not-allowed", "bg-slate-50");
+      });
+    };
+
+    lockVatFields();
+    const observer = new MutationObserver(lockVatFields);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => observer.disconnect();
+  }, [pathname]);
+
+  return null;
+}
+
 function GlobalExperience() {
-  return <><ErpExperienceBridge /><PrintPreviewController /></>;
+  return <><ErpExperienceBridge /><PrintPreviewController /><LockedPurchaseTaxInputs /></>;
 }
 
 function DashboardHome() {

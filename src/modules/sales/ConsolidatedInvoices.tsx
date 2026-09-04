@@ -39,6 +39,23 @@ type ChargeMaster = {
   is_active: boolean;
 };
 
+type CompanyPrintSettings = {
+  company_name?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  ntn?: string | null;
+  strn?: string | null;
+  logo_url?: string | null;
+  document_header?: string | null;
+  document_header_urdu?: string | null;
+  document_footer?: string | null;
+  document_footer_urdu?: string | null;
+  prepared_by_label?: string | null;
+  checked_by_label?: string | null;
+  approved_by_label?: string | null;
+};
+
 type HawalaInvoice = {
   id: string;
   invoice_no: string;
@@ -96,7 +113,7 @@ function generateHawalaNo() {
   return `HWL-${stamp}`;
 }
 
-const emptyRow = (tax = "18"): InvoiceRow => ({
+const emptyRow = (tax = "0"): InvoiceRow => ({
   item_id: "",
   godown_id: "",
   qty: "0",
@@ -110,6 +127,7 @@ export default function ConsolidatedInvoices() {
   const [godowns, setGodowns] = useState<Godown[]>([]);
   const [chargeMaster, setChargeMaster] = useState<ChargeMaster[]>([]);
   const [invoices, setInvoices] = useState<HawalaInvoice[]>([]);
+  const [companyPrint, setCompanyPrint] = useState<CompanyPrintSettings>({});
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [invoiceNo, setInvoiceNo] = useState(generateHawalaNo());
@@ -119,8 +137,9 @@ export default function ConsolidatedInvoices() {
   const [referenceNo, setReferenceNo] = useState("");
   const [referenceNotes, setReferenceNotes] = useState("");
   const [invoiceType, setInvoiceType] =
-    useState<"Sale Invoice" | "Cash Bill" | "Tax Invoice">("Tax Invoice");
-  const [globalTaxPercent, setGlobalTaxPercent] = useState("18");
+    useState<"Cash Bill" | "Tax Invoice">("Cash Bill");
+  const [globalTaxPercent, setGlobalTaxPercent] = useState("0");
+  const [configuredTaxRate, setConfiguredTaxRate] = useState<string | null>(null);
 
   const [rows, setRows] = useState<InvoiceRow[]>([emptyRow()]);
   const [charges, setCharges] = useState<ChargeRow[]>([]);
@@ -143,7 +162,7 @@ export default function ConsolidatedInvoices() {
   const isLocked = editingInvoice?.status === "posted";
 
   const loadBaseData = useCallback(async () => {
-    const [customersRes, itemsRes, godownsRes, chargesRes] =
+    const [customersRes, itemsRes, godownsRes, chargesRes, taxRes, companyRes] =
       await Promise.all([
         supabase.from("customers").select("id,name").order("name"),
         supabase.from("items").select("id,name,sku").order("name"),
@@ -155,17 +174,36 @@ export default function ConsolidatedInvoices() {
           )
           .eq("is_active", true)
           .order("charge_name"),
+        supabase
+          .from("tax_rates")
+          .select("rate")
+          .eq("is_active", true)
+          .eq("is_fixed", true)
+          .in("applies_to", ["sales", "both"])
+          .order("created_at")
+          .limit(1)
+          .maybeSingle(),
+        supabase.from("company_settings").select("*").maybeSingle(),
       ]);
 
     if (customersRes.error) throw customersRes.error;
     if (itemsRes.error) throw itemsRes.error;
     if (godownsRes.error) throw godownsRes.error;
     if (chargesRes.error) throw chargesRes.error;
+    if (taxRes.error) throw taxRes.error;
+    if (companyRes.error) throw companyRes.error;
 
     setCustomers((customersRes.data ?? []) as Customer[]);
     setItems((itemsRes.data ?? []) as Item[]);
     setGodowns((godownsRes.data ?? []) as Godown[]);
     setChargeMaster((chargesRes.data ?? []) as ChargeMaster[]);
+    setCompanyPrint((companyRes.data || {}) as CompanyPrintSettings);
+    if (taxRes.data) {
+      const rate = String(Number(taxRes.data.rate) || 0);
+      setConfiguredTaxRate(rate);
+      setGlobalTaxPercent(rate);
+      setRows((current) => current.map((row) => ({ ...row, tax_percent: rate })));
+    }
   }, []);
 
   const loadInvoices = useCallback(async () => {
@@ -226,9 +264,9 @@ export default function ConsolidatedInvoices() {
     setReferenceName("");
     setReferenceNo("");
     setReferenceNotes("");
-    setInvoiceType("Tax Invoice");
-    setGlobalTaxPercent("18");
-    setRows([emptyRow()]);
+    setInvoiceType("Cash Bill");
+    setGlobalTaxPercent(configuredTaxRate ?? "0");
+    setRows([emptyRow("0")]);
     setCharges([]);
     setChargeToAdd("");
     setError("");
@@ -250,13 +288,8 @@ export default function ConsolidatedInvoices() {
     setReferenceName(invoice.reference_name || "");
     setReferenceNo(invoice.reference_no || "");
     setReferenceNotes(invoice.reference_notes || "");
-    setInvoiceType(
-      (invoice.invoice_type || "Tax Invoice") as
-        | "Sale Invoice"
-        | "Cash Bill"
-        | "Tax Invoice"
-    );
-    setGlobalTaxPercent(String(invoice.tax_percent ?? 18));
+    setInvoiceType(invoice.invoice_type === "Tax Invoice" ? "Tax Invoice" : "Cash Bill");
+    setGlobalTaxPercent(String(invoice.tax_percent ?? configuredTaxRate ?? 0));
 
     const [linesRes, chargesRes] = await Promise.all([
       supabase
@@ -293,7 +326,7 @@ export default function ConsolidatedInvoices() {
             rate: String(row.unit_price ?? 0),
             tax_percent: String(row.tax_percent ?? 0),
           }))
-        : [emptyRow(String(invoice.tax_percent ?? 18))]
+        : [emptyRow(String(invoice.tax_percent ?? configuredTaxRate ?? 0))]
     );
 
     setCharges(
@@ -340,7 +373,7 @@ export default function ConsolidatedInvoices() {
   };
 
   const handleInvoiceType = (
-    value: "Sale Invoice" | "Cash Bill" | "Tax Invoice"
+    value: "Cash Bill" | "Tax Invoice"
   ) => {
     setInvoiceType(value);
 
@@ -448,6 +481,11 @@ export default function ConsolidatedInvoices() {
       setError(
         "Enter Hawala / Reference Name / حوالہ نام درج کریں۔"
       );
+      return null;
+    }
+
+    if (invoiceType === "Tax Invoice" && !configuredTaxRate) {
+      setError("Add and fix an active Sales/Both tax rate in Tax Settings before creating a Tax Invoice.");
       return null;
     }
 
@@ -856,9 +894,8 @@ export default function ConsolidatedInvoices() {
                   handleInvoiceType(e.target.value as any)
                 }
               >
-                <option value="Sale Invoice">Sale Invoice</option>
-                <option value="Cash Bill">Cash Bill</option>
-                <option value="Tax Invoice">Tax Invoice</option>
+                <option value="Cash Bill">Without Tax (Cash Bill) / بغیر ٹیکس</option>
+                <option value="Tax Invoice">With Tax (Tax Invoice) / ٹیکس کے ساتھ</option>
               </select>
             </div>
 
@@ -945,7 +982,7 @@ export default function ConsolidatedInvoices() {
                   className="input"
                   type="number"
                   step="0.01"
-                  disabled={isLocked}
+                  disabled
                   value={globalTaxPercent}
                   onChange={(e) => {
                     const value = e.target.value;
@@ -1317,8 +1354,20 @@ export default function ConsolidatedInvoices() {
             voucherNo={invoiceNo}
             voucherDate={invoiceDate}
             company={{
-              name: "Steel Mill ERP",
+              name: companyPrint.company_name || "Steel Mill ERP",
+              address: companyPrint.address || undefined,
+              phone: companyPrint.phone || undefined,
+              email: companyPrint.email || undefined,
+              taxId: [
+                companyPrint.ntn ? `NTN: ${companyPrint.ntn}` : "",
+                companyPrint.strn ? `STRN: ${companyPrint.strn}` : "",
+              ].filter(Boolean).join(" | ") || undefined,
+              logoUrl: companyPrint.logo_url || undefined,
             }}
+            documentHeader={companyPrint.document_header || undefined}
+            documentHeaderUrdu={companyPrint.document_header_urdu || undefined}
+            documentFooter={companyPrint.document_footer || undefined}
+            documentFooterUrdu={companyPrint.document_footer_urdu || undefined}
             party={{
               name: selectedCustomer?.name || "—",
             }}
@@ -1326,6 +1375,8 @@ export default function ConsolidatedInvoices() {
             chargeBreakdown={printCharges}
             itemsTotal={rowsSubtotal}
             chargesTotal={chargesSubtotal}
+            taxAmount={itemTax + chargeTax}
+            showTaxSummary={invoiceType === "Tax Invoice"}
             grandTotal={grandTotal}
             extraFields={[
               {
@@ -1349,9 +1400,9 @@ export default function ConsolidatedInvoices() {
             documentNoticeUrdu="غیر اکاؤنٹنگ حوالہ / غیر بل شدہ ترسیلی دستاویز"
             paymentSummary={undefined}
             signatureLabels={[
-              "Prepared By / تیار کردہ",
-              "Checked By / جانچ کردہ",
-              "Approved By / منظور کردہ",
+              companyPrint.prepared_by_label || "Prepared By / تیار کردہ",
+              companyPrint.checked_by_label || "Checked By / جانچ کردہ",
+              companyPrint.approved_by_label || "Approved By / منظور کردہ",
             ]}
           />
         )}

@@ -29,7 +29,7 @@ export default function CreatePurchaseInvoice() {
   const [orderNo, setOrderNo] = useState("");
   const [supplierId, setSupplierId] = useState("");
   const [orderDate, setOrderDate] = useState(new Date().toISOString().slice(0, 10));
-  const [invoiceType, setInvoiceType] = useState<"Purchase Invoice" | "Tax Invoice">("Tax Invoice");
+  const [invoiceType, setInvoiceType] = useState<"Purchase Invoice" | "Tax Invoice">("Purchase Invoice");
   const [globalTaxPercent, setGlobalTaxPercent] = useState("0");
   const [taxRateLocked, setTaxRateLocked] = useState(false);
   const [taxRateConfigured, setTaxRateConfigured] = useState(false);
@@ -216,8 +216,8 @@ export default function CreatePurchaseInvoice() {
                 value={invoiceType}
                 onChange={(e) => setInvoiceType(e.target.value as "Purchase Invoice" | "Tax Invoice")}
               >
-                <option value="Purchase Invoice">Purchase Invoice / عام خریداری</option>
-                <option value="Tax Invoice">Tax Invoice (VAT) / ٹیکس خریداری</option>
+                <option value="Purchase Invoice">Without Tax (Purchase Invoice) / بغیر ٹیکس</option>
+                <option value="Tax Invoice">With Tax (Purchase Tax Invoice) / ٹیکس کے ساتھ</option>
               </select>
             </div>
             <div>

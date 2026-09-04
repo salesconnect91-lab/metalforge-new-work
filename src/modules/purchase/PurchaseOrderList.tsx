@@ -4,9 +4,13 @@ import { supabase } from "@/lib/supabase";
 import { PurchaseOrder, Supplier } from "@/types";
 import DataTable, { Column } from "@/components/DataTable";
 import { PageHeader, Modal, ErrorBanner, StatusBadge, formatCurrency, formatDate } from "@/components/ui";
+import { useAuth } from "@/auth/AuthContext";
+import { canPerformModule } from "@/auth/permissions";
 
 export default function PurchaseOrderList() {
   const navigate = useNavigate();
+  const { activeCompany, isPlatformOwner } = useAuth();
+  const canCreate = canPerformModule(activeCompany?.membership_role, "purchase", "create", activeCompany?.permissions, isPlatformOwner);
   const [rows, setRows] = useState<PurchaseOrder[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,7 +86,7 @@ export default function PurchaseOrderList() {
 
   return (
     <div>
-      <PageHeader title="Purchase Orders / خریداری آرڈرز" subtitle="Manage supplier orders / سپلائر آرڈرز منظم کریں" action={<button onClick={openCreate} className="btn-primary">+ New Purchase Order</button>} />
+      <PageHeader title="Purchase Orders / خریداری آرڈرز" subtitle="Manage supplier orders / سپلائر آرڈرز منظم کریں" action={canCreate ? <button onClick={openCreate} className="btn-primary">+ New Purchase Order</button> : null} />
       {error && <ErrorBanner message={error} />}
       <DataTable columns={columns} rows={rows} loading={loading} emptyMessage="No purchase orders yet." />
 

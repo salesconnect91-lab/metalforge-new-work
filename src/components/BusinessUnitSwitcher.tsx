@@ -1,0 +1,63 @@
+import { useState } from "react";
+import { BriefcaseBusiness, ChevronDown, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/auth/AuthContext";
+
+export default function BusinessUnitSwitcher() {
+  const {
+    activeBusinessUnit,
+    availableBusinessUnits,
+    switchBusinessUnit,
+    switchingBusinessUnit,
+  } = useAuth();
+  const navigate = useNavigate();
+  const [error, setError] = useState("");
+
+  if (!activeBusinessUnit) return null;
+
+  return (
+    <div className="fixed right-[390px] top-[7px] z-40 hidden min-w-[240px] md:block" data-no-bilingual>
+      <div className="relative rounded-xl border border-blue-200/90 bg-blue-50/95 px-2.5 py-1.5 shadow-sm backdrop-blur-xl">
+        <div className="mb-0.5 flex items-center gap-1.5 px-1 text-[12px] font-bold uppercase tracking-[0.13em] text-blue-500">
+          <BriefcaseBusiness size={10} />
+          <span>Business Unit / بزنس یونٹ</span>
+        </div>
+        <div className="relative">
+          <select
+            aria-label="Active business unit / فعال بزنس یونٹ"
+            title="Active business unit / فعال بزنس یونٹ"
+            className="h-7 w-full appearance-none rounded-md border-0 bg-transparent pl-1 pr-8 text-[12px] font-black text-blue-950 outline-none focus:ring-0 disabled:cursor-wait disabled:opacity-60"
+            value={activeBusinessUnit.business_unit_id}
+            disabled={switchingBusinessUnit || availableBusinessUnits.length <= 1}
+            onChange={(event) => {
+              const businessUnitId = event.target.value;
+              if (!businessUnitId) return;
+              setError("");
+              void switchBusinessUnit(businessUnitId).then(({ error: switchError }) => {
+                if (switchError) {
+                  setError(switchError);
+                  return;
+                }
+                navigate("/");
+              });
+            }}
+          >
+            {availableBusinessUnits.map((unit) => (
+              <option key={unit.business_unit_id} value={unit.business_unit_id}>
+                {unit.business_unit_name} ({unit.business_unit_code})
+              </option>
+            ))}
+          </select>
+          <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-blue-500">
+            {switchingBusinessUnit ? <Loader2 size={13} className="animate-spin" /> : <ChevronDown size={13} />}
+          </span>
+        </div>
+      </div>
+      {error && (
+        <div className="mt-1 rounded-lg border border-red-100 bg-red-50 px-2.5 py-1.5 text-[12px] font-medium text-red-600 shadow-sm">
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}

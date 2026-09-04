@@ -1,8 +1,8 @@
 import { Routes, Route } from "react-router-dom";
 import PurchaseOrderList from "./PurchaseOrderList";
-import PurchaseOrderDetail from "./PurchaseOrderDetail";
 import MainPurchaseInvoice from "./MainPurchaseInvoice";
 import ConsolidatedPurchaseInvoices from "./ConsolidatedPurchaseInvoices";
+import PurchaseInvoiceDetail from "./PurchaseInvoiceDetail";
 
 export default function Purchase() {
   return (
@@ -10,7 +10,7 @@ export default function Purchase() {
       <Route path="/" element={<PurchaseOrderList />} />
       <Route path="/new" element={<MainPurchaseInvoice />} />
       <Route path="/consolidated" element={<ConsolidatedPurchaseInvoices />} />
-      <Route path="/:id" element={<PurchaseOrderDetail />} />
+      <Route path="/:id" element={<PurchaseInvoiceDetail />} />
     </Routes>
   );
 }

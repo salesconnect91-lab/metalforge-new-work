@@ -37,6 +37,39 @@ function downloadFile(filename: string, content: string, mimeType: string): void
   URL.revokeObjectURL(url);
 }
 
+function waitForStyles(doc: Document): Promise<void> {
+  const links = Array.from(doc.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'));
+  if (!links.length) return Promise.resolve();
+  return Promise.all(
+    links.map((link) => new Promise<void>((resolve) => {
+      if (link.sheet) {
+        resolve();
+        return;
+      }
+      const done = () => resolve();
+      link.addEventListener("load", done, { once: true });
+      link.addEventListener("error", done, { once: true });
+      window.setTimeout(done, 2500);
+    })),
+  ).then(() => undefined);
+}
+
+function waitForImages(doc: Document): Promise<void> {
+  const images = Array.from(doc.images);
+  if (!images.length) return Promise.resolve();
+  return Promise.all(
+    images.map((img) => {
+      if (img.complete) return Promise.resolve();
+      return new Promise<void>((resolve) => {
+        const done = () => resolve();
+        img.addEventListener("load", done, { once: true });
+        img.addEventListener("error", done, { once: true });
+        window.setTimeout(done, 2500);
+      });
+    }),
+  ).then(() => undefined);
+}
+
 export function triggerPrint(): void {
   const source = document.querySelector<HTMLElement>(".print-document") || document.querySelector<HTMLElement>(".print-report");
   if (!source) {
@@ -76,7 +109,10 @@ export function triggerPrint(): void {
     body > * { visibility:visible!important; }
     .print-document,.print-report { display:block!important; visibility:visible!important; position:static!important; inset:auto!important; width:100%!important; max-width:none!important; margin:0!important; transform:none!important; zoom:1!important; }
     .print-document *,.print-report * { visibility:visible!important; }
-    @media print { html,body { width:auto!important; min-width:0!important; overflow:visible!important; } .print-document,.print-report { position:static!important; float:none!important; overflow:visible!important; } }
+    @media print {
+      html,body { width:auto!important; min-width:0!important; overflow:visible!important; }
+      .print-document,.print-report { position:static!important; float:none!important; overflow:visible!important; }
+    }
   </style></head><body></body></html>`);
   printDoc.close();
   printDoc.body.appendChild(source.cloneNode(true));
@@ -84,8 +120,12 @@ export function triggerPrint(): void {
   const doPrint = () => {
     printWin.focus();
     printWin.print();
-    window.setTimeout(() => iframe.remove(), 1000);
+    window.setTimeout(() => iframe.remove(), 1200);
   };
-  if (printDoc.fonts?.ready) printDoc.fonts.ready.then(() => window.setTimeout(doPrint, 200));
-  else window.setTimeout(doPrint, 400);
+
+  Promise.all([
+    waitForStyles(printDoc),
+    waitForImages(printDoc),
+    printDoc.fonts?.ready ?? Promise.resolve(),
+  ]).then(() => window.setTimeout(doPrint, 300));
 }

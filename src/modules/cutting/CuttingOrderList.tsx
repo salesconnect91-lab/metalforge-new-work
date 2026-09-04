@@ -37,8 +37,11 @@ export default function CuttingOrderList() {
 
   useEffect(() => { fetchRows(); fetchSupport(); }, [fetchRows, fetchSupport]);
 
-  const openCreate = () => {
-    setForm({ order_no: `CUT-${String(rows.length + 1).padStart(4, "0")}`, customer_id: "", item_id: "", cut_length: "", qty: "0", loading_qty: "0" });
+  const openCreate = async () => {
+    setError(null);
+    const { data, error: numberError } = await supabase.rpc("next_cutting_order_no");
+    if (numberError) { setError(numberError.message); return; }
+    setForm({ order_no: String(data ?? ""), customer_id: "", item_id: "", cut_length: "", qty: "0", loading_qty: "0" });
     setModalOpen(true);
   };
 
@@ -80,14 +83,14 @@ export default function CuttingOrderList() {
       <PageHeader
         title="Cutting & Loading / کٹنگ اور لوڈنگ"
         subtitle="Manage cutting and loading work orders / کٹنگ اور لوڈنگ ورک آرڈرز منظم کریں"
-        action={<button onClick={openCreate} className="btn-primary">+ New Cutting Order</button>}
+        action={<button onClick={() => void openCreate()} className="btn-primary">+ New Cutting Order</button>}
       />
       {error && <ErrorBanner message={error} />}
       <DataTable columns={columns} rows={rows} loading={loading} emptyMessage="No cutting orders yet." />
 
       <Modal open={modalOpen} title="New Cutting Order / نیا کٹنگ آرڈر" onClose={() => setModalOpen(false)}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div><label className="label">Order Number / آرڈر نمبر</label><input className="input" required value={form.order_no} onChange={(e) => setForm({ ...form, order_no: e.target.value })} /></div>
+          <div><label className="label">Order Number / آرڈر نمبر</label><input className="input bg-slate-50 cursor-not-allowed" required readOnly tabIndex={-1} value={form.order_no} title="Order number is generated automatically" /></div>
           <div>
             <label className="label">Customer / گاہک</label>
             <select className="input" value={form.customer_id} onChange={(e) => setForm({ ...form, customer_id: e.target.value })}>

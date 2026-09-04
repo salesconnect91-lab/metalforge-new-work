@@ -2883,18 +2883,12 @@ export default function JournalEntryList() {
                 </label>
 
                 <input
-                  className="mt-1 w-full border rounded p-2 font-mono"
+                  className="mt-1 w-full border rounded p-2 font-mono bg-slate-50 cursor-not-allowed"
                   required
-                  value={
-                    form.entry_no
-                  }
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      entry_no:
-                        event.target.value,
-                    })
-                  }
+                  readOnly
+                  tabIndex={-1}
+                  title="Entry number is generated automatically"
+                  value={form.entry_no}
                 />
 
               </div>

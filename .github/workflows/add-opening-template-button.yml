@@ -1,0 +1,42 @@
+name: Add Opening Balance Template Button
+on:
+  push:
+    paths:
+      - '.github/opening-template-button.trigger'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Patch OwnerPanel
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/modules/platform/OwnerPanel.tsx')
+          s=p.read_text()
+          s=s.replace('import { Loader2, Plus, ShieldCheck, Users } from "lucide-react";','import { Download, Loader2, Plus, ShieldCheck, Users } from "lucide-react";')
+          marker=' const importOpening=async()=>{'
+          fn=''' const downloadOpeningTemplate=async()=>{const XLSX=await import("xlsx");const ws=XLSX.utils.aoa_to_sheet([["Party Type","Party Name","Amount","Side","Opening Date"],["customer","Example Customer",1000,"debit",openingDate],["supplier","Example Supplier",500,"credit",openingDate]]);ws["!cols"]=[{wch:16},{wch:32},{wch:16},{wch:14},{wch:16}];const info=XLSX.utils.aoa_to_sheet([["Opening Balance Import Template"],["Party Type","customer or supplier"],["Party Name","Required"],["Amount","Positive number"],["Side","debit or credit"],["Opening Date","YYYY-MM-DD; can be left blank to use the screen date"]]);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Opening Balances");XLSX.utils.book_append_sheet(wb,info,"Instructions");XLSX.writeFile(wb,"MetalForge-Opening-Balances.xlsx")};\n'''
+          if 'const downloadOpeningTemplate=async()=>{' not in s:
+              s=s.replace(marker,fn+marker)
+          old='<section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><h2 className="font-semibold text-slate-900">Import opening balances</h2><p className="mt-1 text-xs text-slate-500">Excel/CSV columns: Party Type, Party Name, Amount, Side, Opening Date. Side: debit or credit.</p>'
+          new='<section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold text-slate-900">Import opening balances</h2><p className="mt-1 text-xs text-slate-500">Excel/CSV columns: Party Type, Party Name, Amount, Side, Opening Date. Side: debit or credit.</p></div><button type="button" className="btn-secondary" onClick={()=>void downloadOpeningTemplate()}><Download className="h-4 w-4"/>Download Excel Template</button></div>'
+          if old in s:
+              s=s.replace(old,new)
+          else:
+              raise SystemExit('Opening balance section marker not found')
+          p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/modules/platform/OwnerPanel.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "Expose opening balance Excel template in owner panel"
+          git push origin main

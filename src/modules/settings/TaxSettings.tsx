@@ -31,7 +31,13 @@ export default function TaxSettings() {
       }
       setSaved(true); setTimeout(() => setSaved(false), 2500); await load();
     } catch (saveError: unknown) {
-      setError(saveError instanceof Error ? saveError.message : "Save failed.");
+      const message =
+        saveError instanceof Error
+          ? saveError.message
+          : typeof saveError === "object" && saveError !== null && "message" in saveError
+            ? String(saveError.message)
+            : "Save failed.";
+      setError(`Save failed / محفوظ نہیں ہوسکا: ${message}`);
     }
   };
 

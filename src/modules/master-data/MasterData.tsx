@@ -1,5 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import Items from "./Items";
+import Categories from "./Categories";
 import Customers from "./Customers";
 import Suppliers from "./Suppliers";
 import Warehouses from "./Warehouses";
@@ -19,6 +20,7 @@ export default function MasterData() {
       <Routes>
         <Route path="/" element={<Items />} />
         <Route path="/items/:id" element={<MasterRecordDetail entity="item" />} />
+        <Route path="/categories" element={<Categories />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="/customers/:id" element={<MasterRecordDetail entity="customer" />} />
         <Route path="/suppliers" element={<Suppliers />} />

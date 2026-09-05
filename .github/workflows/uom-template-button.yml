@@ -37,4 +37,5 @@ jobs:
           git add src/modules/master-data/Uom.tsx
           git diff --cached --quiet && exit 0
           git commit -m "Add UOM import template download"
-          git push
+          git pull --rebase origin main
+          git push origin HEAD:main

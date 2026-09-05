@@ -91,7 +91,7 @@ export default function Login() {
               <path d="m2 12 10 5 10-5" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">MetalForge OS</h1>
+          <h1 className="text-2xl font-bold text-slate-900">NAVILO</h1>
           <p className="mt-1 text-slate-500">Secure ERP Login</p>
         </div>
 
@@ -169,7 +169,7 @@ export default function Login() {
         </div>
 
         <p className="mt-5 text-center text-xs text-slate-400">
-          Access is allowed only for registered MetalForge users.
+          Access is allowed only for registered NAVILO users.
         </p>
       </div>
     </div>

@@ -1,0 +1,35 @@
+-- Production migration marker: multi_service_core_accounting_foundation
+-- Applied to Supabase project ijdaosaqpbgnqojudjbj on 2026-09-05.
+--
+-- Core platform additions applied live:
+--   operating_locations
+--   accounting_dimensions (cost/profit centers, department, project, route, vehicle, machine, counter, tank)
+--   company_accounting_policies
+--   document_sequences + next_document_number()
+--   posting_rules + posting_rule_lines
+--   approval_workflows + approval_steps + approval_requests
+--   currency_rates
+--   inter_unit_account_mappings
+--   transaction_links
+--   transaction_attachments
+--   accounting_exceptions
+--
+-- Journal foundation additions:
+--   location/dimension/source-document/currency/exchange-rate/approval fields
+--   base debit/credit values on journal lines
+--   balanced-journal enforcement
+--   accounting-period lock and backdate policy enforcement
+--   posted journal immutability / reversal-only correction rule
+--   journal-line one-sided debit/credit validation
+--
+-- Tax/fixed-asset/budget extensions:
+--   tax effective dates/category/inclusive mode
+--   location/dimension support for assets and budgets
+--
+-- Integrity tooling:
+--   get_accounting_integrity_summary()
+--   automatic company core policy bootstrap
+--
+-- This marker documents the live DDL. Existing transaction posting RPCs remain the authoritative
+-- operational posting paths and are protected by the existing company/business-unit isolation,
+-- inventory costing, payment allocation, fiscal closing, reversal and audit hardening migrations.

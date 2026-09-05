@@ -1,0 +1,85 @@
+name: Master Auto Urdu standard
+on:
+  push:
+    paths:
+      - '.github/master-auto-urdu.trigger'
+permissions:
+  contents: write
+jobs:
+  standardize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Standardize Auto Urdu across master forms
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def rep(path, old, new, required=True):
+              p=Path(path); s=p.read_text()
+              if old not in s:
+                  if required: raise SystemExit(f'pattern not found in {path}: {old[:120]}')
+                  return False
+              p.write_text(s.replace(old,new,1)); return True
+
+          # Extend transliteration vocabulary used across masters.
+          p=Path('src/lib/urdu.ts'); s=p.read_text()
+          anchor='  pcs: "عدد",\n'
+          extra='''  pcs: "عدد",\n  serya: "سریا",\n  rebar: "ریبار",\n  girder: "گرڈر",\n  beam: "بیم",\n  main: "مین",\n  branch: "برانچ",\n  lahore: "لاہور",\n  production: "پروڈکشن",\n  accounts: "اکاؤنٹس",\n  account: "اکاؤنٹ",\n  operator: "آپریٹر",\n  manager: "منیجر",\n  sales: "سیلز",\n  purchase: "پرچیز",\n  store: "اسٹور",\n  office: "آفس",\n  address: "پتہ",\n  location: "مقام",\n  department: "شعبہ",\n  designation: "عہدہ",\n'''
+          if anchor in s and 'serya: "سریا"' not in s:
+              p.write_text(s.replace(anchor,extra,1))
+
+          # Add visible Auto Urdu controls wherever editable Urdu name exists.
+          replacements = {
+            'src/modules/master-data/Items.tsx': (
+              '<div><label className="label">Urdu Name / اردو نام</label><input dir="rtl" className="input text-right" value={form.name_urdu}',
+              '<div><div className="flex items-center justify-between"><label className="label">Urdu Name / اردو نام</label><button type="button" className="text-xs font-semibold text-primary-600" onClick={()=>setForm(x=>({...x,name_urdu:toUrduName(x.name)}))}>Auto Urdu</button></div><input dir="rtl" className="input text-right" value={form.name_urdu}'
+            ),
+            'src/modules/master-data/Warehouses.tsx': (
+              '<div><label className="label">Urdu Name / اردو نام</label><input dir="rtl" className="input text-right" value={form.name_urdu}',
+              '<div><div className="flex items-center justify-between"><label className="label">Urdu Name / اردو نام</label><button type="button" className="text-xs font-semibold text-primary-600" onClick={()=>setForm(x=>({...x,name_urdu:toUrduName(x.name)}))}>Auto Urdu</button></div><input dir="rtl" className="input text-right" value={form.name_urdu}'
+            ),
+            'src/modules/master-data/Uom.tsx': (
+              '<div><label className="label">Urdu Name / اردو نام</label><input className="input text-right" dir="rtl" value={form.name_urdu}',
+              '<div><div className="flex items-center justify-between"><label className="label">Urdu Name / اردو نام</label><button type="button" className="text-xs font-semibold text-primary-600" onClick={()=>setForm(x=>({...x,name_urdu:toUrduName(x.name)}))}>Auto Urdu</button></div><input className="input text-right" dir="rtl" value={form.name_urdu}'
+            ),
+            'src/modules/master-data/Transporters.tsx': (
+              '<div><label className="label">Urdu Name / اردو نام</label><input dir="rtl" className="input text-right" value={form.name_urdu}',
+              '<div><div className="flex items-center justify-between"><label className="label">Urdu Name / اردو نام</label><button type="button" className="text-xs font-semibold text-primary-600" onClick={()=>setForm(x=>({...x,name_urdu:toUrduName(x.name)}))}>Auto Urdu</button></div><input dir="rtl" className="input text-right" value={form.name_urdu}'
+            ),
+            'src/modules/master-data/Categories.tsx': (
+              '<div><label className="label">Urdu Name / اردو نام</label><input className="input text-right" dir="rtl" value={form.name_urdu}',
+              '<div><div className="flex items-center justify-between"><label className="label">Urdu Name / اردو نام</label><button type="button" className="text-xs font-semibold text-primary-600" onClick={()=>setForm(c=>({...c,name_urdu:toUrduName(c.name)}))}>Auto Urdu</button></div><input className="input text-right" dir="rtl" value={form.name_urdu}'
+            )
+          }
+          for path,(old,new) in replacements.items(): rep(path,old,new)
+
+          # Employees: add stored Urdu fields for all meaningful human-readable text.
+          path='src/modules/master-data/Employees.tsx'
+          rep(path,'import { supabase } from "@/lib/supabase";','import { supabase } from "@/lib/supabase";\nimport { toUrduName } from "@/lib/urdu";')
+          rep(path,'  name: string;\n  phone: string | null;\n  designation: string | null;\n  department: string | null;', '  name: string;\n  name_urdu: string | null;\n  phone: string | null;\n  designation: string | null;\n  designation_urdu: string | null;\n  department: string | null;\n  department_urdu: string | null;')
+          rep(path,'  name: string;\n  phone: string;\n  designation: string;\n  department: string;\n  is_active: boolean;', '  name: string;\n  name_urdu: string;\n  phone: string;\n  designation: string;\n  designation_urdu: string;\n  department: string;\n  department_urdu: string;\n  is_active: boolean;')
+          rep(path,'  name: "",\n  phone: "",\n  designation: "",\n  department: "",', '  name: "",\n  name_urdu: "",\n  phone: "",\n  designation: "",\n  designation_urdu: "",\n  department: "",\n  department_urdu: "",')
+          rep(path,'      name: employee.name,\n      phone: employee.phone ?? "",\n      designation: employee.designation ?? "",\n      department: employee.department ?? "",', '      name: employee.name,\n      name_urdu: employee.name_urdu ?? toUrduName(employee.name),\n      phone: employee.phone ?? "",\n      designation: employee.designation ?? "",\n      designation_urdu: employee.designation_urdu ?? toUrduName(employee.designation ?? ""),\n      department: employee.department ?? "",\n      department_urdu: employee.department_urdu ?? toUrduName(employee.department ?? ""),')
+          rep(path,'        name: form.name.trim(),\n        phone: form.phone.trim() || null,\n        designation: form.designation.trim() || null,\n        department: form.department.trim() || null,', '        name: form.name.trim(),\n        name_urdu: form.name_urdu.trim() || toUrduName(form.name),\n        phone: form.phone.trim() || null,\n        designation: form.designation.trim() || null,\n        designation_urdu: form.designation_urdu.trim() || toUrduName(form.designation),\n        department: form.department.trim() || null,\n        department_urdu: form.department_urdu.trim() || toUrduName(form.department),')
+          rep(path,'        "Employee Name": "Ahmed Khan",\n        Phone: "03001234567",\n        Designation: "Operator",\n        Department: "Production",', '        "Employee Name": "Ahmed Khan",\n        "Employee Urdu Name": "احمد خان",\n        Phone: "03001234567",\n        Designation: "Operator",\n        "Designation Urdu": "آپریٹر",\n        Department: "Production",\n        "Department Urdu": "پروڈکشن",')
+          rep(path,'      "Employee Name": employee.name,\n      Phone: employee.phone ?? "",\n      Designation: employee.designation ?? "",\n      Department: employee.department ?? "",', '      "Employee Name": employee.name,\n      "Employee Urdu Name": employee.name_urdu ?? "",\n      Phone: employee.phone ?? "",\n      Designation: employee.designation ?? "",\n      "Designation Urdu": employee.designation_urdu ?? "",\n      Department: employee.department ?? "",\n      "Department Urdu": employee.department_urdu ?? "",')
+          rep(path,'          const phone = clean(row["Phone"] ?? row["phone"]);\n          const designation = clean(\n            row["Designation"] ?? row["designation"]\n          );\n          const department = clean(\n            row["Department"] ?? row["department"]\n          );', '          const name_urdu = clean(row["Employee Urdu Name"] ?? row["Urdu Name"] ?? row["name_urdu"]) || toUrduName(name);\n          const phone = clean(row["Phone"] ?? row["phone"]);\n          const designation = clean(row["Designation"] ?? row["designation"]);\n          const designation_urdu = clean(row["Designation Urdu"] ?? row["designation_urdu"]) || toUrduName(designation);\n          const department = clean(row["Department"] ?? row["department"]);\n          const department_urdu = clean(row["Department Urdu"] ?? row["department_urdu"]) || toUrduName(department);')
+          rep(path,'            name,\n            phone,\n            designation,\n            department,', '            name,\n            name_urdu,\n            phone,\n            designation,\n            designation_urdu,\n            department,\n            department_urdu,')
+          rep(path,'        name: row.name,\n        phone: row.phone || null,\n        designation: row.designation || null,\n        department: row.department || null,', '        name: row.name,\n        name_urdu: row.name_urdu || toUrduName(row.name),\n        phone: row.phone || null,\n        designation: row.designation || null,\n        designation_urdu: row.designation_urdu || toUrduName(row.designation),\n        department: row.department || null,\n        department_urdu: row.department_urdu || toUrduName(row.department),')
+          rep(path,'                  value={form.name}\n                  onChange={(e) =>\n                    setForm((x) => ({ ...x, name: e.target.value }))\n                  }\n                />\n              </label>\n\n              <label className="text-xs font-semibold">\n                Phone / فون', '                  value={form.name}\n                  onChange={(e) => setForm((x) => ({ ...x, name: e.target.value, name_urdu: toUrduName(e.target.value) }))}\n                />\n              </label>\n\n              <label className="text-xs font-semibold">\n                <span className="flex items-center justify-between">Urdu Name / اردو نام <button type="button" className="text-primary-600" onClick={()=>setForm(x=>({...x,name_urdu:toUrduName(x.name)}))}>Auto Urdu</button></span>\n                <input dir="rtl" className="input mt-1 w-full text-right" value={form.name_urdu} onChange={(e)=>setForm(x=>({...x,name_urdu:e.target.value}))}/>\n              </label>\n\n              <label className="text-xs font-semibold">\n                Phone / فون')
+          rep(path,'                  value={form.designation}\n                  onChange={(e) =>\n                    setForm((x) => ({ ...x, designation: e.target.value }))\n                  }\n                  placeholder="Operator, Manager..."\n                />\n              </label>\n\n              <label className="text-xs font-semibold">\n                Department / شعبہ', '                  value={form.designation}\n                  onChange={(e) => setForm((x) => ({ ...x, designation: e.target.value, designation_urdu: toUrduName(e.target.value) }))}\n                  placeholder="Operator, Manager..."\n                />\n              </label>\n\n              <label className="text-xs font-semibold">\n                <span className="flex items-center justify-between">Designation Urdu / عہدہ <button type="button" className="text-primary-600" onClick={()=>setForm(x=>({...x,designation_urdu:toUrduName(x.designation)}))}>Auto Urdu</button></span>\n                <input dir="rtl" className="input mt-1 w-full text-right" value={form.designation_urdu} onChange={(e)=>setForm(x=>({...x,designation_urdu:e.target.value}))}/>\n              </label>\n\n              <label className="text-xs font-semibold">\n                Department / شعبہ')
+          rep(path,'                  value={form.department}\n                  onChange={(e) =>\n                    setForm((x) => ({ ...x, department: e.target.value }))\n                  }\n                  placeholder="Production, Accounts..."\n                />\n              </label>\n\n              <label className="flex items-center gap-2 self-end rounded-lg border p-3 text-xs font-semibold">', '                  value={form.department}\n                  onChange={(e) => setForm((x) => ({ ...x, department: e.target.value, department_urdu: toUrduName(e.target.value) }))}\n                  placeholder="Production, Accounts..."\n                />\n              </label>\n\n              <label className="text-xs font-semibold">\n                <span className="flex items-center justify-between">Department Urdu / شعبہ <button type="button" className="text-primary-600" onClick={()=>setForm(x=>({...x,department_urdu:toUrduName(x.department)}))}>Auto Urdu</button></span>\n                <input dir="rtl" className="input mt-1 w-full text-right" value={form.department_urdu} onChange={(e)=>setForm(x=>({...x,department_urdu:e.target.value}))}/>\n              </label>\n\n              <label className="flex items-center gap-2 self-end rounded-lg border p-3 text-xs font-semibold">')
+
+          PY
+      - name: Commit standardized Urdu support
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/urdu.ts src/modules/master-data
+          git diff --cached --quiet && exit 0
+          git commit -m "Standardize Auto Urdu across master data forms"
+          git push

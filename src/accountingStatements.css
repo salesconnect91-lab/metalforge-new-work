@@ -1,0 +1,225 @@
+/* Premium financial statement presentation: light, audit-friendly and print-safe. */
+#accounting-root-placeholder { display: contents; }
+
+#
+printable-profit-loss,
+#printable-trial-balance,
+#printable-balance-sheet {
+  --stmt-ink: #172033;
+  --stmt-muted: #667085;
+  --stmt-line: #dbe3ef;
+  --stmt-soft: #f6f8fc;
+  --stmt-soft-blue: #eef4ff;
+  --stmt-blue: #2457c5;
+  --stmt-blue-dark: #183f94;
+  --stmt-green: #17745a;
+  --stmt-red: #b54747;
+  color: var(--stmt-ink);
+}
+
+/* Keep financial statements professional and light even when the application theme is dark/black. */
+#printable-profit-loss,
+#printable-trial-balance,
+#printable-balance-sheet,
+#printable-profit-loss > *,
+#printable-trial-balance > *,
+#printable-balance-sheet > * {
+  color-scheme: light;
+}
+
+#printable-profit-loss header,
+#printable-trial-balance header,
+#printable-balance-sheet > div.bg-white,
+#printable-balance-sheet .bg-white {
+  border-color: var(--stmt-line) !important;
+}
+
+/* Statement title cards */
+#printable-profit-loss header,
+#printable-trial-balance header,
+#printable-balance-sheet > div.bg-white:first-of-type {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #d8e2f0 !important;
+  background: linear-gradient(135deg, #ffffff 0%, #f7faff 62%, #eef4ff 100%) !important;
+  box-shadow: 0 10px 30px rgba(35, 71, 130, 0.08) !important;
+}
+
+#printable-profit-loss header::before,
+#printable-trial-balance header::before,
+#printable-balance-sheet > div.bg-white:first-of-type::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background: linear-gradient(180deg, #2f66d3, #5b7ee5);
+}
+
+#printable-profit-loss h1,
+#printable-trial-balance h1,
+#printable-balance-sheet h1 {
+  color: #172033 !important;
+  letter-spacing: -0.02em;
+}
+
+/* Metric cards */
+#printable-profit-loss .grid > .rounded-xl.bg-white,
+#printable-trial-balance .grid > .rounded-xl.bg-white,
+#printable-balance-sheet .grid > .rounded-xl.bg-white {
+  border-color: #dce4ef !important;
+  background: linear-gradient(180deg, #ffffff 0%, #fafcff 100%) !important;
+  box-shadow: 0 5px 16px rgba(29, 55, 95, 0.055) !important;
+}
+
+/* Replace heavy black report bars with modern navy-blue report bands. */
+#printable-profit-loss .bg-slate-900,
+#printable-trial-balance .bg-slate-900,
+#printable-trial-balance .bg-slate-800,
+#printable-balance-sheet .bg-slate-900 {
+  background: linear-gradient(135deg, #214f9f 0%, #315fb8 100%) !important;
+  border-color: #2a58a8 !important;
+  color: #ffffff !important;
+}
+
+#printable-profit-loss .bg-rose-950,
+#printable-balance-sheet .bg-rose-950 {
+  background: linear-gradient(135deg, #9d3e4d 0%, #b64c5c 100%) !important;
+}
+
+/* P&L / Balance Sheet statement blocks */
+#printable-profit-loss section,
+#printable-balance-sheet section {
+  border-color: var(--stmt-line) !important;
+  background: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(31, 58, 99, 0.04);
+}
+
+#printable-profit-loss section > div:first-child,
+#printable-balance-sheet section > div:first-child {
+  border-color: var(--stmt-line) !important;
+}
+
+#printable-profit-loss section .bg-slate-50,
+#printable-balance-sheet section .bg-slate-50 {
+  background: linear-gradient(90deg, #f6f8fc 0%, #fbfcfe 100%) !important;
+}
+
+/* Balance Sheet section headers: soft executive blue instead of black. */
+#printable-balance-sheet section > .bg-slate-900 {
+  background: linear-gradient(90deg, #eaf1ff 0%, #f4f7ff 100%) !important;
+  color: #20447f !important;
+  border-bottom: 1px solid #d4e0f4 !important;
+}
+
+#printable-balance-sheet section > .bg-slate-900 h3 {
+  color: #20447f !important;
+}
+
+/* Trial balance table */
+#printable-trial-balance table {
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #ffffff;
+}
+
+#printable-trial-balance thead tr:first-child {
+  background: linear-gradient(90deg, #244f9d 0%, #3a67bd 100%) !important;
+  color: #ffffff !important;
+}
+
+#printable-trial-balance thead tr:nth-child(2) {
+  background: #eaf1ff !important;
+  color: #28436f !important;
+}
+
+#printable-trial-balance thead tr:nth-child(2) th {
+  color: #28436f !important;
+  border-color: #cfdaeb !important;
+}
+
+#printable-trial-balance tbody tr:nth-child(even) {
+  background: #fafcff;
+}
+
+#printable-trial-balance tbody tr:hover {
+  background: #f1f6ff !important;
+}
+
+#printable-trial-balance tfoot tr {
+  background: #edf3ff !important;
+  border-top-color: #7896cc !important;
+}
+
+/* Softer controls and summary areas */
+#printable-profit-loss .bg-slate-100,
+#printable-trial-balance .bg-slate-100,
+#printable-balance-sheet .bg-slate-100 {
+  background: #eef3fa !important;
+}
+
+#printable-profit-loss .bg-slate-50,
+#printable-trial-balance .bg-slate-50,
+#printable-balance-sheet .bg-slate-50 {
+  background: #f7f9fc !important;
+}
+
+/* Print: retain hierarchy without consuming ink with dark blocks. */
+@media print {
+  #printable-profit-loss,
+  #printable-trial-balance,
+  #printable-balance-sheet {
+    background: #ffffff !important;
+    color: #172033 !important;
+  }
+
+  #printable-profit-loss header,
+  #printable-trial-balance header,
+  #printable-balance-sheet > div.bg-white:first-of-type {
+    box-shadow: none !important;
+    background: #ffffff !important;
+    border: 1px solid #cbd7e8 !important;
+  }
+
+  #printable-profit-loss header::before,
+  #printable-trial-balance header::before,
+  #printable-balance-sheet > div.bg-white:first-of-type::before {
+    background: #315ca8 !important;
+  }
+
+  #printable-profit-loss .bg-slate-900,
+  #printable-trial-balance .bg-slate-900,
+  #printable-trial-balance .bg-slate-800,
+  #printable-balance-sheet .bg-slate-900,
+  #printable-balance-sheet section > .bg-slate-900 {
+    background: #eef3fb !important;
+    color: #19365f !important;
+    border-color: #c8d5e8 !important;
+  }
+
+  #printable-profit-loss .bg-slate-900 *,
+  #printable-trial-balance .bg-slate-900 *,
+  #printable-trial-balance .bg-slate-800 *,
+  #printable-balance-sheet .bg-slate-900 *,
+  #printable-balance-sheet section > .bg-slate-900 * {
+    color: #19365f !important;
+  }
+
+  #printable-trial-balance thead tr:first-child,
+  #printable-trial-balance thead tr:nth-child(2) {
+    background: #e9eff8 !important;
+    color: #18385f !important;
+  }
+
+  #printable-trial-balance thead th {
+    color: #18385f !important;
+    border-color: #c7d3e4 !important;
+  }
+
+  #printable-profit-loss section,
+  #printable-balance-sheet section,
+  #printable-trial-balance table {
+    box-shadow: none !important;
+  }
+}

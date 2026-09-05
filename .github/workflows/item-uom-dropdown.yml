@@ -1,0 +1,57 @@
+name: Item UOM dropdown
+on:
+  push:
+    paths:
+      - '.github/item-uom-dropdown.trigger'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Connect item unit to UOM master
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/modules/master-data/Items.tsx')
+          s=p.read_text()
+          reps=[
+          ('type Warehouse={id:string;name:string;name_urdu:string|null};const EMPTY={sku:"",name:"",name_urdu:"",type:"finished" as ItemType,grade:"",size:"",unit:"kg",cost:"0",price:"0",category_id:"",warehouse_id:""};',
+           'type Warehouse={id:string;name:string;name_urdu:string|null};type Uom={id:string;name:string;name_urdu:string|null;symbol:string};const EMPTY={sku:"",name:"",name_urdu:"",type:"finished" as ItemType,grade:"",size:"",unit:"",cost:"0",price:"0",category_id:"",warehouse_id:""};'),
+          ('const[items,setItems]=useState<Item[]>([]),[categories,setCategories]=useState<Category[]>([]),[warehouses,setWarehouses]=useState<Warehouse[]>([]),[form,setForm]=useState(EMPTY)',
+           'const[items,setItems]=useState<Item[]>([]),[categories,setCategories]=useState<Category[]>([]),[warehouses,setWarehouses]=useState<Warehouse[]>([]),[uoms,setUoms]=useState<Uom[]>([]),[form,setForm]=useState(EMPTY)'),
+          ('const load=async()=>{const[i,c,w]=await Promise.all([supabase.from("items").select("id,sku,name,name_urdu,type,grade,size,unit,cost,price,category_id,warehouse_id").order("name"),supabase.from("categories").select("id,name,name_urdu").order("name"),supabase.from("warehouses").select("id,name,name_urdu").order("name")]);if(i.error||c.error||w.error)setError(i.error?.message||c.error?.message||w.error?.message||"Load failed");else{setItems((i.data??[]) as Item[]);setCategories((c.data??[]) as Category[]);setWarehouses((w.data??[]) as Warehouse[])}};',
+           'const load=async()=>{const[i,c,w,u]=await Promise.all([supabase.from("items").select("id,sku,name,name_urdu,type,grade,size,unit,cost,price,category_id,warehouse_id").order("name"),supabase.from("categories").select("id,name,name_urdu").order("name"),supabase.from("warehouses").select("id,name,name_urdu").order("name"),supabase.from("uom").select("id,name,name_urdu,symbol").order("name")]);if(i.error||c.error||w.error||u.error)setError(i.error?.message||c.error?.message||w.error?.message||u.error?.message||"Load failed");else{setItems((i.data??[]) as Item[]);setCategories((c.data??[]) as Category[]);setWarehouses((w.data??[]) as Warehouse[]);setUoms((u.data??[]) as Uom[])}};'),
+          ('setForm({...EMPTY,sku:await nextSku("finished"),warehouse_id:warehouses[0]?.id??""});',
+           'const defaultUnit=uoms.find(u=>n(u.symbol)==="kg")?.symbol??uoms[0]?.symbol??"";setForm({...EMPTY,sku:await nextSku("finished"),warehouse_id:warehouses[0]?.id??"",unit:defaultUnit});'),
+          ('unit:form.unit.trim()||"kg",',
+           'unit:form.unit.trim()||null,'),
+          ('Unit:"kg",Cost:0,',
+           'Unit:uoms.find(u=>n(u.symbol)==="kg")?.symbol??uoms[0]?.symbol??"",Cost:0,'),
+          ('["Grade / Size / Unit / Cost / Sale Price","Optional. Default unit is kg and numeric values default to 0."],',
+           '["Grade / Size / Unit / Cost / Sale Price","Optional. Unit should match an existing UOM symbol/name; numeric values default to 0."],'),
+          ('unit:o.unit||"kg",',
+           'unit:(uoms.find(u=>n(u.symbol)===n(o.unit)||n(u.name)===n(o.unit))?.symbol??o.unit)||null,'),
+          ('unit:x.unit??"kg",cost:String(x.cost??0)',
+           'unit:x.unit??"",cost:String(x.cost??0)'),
+          ('<div><label className="label">Unit</label><input className="input" value={form.unit} onChange={e=>setForm(x=>({...x,unit:e.target.value}))}/></div>',
+           '<div><label className="label">Unit / یونٹ</label><select className="input" value={form.unit} onChange={e=>setForm(x=>({...x,unit:e.target.value}))}><option value="">Select UOM / یونٹ منتخب کریں</option>{form.unit&&!uoms.some(u=>u.symbol===form.unit)&&<option value={form.unit}>{form.unit} (Existing)</option>}{uoms.map(u=><option key={u.id} value={u.symbol}>{u.name}{u.name_urdu?` / ${u.name_urdu}`:""} ({u.symbol})</option>)}</select></div>')
+          ]
+          for old,new in reps:
+              if old not in s:
+                  raise SystemExit('pattern not found: '+old[:100])
+              s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/modules/master-data/Items.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "Use UOM master dropdown for item units"
+          git push

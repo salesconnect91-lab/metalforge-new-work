@@ -1,0 +1,16 @@
+-- Final business-unit audit hardening was applied live to Supabase.
+-- This migration marker records the production change set.
+--
+-- Hardened in production:
+-- * steel_stock_as_of: active business_unit_id filtering + BU-aware adjustment partitions
+-- * steel_period_commercial_summary: sales, purchases and returns scoped to active BU
+-- * close_bank_reconciliation: reconciliation, GL and balances scoped to active BU
+-- * set_bank_transaction_cleared: reconciliation item and ledger selection scoped to active BU
+-- * sync_sales_invoice_reference_to_ledger: GL and party-ledger updates scoped to source BU
+-- * enforce_document_tax_rate: active BU validation
+-- * enforce_document_line_tax_rate: parent/child BU validation
+-- * enforce_sales_charge_settings: invoice/charge BU validation
+--
+-- Production verification after migration:
+-- core transaction tables contain zero NULL business_unit_id rows.
+-- Existing company data remains mapped to its default Steel business unit.

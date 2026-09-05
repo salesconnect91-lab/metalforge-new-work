@@ -1,0 +1,35 @@
+name: Add Categories navigation
+on:
+  push:
+    paths:
+      - '.github/workflows/add-categories-navigation.yml'
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Add Categories sidebar link
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/components/Layout.tsx')
+          s=p.read_text()
+          old='{key:"items",to:"/master-data",label:"Items / آئٹمز",end:true,module:"master"},{key:"customers"'
+          new='{key:"items",to:"/master-data",label:"Items / آئٹمز",end:true,module:"master"},{key:"categories",to:"/master-data/categories",label:"Categories / کیٹیگریز",module:"master"},{key:"customers"'
+          if old not in s:
+              raise SystemExit('Items navigation anchor not found')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/Layout.tsx
+          git commit -m "Show Categories in Master Data menu"
+          git pull --rebase origin main
+          git push origin main

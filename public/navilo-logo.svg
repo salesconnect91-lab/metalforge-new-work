@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 900" role="img" aria-labelledby="title desc">
+<title id="title">NAVILO</title><desc id="desc">NAVILO logo — Run Your Business as One.</desc>
+<defs>
+ <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#031c36"/><stop offset="1" stop-color="#001226"/></linearGradient>
+ <linearGradient id="flow" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#087cff"/><stop offset=".48" stop-color="#12cde0"/><stop offset="1" stop-color="#55f2ad"/></linearGradient>
+ <linearGradient id="white" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#dce8f4"/></linearGradient>
+</defs>
+<rect width="900" height="900" rx="70" fill="url(#bg)"/>
+<!-- circular business-flow arc -->
+<path d="M245 430A225 225 0 0 1 610 215" fill="none" stroke="url(#flow)" stroke-width="25" stroke-linecap="round"/>
+<path d="M677 345A225 225 0 0 1 646 510" fill="none" stroke="url(#flow)" stroke-width="25" stroke-linecap="round"/>
+<!-- N monogram -->
+<path d="M325 475V285h64l154 170V285h68v250h-66L393 365v170h-68z" fill="url(#white)"/>
+<!-- upward growth swoosh -->
+<path d="M230 535C360 520 495 448 615 330c38-38 68-75 91-109l-8 71 70-10c-31 58-72 111-121 158C528 554 382 595 230 585c-18-1-35-3-51-6 17-13 34-28 51-44z" fill="url(#flow)"/>
+<!-- wordmark -->
+<text x="450" y="700" text-anchor="middle" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="104" font-weight="700" letter-spacing="14">NAVILO</text>
+<path d="M322 677l24-42 24 42z" fill="#10b9f5"/>
+<text x="450" y="765" text-anchor="middle" fill="#d8e5f2" font-family="Arial,Helvetica,sans-serif" font-size="30" font-weight="400" letter-spacing="7">Run Your Business as One.</text>
+</svg>

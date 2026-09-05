@@ -1,0 +1,18 @@
+-- Business-unit operational hardening applied live to Supabase on 2026-09-05.
+-- Canonical live migration history contains the executable definitions.
+-- Scope completed in this hardening series:
+-- 1. Inventory costs and warehouse stock uniqueness include business_unit_id.
+-- 2. Parent/child transaction rows inherit and validate the parent business unit.
+-- 3. Weighted-average inventory costing is isolated per business unit.
+-- 4. Stock movement/transfer RPCs read and write only the active business unit.
+-- 5. Sales/Hawala direct warehouse stock operations are active-unit scoped.
+-- 6. Sales, purchase, payment, return, journal, fixed-asset, consolidation and bulk-journal RPC source guards were hardened.
+-- 7. Party-ledger running balances are calculated independently per business unit.
+-- 8. Auto numbering for sales, purchase, work orders, cutting and gate passes is per business unit.
+-- 9. Journal and consolidated invoice uniqueness is per company/business unit.
+-- 10. Opening balances, fiscal year closing and manual reversals are business-unit scoped.
+-- 11. Platform-owner company/business-unit summary reporting RPC was added.
+-- 12. Owner helper set_default_business_unit(uuid) was added.
+--
+-- Existing companies/data were already backfilled to their default Steel business unit,
+-- preserving the current single-business workflow while new services remain isolated.

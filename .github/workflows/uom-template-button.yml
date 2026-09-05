@@ -1,0 +1,40 @@
+name: UOM template button
+on:
+  push:
+    paths:
+      - '.github/uom-template-button.trigger'
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Add UOM template download
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/modules/master-data/Uom.tsx')
+          s=p.read_text()
+          s=s.replace('import { Plus, Search, FileSpreadsheet, Upload, Printer } from "lucide-react";', 'import { Plus, Search, FileSpreadsheet, Upload, Printer, Download } from "lucide-react";')
+          old='const exportExcel=()=>{const ws=XLSX.utils.json_to_sheet(filtered.map(r=>({Name:r.name,"Urdu Name":r.name_urdu??"",Symbol:r.symbol})));'
+          new='const downloadTemplate=()=>{const ws=XLSX.utils.json_to_sheet([{Name:"Kilogram","Urdu Name":"کلوگرام",Symbol:"kg"},{Name:"Metric Ton","Urdu Name":"میٹرک ٹن",Symbol:"ton"},{Name:"Piece","Urdu Name":"عدد",Symbol:"pcs"}]);ws["!cols"]=[{wch:24},{wch:20},{wch:14}];const help=XLSX.utils.aoa_to_sheet([["UOM Import Template Instructions"],["Name","Required. Example: Kilogram, Metric Ton, Piece"],["Urdu Name","Optional; auto-generated if blank"],["Symbol","Required. Example: kg, ton, pcs"],["Tip","Keep header names unchanged before importing."]]);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"UOM Template");XLSX.utils.book_append_sheet(wb,help,"Instructions");XLSX.writeFile(wb,"uom_import_template.xlsx")};const exportExcel=()=>{const ws=XLSX.utils.json_to_sheet(filtered.map(r=>({Name:r.name,"Urdu Name":r.name_urdu??"",Symbol:r.symbol})));'
+          if old not in s: raise SystemExit('export marker not found')
+          s=s.replace(old,new,1)
+          old2='<div className="flex gap-2"><label className="btn-secondary cursor-pointer"><Upload className="h-4 w-4"/> Import'
+          new2='<div className="flex flex-wrap gap-2"><button className="btn-secondary" onClick={downloadTemplate} title="Download Excel import template"><Download className="h-4 w-4"/> Template</button><label className="btn-secondary cursor-pointer"><Upload className="h-4 w-4"/> Import'
+          if old2 not in s: raise SystemExit('button marker not found')
+          s=s.replace(old2,new2,1)
+          p.write_text(s)
+          PY
+      - name: Commit update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/modules/master-data/Uom.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "Add UOM import template download"
+          git push

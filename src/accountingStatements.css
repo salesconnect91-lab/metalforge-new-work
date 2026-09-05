@@ -1,8 +1,5 @@
 /* Premium financial statement presentation: light, audit-friendly and print-safe. */
-#accounting-root-placeholder { display: contents; }
-
-#
-printable-profit-loss,
+#printable-profit-loss,
 #printable-trial-balance,
 #printable-balance-sheet {
   --stmt-ink: #172033;

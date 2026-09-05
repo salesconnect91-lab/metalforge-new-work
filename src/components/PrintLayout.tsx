@@ -1,5 +1,6 @@
 import { formatCurrency, formatDate } from "@/components/ui";
 import { ChargeBreakdownEntry } from "@/lib/chargeTypes";
+import { QRCodeSVG } from "qrcode.react";
 
 export interface PrintPartyInfo {
   name: string;
@@ -136,6 +137,17 @@ export default function PrintLayout({
     ? "invoice-items-grid invoice-items-grid-tax"
     : "invoice-items-grid invoice-items-grid-no-tax";
 
+  const qrPayload = JSON.stringify({
+    company: company.name || "",
+    taxId: company.taxId || "",
+    documentType: voucherTitle,
+    documentNo: voucherNo,
+    documentDate: voucherDate,
+    party: party.name,
+    amount: Number(grandTotal || 0).toFixed(2),
+    tax: Number(taxAmount || 0).toFixed(2),
+  });
+
   return (
     <div className="print-document">
       <div className="print-page">
@@ -161,10 +173,18 @@ export default function PrintLayout({
               )}
             </div>
           </div>
-          <div className="print-voucher-title-box">
-            <h2 className="print-voucher-title">
-              {voucherTitle}{bilingual ? ` / ${urduTitle(voucherTitle)}` : ""}
-            </h2>
+          <div className="print-voucher-title-box" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "12px" }}>
+            <div>
+              <h2 className="print-voucher-title">
+                {voucherTitle}{bilingual ? ` / ${urduTitle(voucherTitle)}` : ""}
+              </h2>
+              <div style={{ marginTop: "4px", textAlign: "right", fontSize: "10px", color: "#64748b" }}>
+                Scan to verify / اسکین کریں
+              </div>
+            </div>
+            <div style={{ background: "#fff", padding: "3px", lineHeight: 0, breakInside: "avoid" }}>
+              <QRCodeSVG value={qrPayload} size={82} level="M" includeMargin={false} />
+            </div>
           </div>
         </div>
 

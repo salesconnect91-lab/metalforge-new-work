@@ -8,6 +8,7 @@ import "./index.css";
 import "./contrast.css";
 import "./reportPrint.css";
 import "./invoicePrintFix.css";
+import "./accountingStatements.css";
 
 installUnifiedDocumentOutput();
 

@@ -12,15 +12,19 @@ import {
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
+import { toUrduName } from "@/lib/urdu";
 
 type Employee = {
   id: string;
   user_id: string;
   employee_code: string | null;
   name: string;
+  name_urdu: string | null;
   phone: string | null;
   designation: string | null;
+  designation_urdu: string | null;
   department: string | null;
+  department_urdu: string | null;
   is_active: boolean;
   created_at?: string;
   updated_at?: string;
@@ -29,9 +33,12 @@ type Employee = {
 type EmployeeForm = {
   employee_code: string;
   name: string;
+  name_urdu: string;
   phone: string;
   designation: string;
+  designation_urdu: string;
   department: string;
+  department_urdu: string;
   is_active: boolean;
 };
 
@@ -43,9 +50,12 @@ type ImportRow = EmployeeForm & {
 const emptyForm: EmployeeForm = {
   employee_code: "",
   name: "",
+  name_urdu: "",
   phone: "",
   designation: "",
+  designation_urdu: "",
   department: "",
+  department_urdu: "",
   is_active: true,
 };
 
@@ -124,9 +134,12 @@ export default function Employees() {
     setForm({
       employee_code: employee.employee_code ?? "",
       name: employee.name,
+      name_urdu: employee.name_urdu ?? toUrduName(employee.name),
       phone: employee.phone ?? "",
       designation: employee.designation ?? "",
+      designation_urdu: employee.designation_urdu ?? toUrduName(employee.designation ?? ""),
       department: employee.department ?? "",
+      department_urdu: employee.department_urdu ?? toUrduName(employee.department ?? ""),
       is_active: employee.is_active,
     });
     setError("");
@@ -155,9 +168,12 @@ export default function Employees() {
         user_id: user.id,
         employee_code: form.employee_code.trim() || null,
         name: form.name.trim(),
+        name_urdu: form.name_urdu.trim() || toUrduName(form.name),
         phone: form.phone.trim() || null,
         designation: form.designation.trim() || null,
+        designation_urdu: form.designation_urdu.trim() || toUrduName(form.designation),
         department: form.department.trim() || null,
+        department_urdu: form.department_urdu.trim() || toUrduName(form.department),
         is_active: form.is_active,
         updated_at: new Date().toISOString(),
       };
@@ -237,9 +253,12 @@ export default function Employees() {
       {
         "Employee Code": "EMP-001",
         "Employee Name": "Ahmed Khan",
+        "Employee Urdu Name": "احمد خان",
         Phone: "03001234567",
         Designation: "Operator",
+        "Designation Urdu": "آپریٹر",
         Department: "Production",
+        "Department Urdu": "پروڈکشن",
         Active: "Yes",
       },
     ]);
@@ -253,9 +272,12 @@ export default function Employees() {
     const rows = filtered.map((employee) => ({
       "Employee Code": employee.employee_code ?? "",
       "Employee Name": employee.name,
+      "Employee Urdu Name": employee.name_urdu ?? "",
       Phone: employee.phone ?? "",
       Designation: employee.designation ?? "",
+      "Designation Urdu": employee.designation_urdu ?? "",
       Department: employee.department ?? "",
+      "Department Urdu": employee.department_urdu ?? "",
       Status: employee.is_active ? "Active" : "Inactive",
     }));
 
@@ -293,13 +315,12 @@ export default function Employees() {
           const name = clean(
             row["Employee Name"] ?? row["Name"] ?? row["name"]
           );
+          const name_urdu = clean(row["Employee Urdu Name"] ?? row["Urdu Name"] ?? row["name_urdu"]) || toUrduName(name);
           const phone = clean(row["Phone"] ?? row["phone"]);
-          const designation = clean(
-            row["Designation"] ?? row["designation"]
-          );
-          const department = clean(
-            row["Department"] ?? row["department"]
-          );
+          const designation = clean(row["Designation"] ?? row["designation"]);
+          const designation_urdu = clean(row["Designation Urdu"] ?? row["designation_urdu"]) || toUrduName(designation);
+          const department = clean(row["Department"] ?? row["department"]);
+          const department_urdu = clean(row["Department Urdu"] ?? row["department_urdu"]) || toUrduName(department);
           const activeText = clean(
             row["Active"] ?? row["Status"] ?? row["is_active"]
           ).toLowerCase();
@@ -322,9 +343,12 @@ export default function Employees() {
             rowNo: index + 2,
             employee_code,
             name,
+            name_urdu,
             phone,
             designation,
+            designation_urdu,
             department,
+            department_urdu,
             is_active: !["no", "inactive", "false", "0"].includes(activeText),
             error,
           };
@@ -375,9 +399,12 @@ export default function Employees() {
         user_id: user.id,
         employee_code: row.employee_code || null,
         name: row.name,
+        name_urdu: row.name_urdu || toUrduName(row.name),
         phone: row.phone || null,
         designation: row.designation || null,
+        designation_urdu: row.designation_urdu || toUrduName(row.designation),
         department: row.department || null,
+        department_urdu: row.department_urdu || toUrduName(row.department),
         is_active: row.is_active,
       }));
 
@@ -664,10 +691,13 @@ export default function Employees() {
                 <input
                   className="input mt-1 w-full"
                   value={form.name}
-                  onChange={(e) =>
-                    setForm((x) => ({ ...x, name: e.target.value }))
-                  }
+                  onChange={(e) => setForm((x) => ({ ...x, name: e.target.value, name_urdu: toUrduName(e.target.value) }))}
                 />
+              </label>
+
+              <label className="text-xs font-semibold">
+                <span className="flex items-center justify-between">Urdu Name / اردو نام <button type="button" className="text-primary-600" onClick={()=>setForm(x=>({...x,name_urdu:toUrduName(x.name)}))}>Auto Urdu</button></span>
+                <input dir="rtl" className="input mt-1 w-full text-right" value={form.name_urdu} onChange={(e)=>setForm(x=>({...x,name_urdu:e.target.value}))}/>
               </label>
 
               <label className="text-xs font-semibold">
@@ -686,11 +716,14 @@ export default function Employees() {
                 <input
                   className="input mt-1 w-full"
                   value={form.designation}
-                  onChange={(e) =>
-                    setForm((x) => ({ ...x, designation: e.target.value }))
-                  }
+                  onChange={(e) => setForm((x) => ({ ...x, designation: e.target.value, designation_urdu: toUrduName(e.target.value) }))}
                   placeholder="Operator, Manager..."
                 />
+              </label>
+
+              <label className="text-xs font-semibold">
+                <span className="flex items-center justify-between">Designation Urdu / عہدہ <button type="button" className="text-primary-600" onClick={()=>setForm(x=>({...x,designation_urdu:toUrduName(x.designation)}))}>Auto Urdu</button></span>
+                <input dir="rtl" className="input mt-1 w-full text-right" value={form.designation_urdu} onChange={(e)=>setForm(x=>({...x,designation_urdu:e.target.value}))}/>
               </label>
 
               <label className="text-xs font-semibold">
@@ -698,11 +731,14 @@ export default function Employees() {
                 <input
                   className="input mt-1 w-full"
                   value={form.department}
-                  onChange={(e) =>
-                    setForm((x) => ({ ...x, department: e.target.value }))
-                  }
+                  onChange={(e) => setForm((x) => ({ ...x, department: e.target.value, department_urdu: toUrduName(e.target.value) }))}
                   placeholder="Production, Accounts..."
                 />
+              </label>
+
+              <label className="text-xs font-semibold">
+                <span className="flex items-center justify-between">Department Urdu / شعبہ <button type="button" className="text-primary-600" onClick={()=>setForm(x=>({...x,department_urdu:toUrduName(x.department)}))}>Auto Urdu</button></span>
+                <input dir="rtl" className="input mt-1 w-full text-right" value={form.department_urdu} onChange={(e)=>setForm(x=>({...x,department_urdu:e.target.value}))}/>
               </label>
 
               <label className="flex items-center gap-2 self-end rounded-lg border p-3 text-xs font-semibold">

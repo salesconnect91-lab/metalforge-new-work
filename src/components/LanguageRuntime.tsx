@@ -28,24 +28,40 @@ function splitBilingualText(value: string) {
 
 function renderLegacyBilingualText(value: string, language: RuntimeLanguage) {
   if (language.mode === "bilingual") return value;
+
   const parts = splitBilingualText(value);
-  if (!parts) return value;
+  if (parts) {
+    if (language.primary === "ur") {
+      const selected = parts.filter((part) => URDU_RE.test(part));
+      return selected.length ? selected.join(" / ") : "";
+    }
 
-  if (language.primary === "ur") {
-    const selected = parts.filter((part) => URDU_RE.test(part));
-    return selected.length ? selected.join(" / ") : value;
-  }
-
-  if (language.primary === "en") {
+    // English and all other single-language modes must never leak the legacy
+    // Urdu half of an English/Urdu label. Other languages can progressively
+    // use the generic translation layer while English remains the safe fallback.
     const selected = parts.filter((part) => !URDU_RE.test(part));
-    return selected.length ? selected.join(" / ") : value;
+    return selected.length ? selected.join(" / ") : "";
   }
 
-  // Legacy English/Urdu hard-coded labels should not leak into another
-  // single-language mode. Until that label has a translation in the generic
-  // translation layer, keep the English fallback rather than showing Urdu too.
-  const selected = parts.filter((part) => !URDU_RE.test(part));
-  return selected.length ? selected.join(" / ") : value;
+  const trimmed = value.trim();
+  if (!trimmed) return value;
+  const hasUrdu = URDU_RE.test(trimmed);
+  const hasLatin = LATIN_RE.test(trimmed);
+
+  // Many legacy bilingual screens render the English and Urdu captions as
+  // separate sibling text nodes (for example dashboard KPI cards). In single
+  // English mode those standalone Urdu nodes must also disappear.
+  if (language.primary === "en" && hasUrdu && !hasLatin) {
+    return value.replace(trimmed, "");
+  }
+
+  // For another non-Urdu single-language selection, legacy standalone Urdu is
+  // also suppressed until the generic translation layer supplies that language.
+  if (language.primary !== "ur" && hasUrdu && !hasLatin) {
+    return value.replace(trimmed, "");
+  }
+
+  return value;
 }
 
 function applyToTextNode(node: Text, language: RuntimeLanguage) {
@@ -115,6 +131,8 @@ export default function LanguageRuntime() {
     let language: RuntimeLanguage = { mode: "bilingual", primary: "en", secondary: "ur" };
 
     const start = async () => {
+      observer?.disconnect();
+      observer = null;
       try {
         language = await loadRuntimeLanguage();
       } catch {

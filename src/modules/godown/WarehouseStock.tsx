@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, Package, Warehouse as WarehouseIcon, RefreshCw, SlidersHorizontal, X, Save, FileSpreadsheet, Printer } from "lucide-react";
+import { Search, Package, Warehouse as WarehouseIcon, RefreshCw, SlidersHorizontal, X, Save, FileSpreadsheet, Printer, Upload } from "lucide-react";
 import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
 
@@ -32,7 +32,7 @@ const errText=(x:unknown)=>typeof x==="object"&&x!==null&&"message" in x?String(
 
 export default function WarehouseStock(){
  const[items,setItems]=useState<Item[]>([]),[warehouses,setWarehouses]=useState<Warehouse[]>([]),[godowns,setGodowns]=useState<Godown[]>([]),[employees,setEmployees]=useState<Employee[]>([]),[stock,setStock]=useState<StockRow[]>([]);
- const[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[search,setSearch]=useState(""),[warehouseFilter,setWarehouseFilter]=useState("all"),[godownFilter,setGodownFilter]=useState("all"),[itemFilter,setItemFilter]=useState("all"),[modalOpen,setModalOpen]=useState(false),[form,setForm]=useState<AdjustmentForm>(EMPTY_FORM);
+ const[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[search,setSearch]=useState(""),[warehouseFilter,setWarehouseFilter]=useState("all"),[godownFilter,setGodownFilter]=useState("all"),[itemFilter,setItemFilter]=useState("all"),[modalOpen,setModalOpen]=useState(false),[form,setForm]=useState<AdjustmentForm>(EMPTY_FORM),[slipFile,setSlipFile]=useState<File|null>(null);
  const[message,setMessage]=useState<{type:"success"|"error";text:string}|null>(null);
  const notify=(type:"success"|"error",text:string)=>{setMessage({type,text});window.setTimeout(()=>setMessage(null),5500)};
 
@@ -62,8 +62,8 @@ export default function WarehouseStock(){
  const selectedItem=items.find(i=>i.id===form.item_id);const uom=clean(selectedItem?.unit)||"UOM";
  const adjustmentQty=Number(form.qty||0);const resultingStock=form.action==="add"?currentStock+adjustmentQty:currentStock-adjustmentQty;
 
- const openAdjustment=()=>{const warehouseId=warehouses[0]?.id??"";const firstGodown=godowns.find(g=>g.warehouse_id===warehouseId)?.id??"";setForm({...EMPTY_FORM,warehouse_id:warehouseId,godown_id:firstGodown});setModalOpen(true)};
- const closeModal=()=>{if(saving)return;setModalOpen(false);setForm(EMPTY_FORM)};
+ const openAdjustment=()=>{const warehouseId=warehouses[0]?.id??"";const firstGodown=godowns.find(g=>g.warehouse_id===warehouseId)?.id??"";setSlipFile(null);setForm({...EMPTY_FORM,warehouse_id:warehouseId,godown_id:firstGodown});setModalOpen(true)};
+ const closeModal=()=>{if(saving)return;setModalOpen(false);setSlipFile(null);setForm(EMPTY_FORM)};
  const saveAdjustment=async(e:React.FormEvent<HTMLFormElement>)=>{e.preventDefault();setMessage(null);
   if(!form.item_id)return notify("error","Select an item / آئٹم منتخب کریں۔");
   if(!form.warehouse_id)return notify("error","Select a warehouse / ویئرہاؤس منتخب کریں۔");
@@ -71,11 +71,21 @@ export default function WarehouseStock(){
   if(!form.reason_code)return notify("error","Select a reason / وجہ منتخب کریں۔");
   if(!form.reference.trim())return notify("error","Reference / approval document number is required.");
   if(!form.approved_by_employee_id)return notify("error","Approved By is required.");
+  if(!slipFile)return notify("error","Approved stock adjustment slip upload is required.");
+  if(slipFile.size>5*1024*1024)return notify("error","Approval slip must be 5 MB or smaller.");
+  if(!["application/pdf","image/png","image/jpeg","image/webp"].includes(slipFile.type))return notify("error","Upload PDF, PNG, JPG or WEBP approval slip only.");
   if(form.reason_code==="other"&&!form.remarks.trim())return notify("error","Remarks are required for Other reason.");
   if(!Number.isFinite(adjustmentQty)||adjustmentQty<=0)return notify("error","Adjustment quantity must be greater than zero.");
   if(form.action==="remove"&&adjustmentQty>currentStock)return notify("error",`Cannot remove ${qtyText(adjustmentQty,uom)}. Available stock is ${qtyText(currentStock,uom)}.`);
   const selectedGodown=godowns.find(g=>g.id===form.godown_id);if(!selectedGodown||selectedGodown.warehouse_id!==form.warehouse_id)return notify("error","Selected godown does not belong to selected warehouse.");
-  setSaving(true);try{const{data,error}=await supabase.rpc("manual_stock_adjustment",{p_item_id:form.item_id,p_warehouse_id:form.warehouse_id,p_godown_id:form.godown_id,p_action:form.action,p_qty:Number(adjustmentQty.toFixed(3)),p_reason_code:form.reason_code,p_reference:form.reference.trim(),p_approved_by_employee_id:form.approved_by_employee_id,p_remarks:form.remarks.trim()||null});if(error)throw error;notify("success",`Adjustment saved. Stock ${qtyText(currentStock,uom)} → ${qtyText(Number(data??resultingStock),uom)}.`);setModalOpen(false);setForm(EMPTY_FORM);await fetchData()}catch(x){notify("error",`Stock update failed: ${errText(x)}`)}finally{setSaving(false)}};
+  setSaving(true);let uploadedPath="";try{
+   const{data:companyId,error:companyError}=await supabase.rpc("current_company_id");if(companyError||!companyId)throw new Error(companyError?.message||"Active company could not be resolved.");
+   const{data:{user}}=await supabase.auth.getUser();if(!user)throw new Error("Authentication required.");
+   const ext=(slipFile.name.split(".").pop()||"file").toLowerCase().replace(/[^a-z0-9]/g,"");uploadedPath=`${companyId}/${user.id}/${Date.now()}-${crypto.randomUUID()}.${ext||"file"}`;
+   const{error:uploadError}=await supabase.storage.from("stock-adjustment-approvals").upload(uploadedPath,slipFile,{upsert:false,contentType:slipFile.type});if(uploadError)throw uploadError;
+   const{data,error}=await supabase.rpc("manual_stock_adjustment",{p_item_id:form.item_id,p_warehouse_id:form.warehouse_id,p_godown_id:form.godown_id,p_action:form.action,p_qty:Number(adjustmentQty.toFixed(3)),p_reason_code:form.reason_code,p_reference:form.reference.trim(),p_approved_by_employee_id:form.approved_by_employee_id,p_approval_slip_path:uploadedPath,p_remarks:form.remarks.trim()||null});if(error)throw error;
+   notify("success",`Adjustment saved. Stock ${qtyText(currentStock,uom)} → ${qtyText(Number(data??resultingStock),uom)}.`);setModalOpen(false);setSlipFile(null);setForm(EMPTY_FORM);await fetchData();
+  }catch(x){if(uploadedPath)await supabase.storage.from("stock-adjustment-approvals").remove([uploadedPath]);notify("error",`Stock update failed: ${errText(x)}`)}finally{setSaving(false)}};
 
  const exportExcel=()=>{if(!filteredStock.length)return notify("error","No stock to export.");const rows=filteredStock.map(r=>({Warehouse:warehouseName(r.warehouse_id),Godown:godownName(r.godown_id,r.godown),SKU:r.item?.sku??"Unknown","Item Name":r.item?bilingual(r.item.name,r.item.name_urdu):"Unknown Item",Grade:r.item?.grade??"",Size:r.item?.size??"","Quantity / UOM":qtyText(Number(r.quantity||0),r.item?.unit),Quantity:Number(r.quantity??0),UOM:r.item?.unit??"","Last Updated":r.updated_at}));const ws=XLSX.utils.json_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Warehouse Stock");XLSX.writeFile(wb,"warehouse_stock.xlsx")};
  const printPdf=()=>window.print();
@@ -95,8 +105,9 @@ export default function WarehouseStock(){
    <div><label className="mb-1.5 block text-sm font-bold">Reason / وجہ *</label><select required value={form.reason_code} onChange={e=>setForm(c=>({...c,reason_code:e.target.value}))} className="w-full rounded-xl border px-3 py-2.5"><option value="">Select reason / وجہ منتخب کریں</option>{REASONS.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></div>
    <div><label className="mb-1.5 block text-sm font-bold">Reference / Approval No. / حوالہ *</label><input required value={form.reference} onChange={e=>setForm(c=>({...c,reference:e.target.value}))} placeholder="Count sheet, approval memo, incident ref..." className="w-full rounded-xl border px-3 py-2.5"/></div>
    <div><label className="mb-1.5 block text-sm font-bold">Approved By / منظوری دینے والا *</label><select required value={form.approved_by_employee_id} onChange={e=>setForm(c=>({...c,approved_by_employee_id:e.target.value}))} className="w-full rounded-xl border px-3 py-2.5"><option value="">Select approver</option>{employees.map(emp=><option key={emp.id} value={emp.id}>{emp.employee_code?`${emp.employee_code} — `:""}{bilingual(emp.name,emp.name_urdu)}{emp.designation?` — ${emp.designation}`:""}</option>)}</select></div>
-   <div><label className="mb-1.5 block text-sm font-bold">Remarks / تفصیل {form.reason_code==="other"?"*":""}</label><textarea rows={2} value={form.remarks} onChange={e=>setForm(c=>({...c,remarks:e.target.value}))} placeholder="Optional detail; required for Other reason" className="w-full rounded-xl border px-3 py-2.5"/></div>
-   <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900"><strong>Audit rule:</strong> Logged-in user is captured automatically. Reason, reference, approver, old stock and resulting stock are stored in movement history.</div>
+   <div><label className="mb-1.5 block text-sm font-bold">Approved Slip / منظوری سلپ *</label><label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm font-semibold text-slate-700"><Upload className="h-4 w-4"/>{slipFile?slipFile.name:"Upload signed/approved PDF or image"}<input type="file" required accept="application/pdf,image/png,image/jpeg,image/webp" className="hidden" onChange={e=>setSlipFile(e.target.files?.[0]??null)}/></label><p className="mt-1 text-xs text-slate-500">PDF/JPG/PNG/WEBP, maximum 5 MB. Adjustment will not save without approval slip.</p></div>
+   <div><label className="mb-1.5 block text-sm font-bold">Remarks / تفصیل {form.reason_code==="other"?"*":""}</label><textarea rows={2} required={form.reason_code==="other"} value={form.remarks} onChange={e=>setForm(c=>({...c,remarks:e.target.value}))} placeholder="Optional detail; required for Other reason" className="w-full rounded-xl border px-3 py-2.5"/></div>
+   <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900"><strong>Strict audit rule:</strong> Reason, reference, approver and approved slip are mandatory. Logged-in user, old stock and resulting stock are stored automatically.</div>
    <div className="flex justify-end gap-2 border-t pt-4"><button type="button" onClick={closeModal} className="btn-secondary"><X className="h-4 w-4"/>Cancel</button><button type="submit" disabled={saving||resultingStock<0} className="btn-primary"><Save className="h-4 w-4"/>{saving?"Saving...":"Save Adjustment"}</button></div>
   </form></div></div>}
  </div>

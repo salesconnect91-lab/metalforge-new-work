@@ -23,11 +23,19 @@ type MasterCatalog = {
   byId: Map<string, MasterName>;
   byEnglishName: Map<string, MasterName>;
   namesByLength: MasterName[];
+  itemUnits: Map<string, string>;
 };
 
 const URDU_RE = /[\u0600-\u06FF]/;
 const LATIN_RE = /[A-Za-z]/;
 const nodeState = new WeakMap<Text, NodeState>();
+
+const emptyCatalog = (): MasterCatalog => ({
+  byId: new Map(),
+  byEnglishName: new Map(),
+  namesByLength: [],
+  itemUnits: new Map(),
+});
 
 function splitBilingualText(value: string) {
   const parts = value.split(/\s*\/\s*/).filter(Boolean);
@@ -47,7 +55,6 @@ function renderLegacyBilingualText(value: string, language: RuntimeLanguage) {
       const selected = parts.filter((part) => URDU_RE.test(part));
       return selected.length ? selected.join(" / ") : "";
     }
-
     const selected = parts.filter((part) => !URDU_RE.test(part));
     return selected.length ? selected.join(" / ") : "";
   }
@@ -57,14 +64,8 @@ function renderLegacyBilingualText(value: string, language: RuntimeLanguage) {
   const hasUrdu = URDU_RE.test(trimmed);
   const hasLatin = LATIN_RE.test(trimmed);
 
-  if (language.primary === "en" && hasUrdu && !hasLatin) {
-    return value.replace(trimmed, "");
-  }
-
-  if (language.primary !== "ur" && hasUrdu && !hasLatin) {
-    return value.replace(trimmed, "");
-  }
-
+  if (language.primary === "en" && hasUrdu && !hasLatin) return value.replace(trimmed, "");
+  if (language.primary !== "ur" && hasUrdu && !hasLatin) return value.replace(trimmed, "");
   return value;
 }
 
@@ -79,10 +80,9 @@ function decorateMasterName(value: string, node: Text, language: RuntimeLanguage
   if (parent?.tagName === "OPTION") {
     const option = parent as HTMLOptionElement;
     const byId = option.value ? catalog.byId.get(option.value) : undefined;
-    if (byId && byId.secondaryName && value.includes(byId.name)) {
+    if (byId?.secondaryName && value.includes(byId.name)) {
       return value.replace(byId.name, `${byId.name} / ${byId.secondaryName}`);
     }
-
     for (const entry of catalog.namesByLength) {
       if (entry.secondaryName && value.includes(entry.name)) {
         return value.replace(entry.name, `${entry.name} / ${entry.secondaryName}`);
@@ -106,6 +106,32 @@ function applyToTextNode(node: Text, language: RuntimeLanguage, catalog: MasterC
   if (current !== next) node.nodeValue = next;
 }
 
+function applyStockQuantityUnit(catalog: MasterCatalog) {
+  if (!catalog.itemUnits.size) return;
+  for (const select of Array.from(document.querySelectorAll("select"))) {
+    const unit = catalog.itemUnits.get((select as HTMLSelectElement).value);
+    if (!unit) continue;
+    const form = select.closest("form");
+    if (!form) continue;
+    const formText = form.textContent || "";
+    if (!/Stock IN|Stock OUT|Stock Adjustment|اسٹاک/.test(formText)) continue;
+
+    const quantityLabel = Array.from(form.querySelectorAll("label")).find((label) =>
+      /^(New Quantity|Quantity)(\s|\*)/.test((label.textContent || "").trim())
+    );
+    if (!quantityLabel) continue;
+
+    let badge = quantityLabel.querySelector<HTMLElement>("[data-navilo-stock-uom]");
+    if (!badge) {
+      badge = document.createElement("span");
+      badge.dataset.naviloStockUom = "true";
+      badge.className = "ml-1 font-black text-primary-600";
+      quantityLabel.appendChild(badge);
+    }
+    badge.textContent = `(${unit})`;
+  }
+}
+
 function applyLanguageToDom(language: RuntimeLanguage, catalog: MasterCatalog) {
   const root = document.getElementById("root");
   if (!root) return;
@@ -115,6 +141,7 @@ function applyLanguageToDom(language: RuntimeLanguage, catalog: MasterCatalog) {
     applyToTextNode(node as Text, language, catalog);
     node = walker.nextNode();
   }
+  applyStockQuantityUnit(catalog);
 
   const primary = languageByCode(language.primary);
   document.documentElement.lang = language.primary || "en";
@@ -158,22 +185,16 @@ async function loadRuntimeLanguage(): Promise<RuntimeLanguage> {
 }
 
 async function loadMasterCatalog(language: RuntimeLanguage): Promise<MasterCatalog> {
-  const empty = (): MasterCatalog => ({ byId: new Map(), byEnglishName: new Map(), namesByLength: [] });
-  if (language.mode !== "bilingual" || !language.secondary) return empty();
+  if (language.mode !== "bilingual" || !language.secondary) return emptyCatalog();
 
   const secondary = language.secondary;
   const tables = ["items", "customers", "suppliers", "warehouses", "godowns", "categories", "uom", "transporters"] as const;
-  const tableResults = await Promise.all(
-    tables.map((table) => supabase.from(table).select("id,name,name_urdu"))
-  );
-  const salespersonResult = await supabase
-    .from("chart_of_accounts")
-    .select("id,name")
-    .eq("account_role", "sales_person");
-  const translationResult = await supabase
-    .from("entity_translations")
-    .select("entity_id,language_code,name")
-    .eq("language_code", secondary);
+  const [tableResults, itemUnitResult, salespersonResult, translationResult] = await Promise.all([
+    Promise.all(tables.map((table) => supabase.from(table).select("id,name,name_urdu"))),
+    supabase.from("items").select("id,unit"),
+    supabase.from("chart_of_accounts").select("id,name").eq("account_role", "sales_person"),
+    supabase.from("entity_translations").select("entity_id,language_code,name").eq("language_code", secondary),
+  ]);
 
   const translatedById = new Map<string, string>();
   for (const row of translationResult.data ?? []) {
@@ -199,6 +220,13 @@ async function loadMasterCatalog(language: RuntimeLanguage): Promise<MasterCatal
     if (id && name && secondaryName && secondaryName !== name) entries.push({ id, name, secondaryName });
   }
 
+  const itemUnits = new Map<string, string>();
+  for (const row of itemUnitResult.data ?? []) {
+    const id = String(row.id ?? "");
+    const unit = String(row.unit ?? "").trim();
+    if (id && unit) itemUnits.set(id, unit);
+  }
+
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
   const byEnglishName = new Map<string, MasterName>();
   for (const entry of entries) {
@@ -209,6 +237,7 @@ async function loadMasterCatalog(language: RuntimeLanguage): Promise<MasterCatal
     byId,
     byEnglishName,
     namesByLength: [...entries].sort((a, b) => b.name.length - a.name.length),
+    itemUnits,
   };
 }
 
@@ -217,7 +246,7 @@ export default function LanguageRuntime() {
     let active = true;
     let observer: MutationObserver | null = null;
     let language: RuntimeLanguage = { mode: "bilingual", primary: "en", secondary: "ur" };
-    let catalog: MasterCatalog = { byId: new Map(), byEnglishName: new Map(), namesByLength: [] };
+    let catalog: MasterCatalog = emptyCatalog();
 
     const start = async () => {
       observer?.disconnect();
@@ -227,7 +256,7 @@ export default function LanguageRuntime() {
         catalog = await loadMasterCatalog(language);
       } catch {
         language = { mode: "bilingual", primary: "en", secondary: "ur" };
-        catalog = { byId: new Map(), byEnglishName: new Map(), namesByLength: [] };
+        catalog = emptyCatalog();
       }
       if (!active) return;
 
@@ -254,20 +283,24 @@ export default function LanguageRuntime() {
             }
           });
         }
+        applyStockQuantityUnit(catalog);
       });
       observer.observe(root, { subtree: true, childList: true, characterData: true });
     };
 
     const refresh = () => void start();
+    const onChange = () => window.setTimeout(() => applyStockQuantityUnit(catalog), 0);
     void start();
     window.addEventListener("navilo-language-changed", refresh);
     window.addEventListener("navilo-master-data-changed", refresh);
+    document.addEventListener("change", onChange, true);
 
     return () => {
       active = false;
       observer?.disconnect();
       window.removeEventListener("navilo-language-changed", refresh);
       window.removeEventListener("navilo-master-data-changed", refresh);
+      document.removeEventListener("change", onChange, true);
     };
   }, []);
 

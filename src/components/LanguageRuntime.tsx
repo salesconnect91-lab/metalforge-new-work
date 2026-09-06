@@ -188,7 +188,7 @@ async function loadMasterCatalog(language: RuntimeLanguage): Promise<MasterCatal
   if (language.mode !== "bilingual" || !language.secondary) return emptyCatalog();
 
   const secondary = language.secondary;
-  const tables = ["items", "customers", "suppliers", "warehouses", "godowns", "categories", "uom", "transporters"] as const;
+  const tables = ["items", "customers", "suppliers", "employees", "warehouses", "godowns", "categories", "uom", "transporters"] as const;
   const [tableResults, itemUnitResult, salespersonResult, translationResult] = await Promise.all([
     Promise.all(tables.map((table) => supabase.from(table).select("id,name,name_urdu"))),
     supabase.from("items").select("id,unit"),

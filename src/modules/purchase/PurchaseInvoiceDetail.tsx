@@ -42,8 +42,8 @@ type Line = {
   godown?: { id: string; name: string; name_urdu?: string | null } | null;
 };
 
-type Option = { id: string; name: string; sku?: string | null; cost?: number | string | null };
-type Godown = { id: string; name: string };
+type Option = { id: string; name: string; name_urdu?: string | null; sku?: string | null; cost?: number | string | null };
+type Godown = { id: string; name: string; name_urdu?: string | null };
 type Consolidated = {
   id: string;
   invoice_no: string;
@@ -107,7 +107,7 @@ export default function PurchaseInvoiceDetail() {
   const [godowns, setGodowns] = useState<Godown[]>([]);
   const [consolidated, setConsolidated] = useState<Consolidated[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [newLine, setNewLine] = useState({ item_id: "", godown_id: "", qty: "1", unit_cost: "0" });
+  const [newLine, setNewLine] = useState({ item_id: "", description: "", godown_id: "", qty: "1", unit_cost: "0" });
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>([]);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentAccountId, setPaymentAccountId] = useState("");
@@ -208,9 +208,9 @@ export default function PurchaseInvoiceDetail() {
     if (!newLine.item_id || !newLine.godown_id) { setError("Item aur destination godown select karein."); return; }
     const qty = n(newLine.qty); const cost = n(newLine.unit_cost);
     if (qty <= 0 || cost < 0) { setError("Quantity/cost invalid hai."); return; }
-    const { error: insertError } = await supabase.from("purchase_order_lines").insert({ order_id: id, item_id: newLine.item_id, godown_id: newLine.godown_id, qty, unit_cost: cost, tax_percent: isTax ? n(order.tax_percent) : 0, line_total: qty * cost });
+    const { error: insertError } = await supabase.from("purchase_order_lines").insert({ order_id: id, item_id: newLine.item_id, description: newLine.description.trim() || null, godown_id: newLine.godown_id, qty, unit_cost: cost, tax_percent: isTax ? n(order.tax_percent) : 0, line_total: qty * cost });
     if (insertError) { setError(insertError.message); return; }
-    setNewLine({ item_id: "", godown_id: godowns[0]?.id || "", qty: "1", unit_cost: "0" });
+    setNewLine({ item_id: "", description: "", godown_id: godowns[0]?.id || "", qty: "1", unit_cost: "0" });
     await load();
   };
 

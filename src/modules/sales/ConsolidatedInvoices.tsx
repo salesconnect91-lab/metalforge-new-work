@@ -330,7 +330,6 @@ export default function ConsolidatedInvoices() {
             qty: String(row.qty ?? 0),
             rate: String(row.unit_price ?? 0),
             tax_percent: String(row.tax_percent ?? 0),
-            description: row.description ?? "",
           }))
         : [emptyRow(String(invoice.tax_percent ?? configuredTaxRate ?? 0))]
     );
@@ -340,7 +339,6 @@ export default function ConsolidatedInvoices() {
         charge_key: row.charge_key,
         amount: String(row.amount ?? 0),
         tax_percent: String(row.tax_percent ?? 0),
-            description: row.description ?? "",
       }))
     );
 

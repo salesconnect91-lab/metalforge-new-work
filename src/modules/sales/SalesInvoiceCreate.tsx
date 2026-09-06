@@ -1192,7 +1192,7 @@ export default function SalesInvoiceCreate() {
                   <option value="">— Select Customer / گاہک منتخب کریں —</option>
                   {customers.map((customer) => (
                     <option key={customer.id} value={customer.id}>
-                      {customer.name}
+                      {customer.name}{customer.name_urdu ? ` / ${customer.name_urdu}` : ""}
                     </option>
                   ))}
                 </select>

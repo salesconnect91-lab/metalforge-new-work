@@ -5,7 +5,7 @@ const PHRASES: Record<string, string> = {
   "Salesperson Name": "Salesperson Name / سیلز پرسن کا نام",
 };
 
-function applySalespersonLabels(root: ParentNode) {
+function applySalespersonUi(root: ParentNode) {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const nodes: Text[] = [];
   let current = walker.nextNode();
@@ -19,23 +19,31 @@ function applySalespersonLabels(root: ParentNode) {
     const raw = node.nodeValue ?? "";
     const trimmed = raw.trim();
     const replacement = PHRASES[trimmed];
-    if (!replacement) continue;
+    if (replacement) {
+      const leading = raw.match(/^\s*/)?.[0] ?? "";
+      const trailing = raw.match(/\s*$/)?.[0] ?? "";
+      node.nodeValue = `${leading}${replacement}${trailing}`;
+    }
 
-    const leading = raw.match(/^\s*/)?.[0] ?? "";
-    const trailing = raw.match(/\s*$/)?.[0] ?? "";
-    node.nodeValue = `${leading}${replacement}${trailing}`;
+    if (trimmed === "Auto Urdu") {
+      const button = node.parentElement?.closest("button");
+      if (button) {
+        button.classList.remove("btn-secondary");
+        button.classList.add("btn-primary");
+      }
+    }
   }
 }
 
 export default function SalespersonBilingualFix() {
   useEffect(() => {
-    applySalespersonLabels(document.body);
+    applySalespersonUi(document.body);
 
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         mutation.addedNodes.forEach((node) => {
-          if (node instanceof Element) applySalespersonLabels(node);
-          else if (node.parentElement) applySalespersonLabels(node.parentElement);
+          if (node instanceof Element) applySalespersonUi(node);
+          else if (node.parentElement) applySalespersonUi(node.parentElement);
         });
       }
     });

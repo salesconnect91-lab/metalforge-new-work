@@ -3,52 +3,35 @@ on:
   push:
     branches: [main]
     paths: ['.github/workflows/invoice-urdu-description.yml']
-permissions:
-  contents: write
+permissions: { contents: write }
 jobs:
   patch:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
-      - name: Apply final invoice UI corrections
+      - name: Finish sales invoice UI
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p=Path('src/modules/sales/SalesInvoiceCreate.tsx'); s=p.read_text(encoding='utf-8'); o=s
-          s=s.replace('godown_id: line.godown_id || "",\n            }))','godown_id: line.godown_id || "",\n              description: line.description || "",\n            }))')
-          s=s.replace('godown_id: row.godown_id || null,\n        }));','godown_id: row.godown_id || null,\n        description: row.description.trim() || null,\n        }));')
-          s=s.replace('{ item_id: "", qty: "0", rate: "0", tax_percent: globalTaxPercent, godown_id: godowns[0]?.id || "" },','{ item_id: "", qty: "0", rate: "0", tax_percent: globalTaxPercent, godown_id: godowns[0]?.id || "", description: "" },')
-          s=s.replace('{customer.name}\n                    </option>','{customer.name}{customer.name_urdu ? ` / ${customer.name_urdu}` : ""}\n                    </option>')
-          s=s.replace('{item.name} ({item.sku})','{item.name}{item.name_urdu ? ` / ${item.name_urdu}` : ""} ({item.sku})')
-          s=s.replace('{g.name}\n                            </option>','{g.name}{g.name_urdu ? ` / ${g.name_urdu}` : ""}\n                            </option>')
-          s=s.replace('<th className="text-left py-3 pr-3">Godown / گودام</th>','<th className="text-left py-3 pr-3">Description / تفصیل</th>\n                  <th className="text-left py-3 pr-3">Godown / گودام</th>')
-          marker='''</select>\n                      </td>\n\n                      <td className="py-3 pr-3">\n                        <select\n                          className="input min-w-[160px]"\n                          value={row.godown_id}'''
-          replacement='''</select>\n                      </td>\n\n                      <td className="py-3 pr-3">\n                        <input className="input min-w-[180px]" placeholder="Optional description / تفصیل" value={row.description} disabled={isLocked} onChange={(e) => updateRow(index, "description", e.target.value)} />\n                      </td>\n\n                      <td className="py-3 pr-3">\n                        <select\n                          className="input min-w-[160px]"\n                          value={row.godown_id}'''
-          if 'placeholder="Optional description / تفصیل"' not in s: s=s.replace(marker,replacement)
-          s=s.replace('<td className="py-2">{item?.name || "—"}</td>','<td className="py-2"><div>{item?.name || "—"}{item?.name_urdu ? ` / ${item.name_urdu}` : ""}</div>{row.description && <div className="text-xs text-slate-500">{row.description}</div>}</td>')
-          s=s.replace('<div className="font-semibold">{selectedCustomer?.name || "—"}</div>','<div className="font-semibold">{selectedCustomer?.name || "—"}{selectedCustomer?.name_urdu ? ` / ${selectedCustomer.name_urdu}` : ""}</div>')
-          p.write_text(s,encoding='utf-8'); print('sales changed',s!=o)
-
-          p=Path('src/modules/sales/ConsolidatedInvoices.tsx'); s=p.read_text(encoding='utf-8'); o=s
-          s=s.replace('tax_percent: String(row.tax_percent ?? 0),\n            description: row.description ?? "",\n      }))','tax_percent: String(row.tax_percent ?? 0),\n      }))')
-          s=s.replace('tax_percent: String(row.tax_percent ?? 0),\n            description: row.description ?? "",\n    }))','tax_percent: String(row.tax_percent ?? 0),\n    }))')
-          s=s.replace('tax_percent: String(row.tax_percent ?? 0),\n            description: row.description ?? "",','tax_percent: String(row.tax_percent ?? 0),')
-          p.write_text(s,encoding='utf-8'); print('consolidated cleaned',s!=o)
-
-          p=Path('src/modules/purchase/PurchaseInvoiceDetail.tsx'); s=p.read_text(encoding='utf-8'); o=s
-          s=s.replace('type Option = { id: string; name: string; sku?: string | null; cost?: number | string | null };','type Option = { id: string; name: string; name_urdu?: string | null; sku?: string | null; cost?: number | string | null };')
-          s=s.replace('type Godown = { id: string; name: string };','type Godown = { id: string; name: string; name_urdu?: string | null };')
-          s=s.replace('useState({ item_id: "", godown_id: "", qty: "1", unit_cost: "0" })','useState({ item_id: "", description: "", godown_id: "", qty: "1", unit_cost: "0" })')
-          s=s.replace('order_id: id, item_id: newLine.item_id, godown_id: newLine.godown_id, qty, unit_cost: cost,','order_id: id, item_id: newLine.item_id, description: newLine.description.trim() || null, godown_id: newLine.godown_id, qty, unit_cost: cost,')
-          s=s.replace('setNewLine({ item_id: "", godown_id: godowns[0]?.id || "", qty: "1", unit_cost: "0" })','setNewLine({ item_id: "", description: "", godown_id: godowns[0]?.id || "", qty: "1", unit_cost: "0" })')
-          p.write_text(s,encoding='utf-8'); print('purchase detail changed',s!=o)
+          s=s.replace('''              godown_id: l.godown_id ? String(l.godown_id) : "",\n            }))''','''              godown_id: l.godown_id ? String(l.godown_id) : "",\n              description: l.description || "",\n            }))''')
+          s=s.replace('''        godown_id: r.godown_id || null,\n        line_total:''','''        godown_id: r.godown_id || null,\n        description: r.description.trim() || null,\n        line_total:''')
+          s=s.replace('''                    <th className="w-[36%] px-3 py-2 text-left">Item / آئٹم</th>\n                    <th className="w-[18%] px-2 py-2 text-left">\n                      Godown / گودام\n                    </th>''','''                    <th className="w-[28%] px-3 py-2 text-left">Item / آئٹم</th>\n                    <th className="w-[22%] px-2 py-2 text-left">Description / تفصیل</th>\n                    <th className="w-[18%] px-2 py-2 text-left">\n                      Godown / گودام\n                    </th>''')
+          s=s.replace('''                                {item.name}\n                                {item.sku ? ` · ${item.sku}` : ""}''','''                                {item.name}{item.name_urdu ? ` / ${item.name_urdu}` : ""}\n                                {item.sku ? ` · ${item.sku}` : ""}''')
+          marker='''                        </td>\n\n                        <td className="px-2 py-2">\n                          <select\n                            className="input"\n                            disabled={isLocked}\n                            value={row.godown_id}'''
+          replacement='''                        </td>\n\n                        <td className="px-2 py-2">\n                          <input className="input min-w-[170px]" placeholder="Optional description / تفصیل" disabled={isLocked} value={row.description} onChange={(event) => updateRow(index, "description", event.target.value)} />\n                        </td>\n\n                        <td className="px-2 py-2">\n                          <select\n                            className="input"\n                            disabled={isLocked}\n                            value={row.godown_id}'''
+          if 'placeholder="Optional description / تفصیل"' not in s: s=s.replace(marker,replacement,1)
+          s=s.replace('''                              {g.name}\n                            </option>''','''                              {g.name}{g.name_urdu ? ` / ${g.name_urdu}` : ""}\n                            </option>''')
+          s=s.replace('''<td className="py-2">{item?.name || "—"}</td>''','''<td className="py-2"><div>{item?.name || "—"}{item?.name_urdu ? ` / ${item.name_urdu}` : ""}</div>{row.description && <div className="text-xs text-slate-500">{row.description}</div>}</td>''')
+          s=s.replace('''<div className="font-semibold">{selectedCustomer?.name || "—"}</div>''','''<div className="font-semibold">{selectedCustomer?.name || "—"}{selectedCustomer?.name_urdu ? ` / ${selectedCustomer.name_urdu}` : ""}</div>''')
+          p.write_text(s,encoding='utf-8'); print('changed',s!=o)
           PY
           git diff --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/modules/sales/SalesInvoiceCreate.tsx src/modules/sales/ConsolidatedInvoices.tsx src/modules/purchase/PurchaseInvoiceDetail.tsx
+          git add src/modules/sales/SalesInvoiceCreate.tsx
           git diff --cached --quiet && exit 0
-          git commit -m 'Complete invoice Urdu godown description flow'
+          git commit -m 'Finish sales invoice Urdu description UI'
           git push origin main

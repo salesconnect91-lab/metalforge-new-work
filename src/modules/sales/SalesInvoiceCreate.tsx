@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Customer, Item } from "@/types";
 import { ErrorBanner, formatCurrency, Modal } from "@/components/ui";
+import { calculateConfiguredChargeAmount, chargeQuantityForUnit } from "@/lib/chargeCalculation";
 import { QRCodeCanvas } from "qrcode.react";
 import {
   ArrowLeft,
@@ -552,12 +553,21 @@ export default function SalesInvoiceCreate() {
   const handleAddChargeRow = () => {
     if (!chargeToAdd || selectedChargeKeys.includes(chargeToAdd)) return;
     const selectedCharge = salesCharges.find((charge) => charge.charge_key === chargeToAdd);
-    const defaultRate = String(Number(selectedCharge?.default_rate) || 0);
+    if (!selectedCharge) return;
+    const defaultRate = Number(selectedCharge.default_rate) || 0;
+    const quantity = chargeQuantityForUnit(selectedCharge.unit, rows, items, rowsSubtotal);
+    const amount = calculateConfiguredChargeAmount({
+      unit: selectedCharge.unit,
+      rate: defaultRate,
+      rows,
+      items,
+      baseAmount: rowsSubtotal,
+    });
     setSelectedChargeKeys([...selectedChargeKeys, chargeToAdd]);
     setChargeTaxes((prev) => ({ ...prev, [chargeToAdd]: globalTaxPercent }));
-    setChargeQuantities((prev) => ({ ...prev, [chargeToAdd]: prev[chargeToAdd] ?? "1" }));
-    setChargeRates((prev) => ({ ...prev, [chargeToAdd]: prev[chargeToAdd] ?? defaultRate }));
-    setCharges((prev) => ({ ...prev, [chargeToAdd]: prev[chargeToAdd] ?? defaultRate }));
+    setChargeQuantities((prev) => ({ ...prev, [chargeToAdd]: String(Number(quantity.toFixed(3))) }));
+    setChargeRates((prev) => ({ ...prev, [chargeToAdd]: String(defaultRate) }));
+    setCharges((prev) => ({ ...prev, [chargeToAdd]: String(amount) }));
     setChargeToAdd("");
   };
 
@@ -660,6 +670,29 @@ export default function SalesInvoiceCreate() {
   const rowsSubtotal = rows.reduce((sum, r) => {
     return sum + (parseFloat(r.qty) || 0) * (parseFloat(r.rate) || 0);
   }, 0);
+
+  useEffect(() => {
+    if (isLocked || selectedChargeKeys.length === 0) return;
+    const nextQuantities: Record<string, string> = {};
+    const nextAmounts: Record<string, string> = {};
+    selectedChargeKeys.forEach((key) => {
+      const charge = salesCharges.find((candidate) => candidate.charge_key === key);
+      if (!charge) return;
+      const rate = Number(chargeRates[key] ?? charge.default_rate) || 0;
+      const quantity = chargeQuantityForUnit(charge.unit, rows, items, rowsSubtotal);
+      const amount = calculateConfiguredChargeAmount({
+        unit: charge.unit,
+        rate,
+        rows,
+        items,
+        baseAmount: rowsSubtotal,
+      });
+      nextQuantities[key] = String(Number(quantity.toFixed(3)));
+      nextAmounts[key] = String(amount);
+    });
+    setChargeQuantities((current) => ({ ...current, ...nextQuantities }));
+    setCharges((current) => ({ ...current, ...nextAmounts }));
+  }, [isLocked, selectedChargeKeys, salesCharges, chargeRates, rows, items, rowsSubtotal]);
 
   const totalItemTaxAmount = rows.reduce((sum, r) => {
     if (invoiceType !== "Tax Invoice") return 0;

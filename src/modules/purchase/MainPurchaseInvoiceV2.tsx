@@ -3,9 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { ErrorBanner, PageHeader, formatCurrency } from "@/components/ui";
 import { buildChargePayload, createEmptyCharges, type ChargeValues } from "@/lib/chargeTypes";
+import { calculateConfiguredChargeAmount, type ConfiguredChargeUnit } from "@/lib/chargeCalculation";
 
 type Supplier = { id: string; name: string };
-type Item = { id: string; name: string; sku?: string | null; cost?: number | string | null };
+type Item = { id: string; name: string; sku?: string | null; cost?: number | string | null; unit?: string | null };
 type Godown = { id: string; name: string };
 type PurchaseLine = { item_id: string; godown_id: string; qty: string; unit_cost: string; tax_percent: string };
 type ConsolidatedOption = {
@@ -23,6 +24,7 @@ type ConfiguredCharge = {
   is_fixed: boolean;
   tax_applicable: boolean;
   purchase_treatment?: "landed_cost" | "expense" | null;
+  unit: ConfiguredChargeUnit;
 };
 
 const emptyLine = (tax = "0", godown = ""): PurchaseLine => ({ item_id: "", godown_id: godown, qty: "1", unit_cost: "0", tax_percent: tax });
@@ -53,11 +55,11 @@ export default function MainPurchaseInvoiceV2() {
   const loadBase = useCallback(async () => {
     const [supplierRes, itemRes, godownRes, orderNoRes, taxRes, chargeRes] = await Promise.all([
       supabase.from("suppliers").select("id,name").eq("is_active", true).order("name"),
-      supabase.from("items").select("id,name,sku,cost").order("name"),
+      supabase.from("items").select("id,name,sku,cost,unit").order("name"),
       supabase.from("godowns").select("id,name").order("name"),
       supabase.rpc("next_purchase_order_no"),
       supabase.from("tax_rates").select("rate,is_fixed").eq("is_active", true).eq("is_fixed", true).in("applies_to", ["purchase", "both"]).order("created_at").limit(1).maybeSingle(),
-      supabase.from("charge_master").select("charge_key,charge_name,default_rate,is_fixed,tax_applicable,purchase_treatment").eq("is_active", true).in("applies_to", ["purchase", "both"]).order("charge_name"),
+      supabase.from("charge_master").select("charge_key,charge_name,default_rate,is_fixed,tax_applicable,purchase_treatment,unit").eq("is_active", true).in("applies_to", ["purchase", "both"]).order("charge_name"),
     ]);
     const firstError = supplierRes.error || itemRes.error || godownRes.error || orderNoRes.error || taxRes.error || chargeRes.error;
     if (firstError) throw firstError;
@@ -102,6 +104,24 @@ export default function MainPurchaseInvoiceV2() {
   const selectedCharges = useMemo(() => configuredCharges.filter((c) => selectedChargeKeys.includes(c.charge_key)), [configuredCharges, selectedChargeKeys]);
   const availableCharges = configuredCharges.filter((c) => !selectedChargeKeys.includes(c.charge_key));
   const directSubtotal = rows.reduce((sum, row) => sum + (Number(row.qty) || 0) * (Number(row.unit_cost) || 0), 0);
+  useEffect(() => {
+    if (selectedChargeKeys.length === 0) return;
+    setCharges((current) => {
+      const next = { ...current };
+      selectedChargeKeys.forEach((key) => {
+        const charge = configuredCharges.find((candidate) => candidate.charge_key === key);
+        if (!charge) return;
+        next[key] = String(calculateConfiguredChargeAmount({
+          unit: charge.unit,
+          rate: Number(charge.default_rate) || 0,
+          rows,
+          items,
+          baseAmount: directSubtotal,
+        }));
+      });
+      return next;
+    });
+  }, [selectedChargeKeys, configuredCharges, rows, items, directSubtotal]);
   const directItemTax = invoiceType === "Tax Invoice" ? rows.reduce((sum, row) => {
     const base = (Number(row.qty) || 0) * (Number(row.unit_cost) || 0);
     return sum + base * (Number(row.tax_percent) || 0) / 100;
@@ -128,8 +148,15 @@ export default function MainPurchaseInvoiceV2() {
     if (!chargeToAdd) return;
     const charge = configuredCharges.find((c) => c.charge_key === chargeToAdd);
     if (!charge) return;
+    const amount = calculateConfiguredChargeAmount({
+      unit: charge.unit,
+      rate: Number(charge.default_rate) || 0,
+      rows,
+      items,
+      baseAmount: directSubtotal,
+    });
     setSelectedChargeKeys((keys) => [...keys, charge.charge_key]);
-    setCharges((current) => ({ ...current, [charge.charge_key]: String(Number(charge.default_rate) || 0) }));
+    setCharges((current) => ({ ...current, [charge.charge_key]: String(amount) }));
     setChargeToAdd("");
   };
 

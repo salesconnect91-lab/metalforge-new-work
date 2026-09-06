@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Download, Plus, Printer, Search, Users } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { ErrorBanner, Modal, formatCurrency } from "@/components/ui";
+import { toUrduName } from "@/lib/urdu";
 import * as XLSX from "xlsx";
 
-type SalespersonAccount = { id: string; code: string; name: string; is_active: boolean };
+type SalespersonAccount = { id: string; code: string; name: string; is_active: boolean; company_id: string | null };
 type OrderRow = {
   id: string;
   order_no: string;
@@ -22,6 +23,8 @@ type PartySummary = { name: string; orders: number; grossSales: number; returns:
 type Summary = {
   id?: string;
   code?: string;
+  companyId?: string | null;
+  urduName?: string;
   active: boolean;
   name: string;
   orders: number;
@@ -36,6 +39,8 @@ type Summary = {
   credit: number;
   parties: PartySummary[];
 };
+
+type TranslationRow = { entity_id: string; name: string | null };
 
 const num = (v: unknown) => Number.isFinite(Number(v)) ? Number(v) : 0;
 const customerName = (value: OrderRow["customer"]) => Array.isArray(value) ? value[0]?.name || "Unassigned" : value?.name || "Unassigned";
@@ -53,23 +58,27 @@ export default function SalespersonReport() {
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<SalespersonAccount | null>(null);
   const [name, setName] = useState("");
+  const [nameUrdu, setNameUrdu] = useState("");
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const [spRes, orderRes, returnRes] = await Promise.all([
-        supabase.from("chart_of_accounts").select("id,code,name,is_active").eq("account_role", "sales_person").order("name"),
+      const [spRes, orderRes, returnRes, translationRes] = await Promise.all([
+        supabase.from("chart_of_accounts").select("id,code,name,is_active,company_id").eq("account_role", "sales_person").order("name"),
         supabase.from("sales_orders").select("id,order_no,order_date,sales_person,customer_id,total,paid_amount,invoice_type,payment_mode,customer:customers(name)").in("status", ["posted", "closed", "approved"]).order("order_date"),
         supabase.from("return_notes").select("sales_order_id,total,status,note_type").eq("note_type", "sales_credit").eq("status", "posted"),
+        supabase.from("entity_translations").select("entity_id,name").eq("entity_type", "salesperson").eq("language_code", "ur"),
       ]);
       if (spRes.error) throw spRes.error;
       if (orderRes.error) throw orderRes.error;
       if (returnRes.error) throw returnRes.error;
+      if (translationRes.error) throw translationRes.error;
 
       const accounts = (spRes.data || []) as SalespersonAccount[];
       const orders = (orderRes.data || []) as unknown as OrderRow[];
       const returns = (returnRes.data || []) as ReturnRow[];
+      const translationById = new Map(((translationRes.data || []) as TranslationRow[]).map((t) => [t.entity_id, t.name || ""]));
       const returnByOrder = new Map<string, number>();
       returns.forEach((r) => { if (r.sales_order_id) returnByOrder.set(r.sales_order_id, (returnByOrder.get(r.sales_order_id) || 0) + num(r.total)); });
       const accountByName = new Map(accounts.map((a) => [a.name.trim().toLowerCase(), a]));
@@ -104,7 +113,7 @@ export default function SalespersonReport() {
         const netSales = Math.max(grossSales - returnTotal, 0);
         const balance = netSales - received;
         result.push({
-          id: account?.id, code: account?.code, active: account?.is_active ?? true, name: spName,
+          id: account?.id, code: account?.code, companyId: account?.company_id, urduName: account?.id ? translationById.get(account.id) || "" : "", active: account?.is_active ?? true, name: spName,
           orders: own.length, grossSales, returns: returnTotal, netSales, received, cashSales, creditSales, taxSales,
           debit: Math.max(balance, 0), credit: Math.max(-balance, 0), parties,
         });
@@ -124,7 +133,7 @@ export default function SalespersonReport() {
     if (balanceFilter === "debit" && r.debit <= 0) return false;
     if (balanceFilter === "credit" && r.credit <= 0) return false;
     const q = search.trim().toLowerCase();
-    return !q || r.name.toLowerCase().includes(q) || r.code?.toLowerCase().includes(q) || r.parties.some((p) => p.name.toLowerCase().includes(q));
+    return !q || r.name.toLowerCase().includes(q) || r.urduName?.includes(search.trim()) || r.code?.toLowerCase().includes(q) || r.parties.some((p) => p.name.toLowerCase().includes(q));
   }), [rows, selected, statusFilter, balanceFilter, search]);
 
   const totals = useMemo(() => filtered.reduce((a, r) => ({
@@ -132,18 +141,32 @@ export default function SalespersonReport() {
     sales: a.sales + r.netSales, received: a.received + r.received, debit: a.debit + r.debit, credit: a.credit + r.credit,
   }), { orders: 0, gross: 0, returns: 0, sales: 0, received: 0, debit: 0, credit: 0 }), [filtered]);
 
+  const saveTranslation = async (account: { id: string; company_id: string | null }) => {
+    if (!account.company_id) throw new Error("Salesperson company context is missing.");
+    const urdu = nameUrdu.trim();
+    if (!urdu) {
+      const { error: deleteError } = await supabase.from("entity_translations").delete().eq("company_id", account.company_id).eq("entity_type", "salesperson").eq("entity_id", account.id).eq("language_code", "ur");
+      if (deleteError) throw deleteError;
+      return;
+    }
+    const { error: translationError } = await supabase.from("entity_translations").upsert({ company_id: account.company_id, entity_type: "salesperson", entity_id: account.id, language_code: "ur", name: urdu, updated_at: new Date().toISOString() }, { onConflict: "company_id,entity_type,entity_id,language_code" });
+    if (translationError) throw translationError;
+  };
+
   const saveSalesperson = async (e: React.FormEvent) => {
     e.preventDefault(); if (!name.trim()) return; setSaving(true); setError(null);
     try {
       if (editing) {
-        const { error: updateError } = await supabase.from("chart_of_accounts").update({ name: name.trim(), updated_at: new Date().toISOString() }).eq("id", editing.id).eq("account_role", "sales_person");
+        const { data: updated, error: updateError } = await supabase.from("chart_of_accounts").update({ name: name.trim(), updated_at: new Date().toISOString() }).eq("id", editing.id).eq("account_role", "sales_person").select("id,company_id").single();
         if (updateError) throw updateError;
+        await saveTranslation(updated);
       } else {
         const { data: auth, error: authError } = await supabase.auth.getUser(); if (authError) throw authError; if (!auth.user) throw new Error("Login session not found.");
-        const { error: insertError } = await supabase.from("chart_of_accounts").insert({ user_id: auth.user.id, code: makeCode(), name: name.trim(), type: "expense", account_role: "sales_person", is_group: false, normal_balance: "debit", allow_manual_entries: false, is_system_account: false, is_active: true, description: "Salesperson master record - non posting" });
+        const { data: inserted, error: insertError } = await supabase.from("chart_of_accounts").insert({ user_id: auth.user.id, code: makeCode(), name: name.trim(), type: "expense", account_role: "sales_person", is_group: false, normal_balance: "debit", allow_manual_entries: false, is_system_account: false, is_active: true, description: "Salesperson master record - non posting" }).select("id,company_id").single();
         if (insertError) throw insertError;
+        await saveTranslation(inserted);
       }
-      setModal(false); setName(""); setEditing(null); await load();
+      setModal(false); setName(""); setNameUrdu(""); setEditing(null); await load();
     } catch (e: any) { setError(e?.message || "Failed to save salesperson."); } finally { setSaving(false); }
   };
 
@@ -155,8 +178,8 @@ export default function SalespersonReport() {
 
   const exportExcel = () => {
     const exportRows = filtered.flatMap((r) => [
-      { Salesperson: r.name, Party: "ALL", Invoices: r.orders, "Gross Sales": r.grossSales, Returns: r.returns, "Net Sales": r.netSales, Received: r.received, "Debit Balance": r.debit, "Credit Balance": r.credit },
-      ...r.parties.map((p) => ({ Salesperson: r.name, Party: p.name, Invoices: p.orders, "Gross Sales": p.grossSales, Returns: p.returns, "Net Sales": p.netSales, Received: p.received, "Debit Balance": p.debit, "Credit Balance": p.credit })),
+      { Salesperson: r.name, "Salesperson Urdu": r.urduName || "", Party: "ALL", Invoices: r.orders, "Gross Sales": r.grossSales, Returns: r.returns, "Net Sales": r.netSales, Received: r.received, "Debit Balance": r.debit, "Credit Balance": r.credit },
+      ...r.parties.map((p) => ({ Salesperson: r.name, "Salesperson Urdu": r.urduName || "", Party: p.name, Invoices: p.orders, "Gross Sales": p.grossSales, Returns: p.returns, "Net Sales": p.netSales, Received: p.received, "Debit Balance": p.debit, "Credit Balance": p.credit })),
     ]);
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportRows), "Salesperson Report"); XLSX.writeFile(wb, "Salesperson_Net_Performance.xlsx");
   };
@@ -164,7 +187,7 @@ export default function SalespersonReport() {
   return <div className="space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
       <div><div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Sales Analytics</div><h1 className="mt-1 flex items-center gap-2 text-xl font-bold"><Users className="h-5 w-5"/>Salesperson Performance / سیلز پرسن رپورٹ</h1><p className="mt-1 text-xs text-slate-500">Net sales after posted returns, collections, party balances and market outstanding.</p></div>
-      <div className="flex gap-2"><button className="btn-secondary" onClick={exportExcel}><Download className="h-4 w-4"/>Excel</button><button className="btn-secondary" onClick={() => window.print()}><Printer className="h-4 w-4"/>Print / PDF</button><button className="btn-primary" onClick={() => { setEditing(null); setName(""); setModal(true); }}><Plus className="h-4 w-4"/>New Salesperson</button></div>
+      <div className="flex gap-2"><button className="btn-secondary" onClick={exportExcel}><Download className="h-4 w-4"/>Excel</button><button className="btn-secondary" onClick={() => window.print()}><Printer className="h-4 w-4"/>Print / PDF</button><button className="btn-primary" onClick={() => { setEditing(null); setName(""); setNameUrdu(""); setModal(true); }}><Plus className="h-4 w-4"/>New Salesperson / نیا سیلز پرسن</button></div>
     </div>
     {error && <ErrorBanner message={error}/>} 
     <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
@@ -176,12 +199,18 @@ export default function SalespersonReport() {
     <div className="card overflow-x-auto">
       <table className="w-full min-w-[1100px] text-xs"><thead className="bg-slate-50"><tr className="border-b"><th className="p-3 text-left">Salesperson / Party</th><th className="p-2 text-center">Invoices</th><th className="p-2 text-right">Gross Sales</th><th className="p-2 text-right">Returns</th><th className="p-2 text-right">Net Sales</th><th className="p-2 text-right">Received</th><th className="p-2 text-right">Debit</th><th className="p-2 text-right">Credit</th><th className="p-2 text-right print:hidden">Actions</th></tr></thead><tbody>
         {loading ? <tr><td colSpan={9} className="p-8 text-center text-slate-400">Loading...</td></tr> : filtered.length === 0 ? <tr><td colSpan={9} className="p-8 text-center text-slate-400">No records match current filters.</td></tr> : filtered.flatMap((r) => {
-          const head = <tr key={`sp-${r.name}`} className="border-b bg-white font-semibold"><td className="p-3"><div>{r.name}</div><div className="text-[10px] font-normal text-slate-400">{r.code || 'Historical'} · {r.active ? 'Active' : 'Inactive'}</div></td><td className="p-2 text-center">{r.orders}</td><td className="p-2 text-right">{formatCurrency(r.grossSales)}</td><td className="p-2 text-right text-rose-600">{formatCurrency(r.returns)}</td><td className="p-2 text-right">{formatCurrency(r.netSales)}</td><td className="p-2 text-right text-emerald-700">{formatCurrency(r.received)}</td><td className="p-2 text-right text-blue-700">{formatCurrency(r.debit)}</td><td className="p-2 text-right text-rose-700">{formatCurrency(r.credit)}</td><td className="p-2 text-right print:hidden"><div className="flex justify-end gap-1"><button className="btn-secondary text-[10px]" disabled={!r.id} onClick={() => { setEditing(r.id ? { id:r.id, code:r.code||'', name:r.name, is_active:r.active } : null); setName(r.name); setModal(true); }}>Edit</button><button className="btn-secondary text-[10px]" disabled={!r.id} onClick={() => void toggleActive(r)}>{r.active ? 'Deactivate' : 'Activate'}</button></div></td></tr>;
+          const head = <tr key={`sp-${r.name}`} className="border-b bg-white font-semibold"><td className="p-3"><div>{r.name}</div>{r.urduName && <div className="mt-0.5 text-[11px] font-semibold text-slate-500" dir="rtl">{r.urduName}</div>}<div className="text-[10px] font-normal text-slate-400">{r.code || 'Historical'} · {r.active ? 'Active' : 'Inactive'}</div></td><td className="p-2 text-center">{r.orders}</td><td className="p-2 text-right">{formatCurrency(r.grossSales)}</td><td className="p-2 text-right text-rose-600">{formatCurrency(r.returns)}</td><td className="p-2 text-right">{formatCurrency(r.netSales)}</td><td className="p-2 text-right text-emerald-700">{formatCurrency(r.received)}</td><td className="p-2 text-right text-blue-700">{formatCurrency(r.debit)}</td><td className="p-2 text-right text-rose-700">{formatCurrency(r.credit)}</td><td className="p-2 text-right print:hidden"><div className="flex justify-end gap-1"><button className="btn-secondary text-[10px]" disabled={!r.id} onClick={() => { setEditing(r.id ? { id:r.id, code:r.code||'', name:r.name, is_active:r.active, company_id:r.companyId || null } : null); setName(r.name); setNameUrdu(r.urduName || ""); setModal(true); }}>Edit</button><button className="btn-secondary text-[10px]" disabled={!r.id} onClick={() => void toggleActive(r)}>{r.active ? 'Deactivate' : 'Activate'}</button></div></td></tr>;
           const partyRows = showParties ? r.parties.map((p) => <tr key={`${r.name}-${p.name}`} className="border-b bg-slate-50/50 text-slate-600"><td className="py-2 pl-8 pr-3">↳ {p.name}</td><td className="p-2 text-center">{p.orders}</td><td className="p-2 text-right">{formatCurrency(p.grossSales)}</td><td className="p-2 text-right text-rose-600">{formatCurrency(p.returns)}</td><td className="p-2 text-right">{formatCurrency(p.netSales)}</td><td className="p-2 text-right text-emerald-700">{formatCurrency(p.received)}</td><td className="p-2 text-right text-blue-700">{formatCurrency(p.debit)}</td><td className="p-2 text-right text-rose-700">{formatCurrency(p.credit)}</td><td className="print:hidden"/></tr>) : [];
           return [head, ...partyRows];
         })}
       </tbody>{!loading && filtered.length > 0 && <tfoot className="border-t-2 bg-slate-100 font-bold"><tr><td className="p-3">GRAND TOTAL<div className="text-[10px] font-normal text-slate-500">Filtered: {filtered.length} salesperson{filtered.length===1?'':'s'}</div></td><td className="p-2 text-center">{totals.orders}</td><td className="p-2 text-right">{formatCurrency(totals.gross)}</td><td className="p-2 text-right text-rose-600">{formatCurrency(totals.returns)}</td><td className="p-2 text-right">{formatCurrency(totals.sales)}</td><td className="p-2 text-right text-emerald-700">{formatCurrency(totals.received)}</td><td className="p-2 text-right text-blue-700">{formatCurrency(totals.debit)}</td><td className="p-2 text-right text-rose-700">{formatCurrency(totals.credit)}</td><td className="print:hidden"/></tr></tfoot>}</table>
     </div>
-    <Modal open={modal} title={editing ? 'Edit Salesperson' : 'New Salesperson'} onClose={() => !saving && setModal(false)}><form onSubmit={saveSalesperson} className="space-y-3"><div><label className="label">Salesperson Name</label><input className="input" autoFocus required value={name} onChange={(e) => setName(e.target.value)}/></div><div className="flex justify-end gap-2"><button type="button" className="btn-secondary" onClick={() => setModal(false)}>Cancel</button><button className="btn-primary" disabled={saving}>{saving ? 'Saving...' : 'Save'}</button></div></form></Modal>
+    <Modal open={modal} title={editing ? 'Edit Salesperson / سیلز پرسن میں ترمیم' : 'New Salesperson / نیا سیلز پرسن'} onClose={() => !saving && setModal(false)}>
+      <form onSubmit={saveSalesperson} className="space-y-3">
+        <div><label className="label">Salesperson Name / سیلز پرسن کا نام</label><input className="input" autoFocus required value={name} onChange={(e) => setName(e.target.value)}/></div>
+        <div><div className="mb-1 flex items-center justify-between gap-2"><label className="label mb-0">Urdu Name / اردو نام</label><button type="button" className="btn-secondary h-8 px-3 text-[11px]" onClick={() => setNameUrdu(toUrduName(name))} disabled={!name.trim()}>Auto Urdu</button></div><input className="input text-right" dir="rtl" value={nameUrdu} onChange={(e) => setNameUrdu(e.target.value)} placeholder="مثال: ملک فرحان"/></div>
+        <div className="flex justify-end gap-2"><button type="button" className="btn-secondary" onClick={() => setModal(false)}>Cancel / منسوخ</button><button className="btn-primary" disabled={saving}>{saving ? 'Saving...' : 'Save / محفوظ کریں'}</button></div>
+      </form>
+    </Modal>
   </div>;
 }

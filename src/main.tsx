@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { AuthProvider } from "./auth/AuthContext";
 import LanguageRuntime from "./components/LanguageRuntime";
+import SalespersonBilingualFix from "./components/SalespersonBilingualFix";
 import { installUnifiedDocumentOutput } from "./lib/unifiedDocumentOutput";
 import "./index.css";
 import "./contrast.css";
@@ -18,6 +19,7 @@ createRoot(document.getElementById("root")!).render(
     <BrowserRouter>
       <AuthProvider>
         <LanguageRuntime />
+        <SalespersonBilingualFix />
         <App />
       </AuthProvider>
     </BrowserRouter>

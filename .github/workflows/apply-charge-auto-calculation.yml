@@ -25,6 +25,7 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           def replace_once(text: str, old: str, new: str, label: str) -> str:
               count = text.count(old)
@@ -32,74 +33,79 @@ jobs:
                   raise SystemExit(f"{label}: expected exactly 1 match, found {count}")
               return text.replace(old, new, 1)
 
+          def regex_once(text: str, pattern: str, replacement: str, label: str) -> str:
+              out, count = re.subn(pattern, replacement, text, count=1, flags=re.S | re.M)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected exactly 1 regex match, found {count}")
+              return out
+
           helper = '''export type ConfiguredChargeUnit = "fixed" | "percent" | "per_kg" | "per_ton" | "per_piece";
 
-          type ChargeRow = { item_id: string; qty: number | string };
-          type ChargeItem = { id: string; unit?: string | null };
+type ChargeRow = { item_id: string; qty: number | string };
+type ChargeItem = { id: string; unit?: string | null };
 
-          function normalizedUnit(unit?: string | null): string {
-            return String(unit ?? "").trim().toLowerCase();
-          }
+function normalizedUnit(unit?: string | null): string {
+  return String(unit ?? "").trim().toLowerCase();
+}
 
-          function isKgUnit(unit?: string | null): boolean {
-            const value = normalizedUnit(unit);
-            return value === "kg" || value === "kgs" || value.includes("kilogram") || value.includes("kilo gram") || value.includes("کلوگرام") || value.includes("کلو گرام");
-          }
+function isKgUnit(unit?: string | null): boolean {
+  const value = normalizedUnit(unit);
+  return value === "kg" || value === "kgs" || value.includes("kilogram") || value.includes("kilo gram") || value.includes("کلوگرام") || value.includes("کلو گرام");
+}
 
-          function isTonUnit(unit?: string | null): boolean {
-            const value = normalizedUnit(unit);
-            return value === "t" || value === "mt" || value === "ton" || value === "tons" || value === "tonne" || value === "tonnes" || value.includes("metric ton") || value.includes("ٹن");
-          }
+function isTonUnit(unit?: string | null): boolean {
+  const value = normalizedUnit(unit);
+  return value === "t" || value === "mt" || value === "ton" || value === "tons" || value === "tonne" || value === "tonnes" || value.includes("metric ton") || value.includes("ٹن");
+}
 
-          function isPieceUnit(unit?: string | null): boolean {
-            const value = normalizedUnit(unit);
-            return value === "pc" || value === "pcs" || value === "piece" || value === "pieces" || value.includes("piece") || value.includes("عدد");
-          }
+function isPieceUnit(unit?: string | null): boolean {
+  const value = normalizedUnit(unit);
+  return value === "pc" || value === "pcs" || value === "piece" || value === "pieces" || value.includes("piece") || value.includes("عدد");
+}
 
-          export function chargeQuantityForUnit(
-            chargeUnit: ConfiguredChargeUnit,
-            rows: ChargeRow[],
-            items: ChargeItem[],
-            baseAmount: number,
-          ): number {
-            if (chargeUnit === "fixed") return 1;
-            if (chargeUnit === "percent") return Math.max(0, Number(baseAmount) || 0);
+export function chargeQuantityForUnit(
+  chargeUnit: ConfiguredChargeUnit,
+  rows: ChargeRow[],
+  items: ChargeItem[],
+  baseAmount: number,
+): number {
+  if (chargeUnit === "fixed") return 1;
+  if (chargeUnit === "percent") return Math.max(0, Number(baseAmount) || 0);
 
-            let totalKg = 0;
-            let totalPieces = 0;
+  let totalKg = 0;
+  let totalPieces = 0;
+  for (const row of rows) {
+    const qty = Math.max(0, Number(row.qty) || 0);
+    if (!row.item_id || qty <= 0) continue;
+    const item = items.find((candidate) => candidate.id === row.item_id);
+    if (!item) continue;
+    if (isKgUnit(item.unit)) totalKg += qty;
+    else if (isTonUnit(item.unit)) totalKg += qty * 1000;
+    else if (isPieceUnit(item.unit)) totalPieces += qty;
+  }
 
-            for (const row of rows) {
-              const qty = Math.max(0, Number(row.qty) || 0);
-              if (!row.item_id || qty <= 0) continue;
-              const item = items.find((candidate) => candidate.id === row.item_id);
-              if (!item) continue;
-              if (isKgUnit(item.unit)) totalKg += qty;
-              else if (isTonUnit(item.unit)) totalKg += qty * 1000;
-              else if (isPieceUnit(item.unit)) totalPieces += qty;
-            }
+  if (chargeUnit === "per_kg") return totalKg;
+  if (chargeUnit === "per_ton") return totalKg / 1000;
+  if (chargeUnit === "per_piece") return totalPieces;
+  return 0;
+}
 
-            if (chargeUnit === "per_kg") return totalKg;
-            if (chargeUnit === "per_ton") return totalKg / 1000;
-            if (chargeUnit === "per_piece") return totalPieces;
-            return 0;
-          }
-
-          export function calculateConfiguredChargeAmount(args: {
-            unit: ConfiguredChargeUnit;
-            rate: number;
-            rows: ChargeRow[];
-            items: ChargeItem[];
-            baseAmount: number;
-          }): number {
-            const rate = Math.max(0, Number(args.rate) || 0);
-            const quantity = chargeQuantityForUnit(args.unit, args.rows, args.items, args.baseAmount);
-            const amount = args.unit === "percent" ? (quantity * rate) / 100 : quantity * rate;
-            return Math.round((amount + Number.EPSILON) * 100) / 100;
-          }
-          '''
+export function calculateConfiguredChargeAmount(args: {
+  unit: ConfiguredChargeUnit;
+  rate: number;
+  rows: ChargeRow[];
+  items: ChargeItem[];
+  baseAmount: number;
+}): number {
+  const rate = Math.max(0, Number(args.rate) || 0);
+  const quantity = chargeQuantityForUnit(args.unit, args.rows, args.items, args.baseAmount);
+  const amount = args.unit === "percent" ? (quantity * rate) / 100 : quantity * rate;
+  return Math.round((amount + Number.EPSILON) * 100) / 100;
+}
+'''
           Path('src/lib/chargeCalculation.ts').write_text(helper, encoding='utf-8')
 
-          # SALES
+          # Sales Invoice: calculate selected charge quantity/amount from item UOM + invoice quantity.
           p = Path('src/modules/sales/SalesInvoiceCreate.tsx')
           s = p.read_text(encoding='utf-8')
           s = replace_once(
@@ -108,149 +114,71 @@ jobs:
               'import { ErrorBanner, formatCurrency, Modal } from "@/components/ui";\nimport { calculateConfiguredChargeAmount, chargeQuantityForUnit } from "@/lib/chargeCalculation";\n',
               'sales import',
           )
-          old = '''  const handleAddChargeRow = () => {
-            if (!chargeToAdd || selectedChargeKeys.includes(chargeToAdd)) return;
-            const selectedCharge = salesCharges.find((charge) => charge.charge_key === chargeToAdd);
-            const defaultRate = String(Number(selectedCharge?.default_rate) || 0);
-            setSelectedChargeKeys([...selectedChargeKeys, chargeToAdd]);
-            setChargeTaxes((prev) => ({ ...prev, [chargeToAdd]: globalTaxPercent }));
-            setChargeQuantities((prev) => ({ ...prev, [chargeToAdd]: prev[chargeToAdd] ?? "1" }));
-            setChargeRates((prev) => ({ ...prev, [chargeToAdd]: prev[chargeToAdd] ?? defaultRate }));
-            setCharges((prev) => ({ ...prev, [chargeToAdd]: prev[chargeToAdd] ?? defaultRate }));
-            setChargeToAdd("");
-          };
-          '''
-          new = '''  const handleAddChargeRow = () => {
-            if (!chargeToAdd || selectedChargeKeys.includes(chargeToAdd)) return;
-            const selectedCharge = salesCharges.find((charge) => charge.charge_key === chargeToAdd);
-            if (!selectedCharge) return;
-            const defaultRate = Number(selectedCharge.default_rate) || 0;
-            const quantity = chargeQuantityForUnit(selectedCharge.unit, rows, items, rowsSubtotal);
-            const amount = calculateConfiguredChargeAmount({
-              unit: selectedCharge.unit,
-              rate: defaultRate,
-              rows,
-              items,
-              baseAmount: rowsSubtotal,
-            });
-            setSelectedChargeKeys([...selectedChargeKeys, chargeToAdd]);
-            setChargeTaxes((prev) => ({ ...prev, [chargeToAdd]: globalTaxPercent }));
-            setChargeQuantities((prev) => ({ ...prev, [chargeToAdd]: String(Number(quantity.toFixed(3))) }));
-            setChargeRates((prev) => ({ ...prev, [chargeToAdd]: String(defaultRate) }));
-            setCharges((prev) => ({ ...prev, [chargeToAdd]: String(amount) }));
-            setChargeToAdd("");
-          };
-          '''
-          s = replace_once(s, old, new, 'sales add charge')
+          s = regex_once(
+              s,
+              r'  const handleAddChargeRow = \(\) => \{.*?^  \};\n\n  const handleRemoveChargeRow',
+              '''  const handleAddChargeRow = () => {
+    if (!chargeToAdd || selectedChargeKeys.includes(chargeToAdd)) return;
+    const selectedCharge = salesCharges.find((charge) => charge.charge_key === chargeToAdd);
+    if (!selectedCharge) return;
+    const defaultRate = Number(selectedCharge.default_rate) || 0;
+    const quantity = chargeQuantityForUnit(selectedCharge.unit, rows, items, rowsSubtotal);
+    const amount = calculateConfiguredChargeAmount({
+      unit: selectedCharge.unit,
+      rate: defaultRate,
+      rows,
+      items,
+      baseAmount: rowsSubtotal,
+    });
+    setSelectedChargeKeys([...selectedChargeKeys, chargeToAdd]);
+    setChargeTaxes((prev) => ({ ...prev, [chargeToAdd]: globalTaxPercent }));
+    setChargeQuantities((prev) => ({ ...prev, [chargeToAdd]: String(Number(quantity.toFixed(3))) }));
+    setChargeRates((prev) => ({ ...prev, [chargeToAdd]: String(defaultRate) }));
+    setCharges((prev) => ({ ...prev, [chargeToAdd]: String(amount) }));
+    setChargeToAdd("");
+  };
 
+  const handleRemoveChargeRow''',
+              'sales add charge',
+          )
           marker = '''  const rowsSubtotal = rows.reduce((sum, r) => {
-            return sum + (parseFloat(r.qty) || 0) * (parseFloat(r.rate) || 0);
-          }, 0);
-          '''
-          inserted = marker + '''
-
-          useEffect(() => {
-            if (isLocked || selectedChargeKeys.length === 0) return;
-            const nextQuantities: Record<string, string> = {};
-            const nextAmounts: Record<string, string> = {};
-
-            selectedChargeKeys.forEach((key) => {
-              const charge = salesCharges.find((candidate) => candidate.charge_key === key);
-              if (!charge) return;
-              const rate = Number(chargeRates[key] ?? charge.default_rate) || 0;
-              const quantity = chargeQuantityForUnit(charge.unit, rows, items, rowsSubtotal);
-              const amount = calculateConfiguredChargeAmount({
-                unit: charge.unit,
-                rate,
-                rows,
-                items,
-                baseAmount: rowsSubtotal,
-              });
-              nextQuantities[key] = String(Number(quantity.toFixed(3)));
-              nextAmounts[key] = String(amount);
-            });
-
-            setChargeQuantities((current) => ({ ...current, ...nextQuantities }));
-            setCharges((current) => ({ ...current, ...nextAmounts }));
-          }, [isLocked, selectedChargeKeys, salesCharges, chargeRates, rows, items, rowsSubtotal]);
-          '''
-          s = replace_once(s, marker, inserted, 'sales recalc effect')
-
-          old = '''                          <input
-                            className="input text-right"
-                            disabled={isLocked}
-                            type="number"
-                            step="0.001"
-                            value={chargeQuantities[key] ?? "1"}
-                            onChange={(event) =>
-                              setChargeQuantities({
-                                ...chargeQuantities,
-                                [key]: event.target.value,
-                              })
-                            }
-                          />
-          '''
-          new = '''                          <input
-                            className="input bg-slate-50 text-right cursor-not-allowed"
-                            disabled
-                            type="number"
-                            step="0.001"
-                            value={chargeQuantities[key] ?? "0"}
-                            title="Auto-calculated from invoice quantity and item UOM"
-                          />
-          '''
-          s = replace_once(s, old, new, 'sales quantity input')
-
-          old = '''                            onChange={(event) => {
-                              const value = event.target.value;
-                              setChargeRates({ ...chargeRates, [key]: value });
-                              const qty = Number(chargeQuantities[key] ?? "1") || 1;
-                              const rate = Number(value) || 0;
-                              setCharges({
-                                ...charges,
-                                [key]: String(qty * rate),
-                              });
-                            }}
-          '''
-          new = '''                            onChange={(event) =>
-                              setChargeRates({ ...chargeRates, [key]: event.target.value })
-                            }
-          '''
-          s = replace_once(s, old, new, 'sales rate handler')
-
-          old = '''                          <input
-                            className="input text-right"
-                            disabled={isLocked}
-                            type="number"
-                            step="0.01"
-                            value={charges[key] ?? "0"}
-                            onChange={(event) =>
-                              setCharges({
-                                ...charges,
-                                [key]: event.target.value,
-                              })
-                            }
-                          />
-          '''
-          new = '''                          <input
-                            className="input bg-slate-50 text-right cursor-not-allowed"
-                            disabled
-                            type="number"
-                            step="0.01"
-                            value={charges[key] ?? "0"}
-                            title="Auto-calculated amount"
-                          />
-          '''
-          s = replace_once(s, old, new, 'sales amount input')
+    return sum + (parseFloat(r.qty) || 0) * (parseFloat(r.rate) || 0);
+  }, 0);
+'''
+          effect = marker + '''
+  useEffect(() => {
+    if (isLocked || selectedChargeKeys.length === 0) return;
+    const nextQuantities: Record<string, string> = {};
+    const nextAmounts: Record<string, string> = {};
+    selectedChargeKeys.forEach((key) => {
+      const charge = salesCharges.find((candidate) => candidate.charge_key === key);
+      if (!charge) return;
+      const rate = Number(chargeRates[key] ?? charge.default_rate) || 0;
+      const quantity = chargeQuantityForUnit(charge.unit, rows, items, rowsSubtotal);
+      const amount = calculateConfiguredChargeAmount({
+        unit: charge.unit,
+        rate,
+        rows,
+        items,
+        baseAmount: rowsSubtotal,
+      });
+      nextQuantities[key] = String(Number(quantity.toFixed(3)));
+      nextAmounts[key] = String(amount);
+    });
+    setChargeQuantities((current) => ({ ...current, ...nextQuantities }));
+    setCharges((current) => ({ ...current, ...nextAmounts }));
+  }, [isLocked, selectedChargeKeys, salesCharges, chargeRates, rows, items, rowsSubtotal]);
+'''
+          s = replace_once(s, marker, effect, 'sales recalc effect')
           p.write_text(s, encoding='utf-8')
 
-          # PURCHASE
+          # Purchase Invoice: same generic engine, using Item Master UOM.
           p = Path('src/modules/purchase/MainPurchaseInvoiceV2.tsx')
           s = p.read_text(encoding='utf-8')
           s = replace_once(
               s,
               'import { buildChargePayload, createEmptyCharges, type ChargeValues } from "@/lib/chargeTypes";\n',
-              'import { buildChargePayload, createEmptyCharges, type ChargeValues } from "@/lib/chargeTypes";\nimport { calculateConfiguredChargeAmount, chargeQuantityForUnit, type ConfiguredChargeUnit } from "@/lib/chargeCalculation";\n',
+              'import { buildChargePayload, createEmptyCharges, type ChargeValues } from "@/lib/chargeTypes";\nimport { calculateConfiguredChargeAmount, type ConfiguredChargeUnit } from "@/lib/chargeCalculation";\n',
               'purchase import',
           )
           s = replace_once(
@@ -267,12 +195,6 @@ jobs:
           )
           s = replace_once(
               s,
-              '  const [charges, setCharges] = useState<ChargeValues>(createEmptyCharges());\n',
-              '  const [charges, setCharges] = useState<ChargeValues>(createEmptyCharges());\n  const [chargeRates, setChargeRates] = useState<Record<string, string>>({});\n',
-              'purchase rate state',
-          )
-          s = replace_once(
-              s,
               'supabase.from("items").select("id,name,sku,cost").order("name"),',
               'supabase.from("items").select("id,name,sku,cost,unit").order("name"),',
               'purchase item query',
@@ -283,77 +205,49 @@ jobs:
               'supabase.from("charge_master").select("charge_key,charge_name,default_rate,is_fixed,tax_applicable,purchase_treatment,unit").eq("is_active", true).in("applies_to", ["purchase", "both"]).order("charge_name"),',
               'purchase charge query',
           )
-          old = '''    const autoKeys = loadedCharges.filter((c) => c.is_fixed && Number(c.default_rate) > 0).map((c) => c.charge_key);
-            setSelectedChargeKeys(autoKeys);
-            setCharges((current) => loadedCharges.reduce((next, charge) => {
-              if (charge.charge_key in next) next[charge.charge_key] = autoKeys.includes(charge.charge_key) ? String(Number(charge.default_rate) || 0) : "0";
-              return next;
-            }, { ...current }));
-          '''
-          new = '''    const autoKeys = loadedCharges.filter((c) => c.is_fixed && Number(c.default_rate) > 0).map((c) => c.charge_key);
-            setSelectedChargeKeys(autoKeys);
-            setChargeRates(loadedCharges.reduce((next, charge) => {
-              next[charge.charge_key] = String(Number(charge.default_rate) || 0);
-              return next;
-            }, {} as Record<string, string>));
-            setCharges((current) => loadedCharges.reduce((next, charge) => {
-              if (charge.charge_key in next) next[charge.charge_key] = "0";
-              return next;
-            }, { ...current }));
-          '''
-          s = replace_once(s, old, new, 'purchase load charges')
+          marker = '  const directSubtotal = rows.reduce((sum, row) => sum + (Number(row.qty) || 0) * (Number(row.unit_cost) || 0), 0);\n'
+          effect = marker + '''  useEffect(() => {
+    if (selectedChargeKeys.length === 0) return;
+    setCharges((current) => {
+      const next = { ...current };
+      selectedChargeKeys.forEach((key) => {
+        const charge = configuredCharges.find((candidate) => candidate.charge_key === key);
+        if (!charge) return;
+        next[key] = String(calculateConfiguredChargeAmount({
+          unit: charge.unit,
+          rate: Number(charge.default_rate) || 0,
+          rows,
+          items,
+          baseAmount: directSubtotal,
+        }));
+      });
+      return next;
+    });
+  }, [selectedChargeKeys, configuredCharges, rows, items, directSubtotal]);
+'''
+          s = replace_once(s, marker, effect, 'purchase recalc effect')
+          s = regex_once(
+              s,
+              r'  const addCharge = \(\) => \{.*?^  \};\n\n  const removeCharge',
+              '''  const addCharge = () => {
+    if (!chargeToAdd) return;
+    const charge = configuredCharges.find((c) => c.charge_key === chargeToAdd);
+    if (!charge) return;
+    const amount = calculateConfiguredChargeAmount({
+      unit: charge.unit,
+      rate: Number(charge.default_rate) || 0,
+      rows,
+      items,
+      baseAmount: directSubtotal,
+    });
+    setSelectedChargeKeys((keys) => [...keys, charge.charge_key]);
+    setCharges((current) => ({ ...current, [charge.charge_key]: String(amount) }));
+    setChargeToAdd("");
+  };
 
-          marker = '''  const directSubtotal = rows.reduce((sum, row) => sum + (Number(row.qty) || 0) * (Number(row.unit_cost) || 0), 0);
-          '''
-          inserted = marker + '''  useEffect(() => {
-            if (selectedChargeKeys.length === 0) return;
-            setCharges((current) => {
-              const next = { ...current };
-              selectedChargeKeys.forEach((key) => {
-                const charge = configuredCharges.find((candidate) => candidate.charge_key === key);
-                if (!charge) return;
-                next[key] = String(calculateConfiguredChargeAmount({
-                  unit: charge.unit,
-                  rate: Number(chargeRates[key] ?? charge.default_rate) || 0,
-                  rows,
-                  items,
-                  baseAmount: directSubtotal,
-                }));
-              });
-              return next;
-            });
-          }, [selectedChargeKeys, configuredCharges, chargeRates, rows, items, directSubtotal]);
-          '''
-          s = replace_once(s, marker, inserted, 'purchase recalc effect')
-
-          old = '''  const addCharge = () => {
-            if (!chargeToAdd) return;
-            const charge = configuredCharges.find((c) => c.charge_key === chargeToAdd);
-            if (!charge) return;
-            setSelectedChargeKeys((keys) => [...keys, charge.charge_key]);
-            setCharges((current) => ({ ...current, [charge.charge_key]: String(Number(charge.default_rate) || 0) }));
-            setChargeToAdd("");
-          };
-          '''
-          new = '''  const addCharge = () => {
-            if (!chargeToAdd) return;
-            const charge = configuredCharges.find((c) => c.charge_key === chargeToAdd);
-            if (!charge) return;
-            const rate = Number(charge.default_rate) || 0;
-            const amount = calculateConfiguredChargeAmount({ unit: charge.unit, rate, rows, items, baseAmount: directSubtotal });
-            setSelectedChargeKeys((keys) => [...keys, charge.charge_key]);
-            setChargeRates((current) => ({ ...current, [charge.charge_key]: String(rate) }));
-            setCharges((current) => ({ ...current, [charge.charge_key]: String(amount) }));
-            setChargeToAdd("");
-          };
-          '''
-          s = replace_once(s, old, new, 'purchase add charge')
-
-          old = '''{selectedCharges.length===0?<div className="mt-4 rounded-lg border border-dashed border-slate-200 p-5 text-sm text-slate-400">No purchase charges added.</div>:<div className="mt-4 space-y-3">{selectedCharges.map((c)=><div key={c.charge_key} className="grid grid-cols-1 items-end gap-3 rounded-lg border border-slate-200 p-4 md:grid-cols-[1fr_180px_160px_130px_auto]"><div><div className="font-medium text-slate-900">{c.charge_name}</div><div className="mt-1 text-xs text-slate-400">{c.charge_key}</div></div><div><label className="label">Amount</label><input className="input text-right" type="number" min="0" step="0.01" disabled={c.is_fixed} value={charges[c.charge_key] ?? "0"} onChange={(e)=>setCharges({...charges,[c.charge_key]:e.target.value})}/></div><div><div className="label">Accounting</div><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${treatmentOf(c)==="landed_cost"?"bg-blue-50 text-blue-700":"bg-amber-50 text-amber-700"}`}>{treatmentOf(c)==="landed_cost"?"Landed Cost / Inventory":"Expense"}</span></div><div><div className="label">Tax</div><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${c.tax_applicable?"bg-emerald-50 text-emerald-700":"bg-slate-100 text-slate-600"}`}>{c.tax_applicable?"Taxable":"Non-taxable"}</span></div><button type="button" className="text-sm font-medium text-rose-600 disabled:text-slate-300" disabled={c.is_fixed} onClick={()=>removeCharge(c.charge_key)}>Remove</button></div>)}</div>}
-          '''
-          new = '''{selectedCharges.length===0?<div className="mt-4 rounded-lg border border-dashed border-slate-200 p-5 text-sm text-slate-400">No purchase charges added.</div>:<div className="mt-4 space-y-3">{selectedCharges.map((c)=>{const basis=chargeQuantityForUnit(c.unit,rows,items,directSubtotal);return <div key={c.charge_key} className="grid grid-cols-1 items-end gap-3 rounded-lg border border-slate-200 p-4 md:grid-cols-[1fr_120px_120px_140px_160px_130px_auto]"><div><div className="font-medium text-slate-900">{c.charge_name}</div><div className="mt-1 text-xs text-slate-400">{c.charge_key} · {c.unit.replace("per_","Per ").replace("_"," ")}</div></div><div><label className="label">Basis Qty</label><input className="input bg-slate-50 text-right cursor-not-allowed" type="number" disabled value={Number(basis.toFixed(3))}/></div><div><label className="label">Rate</label><input className="input text-right" type="number" min="0" step="0.01" disabled={c.is_fixed} value={chargeRates[c.charge_key] ?? String(Number(c.default_rate)||0)} onChange={(e)=>setChargeRates({...chargeRates,[c.charge_key]:e.target.value})}/></div><div><label className="label">Amount</label><input className="input bg-slate-50 text-right cursor-not-allowed" type="number" disabled value={charges[c.charge_key] ?? "0"}/></div><div><div className="label">Accounting</div><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${treatmentOf(c)==="landed_cost"?"bg-blue-50 text-blue-700":"bg-amber-50 text-amber-700"}`}>{treatmentOf(c)==="landed_cost"?"Landed Cost / Inventory":"Expense"}</span></div><div><div className="label">Tax</div><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${c.tax_applicable?"bg-emerald-50 text-emerald-700":"bg-slate-100 text-slate-600"}`}>{c.tax_applicable?"Taxable":"Non-taxable"}</span></div><button type="button" className="text-sm font-medium text-rose-600" onClick={()=>removeCharge(c.charge_key)}>Remove</button></div>})}</div>}
-          '''
-          s = replace_once(s, old, new, 'purchase charge UI')
+  const removeCharge''',
+              'purchase add charge',
+          )
           p.write_text(s, encoding='utf-8')
           PY
       - name: Install dependencies

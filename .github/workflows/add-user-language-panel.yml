@@ -1,0 +1,32 @@
+name: Add user language panel
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/add-user-language-panel.yml']
+permissions: { contents: write }
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Integrate user language preference
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/modules/settings/CompanySettings.tsx')
+          s=p.read_text(encoding='utf-8')
+          if 'UserLanguagePreference' not in s:
+              s=s.replace('import { NAVILO_LANGUAGES, languageDisplayLabel, legacyPrintLanguage, type LanguageMode } from "@/lib/languageConfig";','import { NAVILO_LANGUAGES, languageDisplayLabel, legacyPrintLanguage, type LanguageMode } from "@/lib/languageConfig";\nimport UserLanguagePreference from "@/components/UserLanguagePreference";')
+              marker='      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">'
+              s=s.replace(marker,'      <UserLanguagePreference/>\n'+marker,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/modules/settings/CompanySettings.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m 'Integrate per-user language preferences'
+          git push origin main

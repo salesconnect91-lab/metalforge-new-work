@@ -23,7 +23,6 @@ type MasterCatalog = {
   byId: Map<string, MasterName>;
   byEnglishName: Map<string, MasterName>;
   namesByLength: MasterName[];
-  itemUnits: Map<string, string>;
 };
 
 const URDU_RE = /[\u0600-\u06FF]/;
@@ -34,7 +33,6 @@ const emptyCatalog = (): MasterCatalog => ({
   byId: new Map(),
   byEnglishName: new Map(),
   namesByLength: [],
-  itemUnits: new Map(),
 });
 
 function splitBilingualText(value: string) {
@@ -106,32 +104,6 @@ function applyToTextNode(node: Text, language: RuntimeLanguage, catalog: MasterC
   if (current !== next) node.nodeValue = next;
 }
 
-function applyStockQuantityUnit(catalog: MasterCatalog) {
-  if (!catalog.itemUnits.size) return;
-  for (const select of Array.from(document.querySelectorAll("select"))) {
-    const unit = catalog.itemUnits.get((select as HTMLSelectElement).value);
-    if (!unit) continue;
-    const form = select.closest("form");
-    if (!form) continue;
-    const formText = form.textContent || "";
-    if (!/Stock IN|Stock OUT|Stock Adjustment|اسٹاک/.test(formText)) continue;
-
-    const quantityLabel = Array.from(form.querySelectorAll("label")).find((label) =>
-      /^(New Quantity|Quantity)(\s|\*)/.test((label.textContent || "").trim())
-    );
-    if (!quantityLabel) continue;
-
-    let badge = quantityLabel.querySelector<HTMLElement>("[data-navilo-stock-uom]");
-    if (!badge) {
-      badge = document.createElement("span");
-      badge.dataset.naviloStockUom = "true";
-      badge.className = "ml-1 font-black text-primary-600";
-      quantityLabel.appendChild(badge);
-    }
-    badge.textContent = `(${unit})`;
-  }
-}
-
 function applyLanguageToDom(language: RuntimeLanguage, catalog: MasterCatalog) {
   const root = document.getElementById("root");
   if (!root) return;
@@ -141,7 +113,6 @@ function applyLanguageToDom(language: RuntimeLanguage, catalog: MasterCatalog) {
     applyToTextNode(node as Text, language, catalog);
     node = walker.nextNode();
   }
-  applyStockQuantityUnit(catalog);
 
   const primary = languageByCode(language.primary);
   document.documentElement.lang = language.primary || "en";
@@ -189,9 +160,8 @@ async function loadMasterCatalog(language: RuntimeLanguage): Promise<MasterCatal
 
   const secondary = language.secondary;
   const tables = ["items", "customers", "suppliers", "employees", "warehouses", "godowns", "categories", "uom", "transporters"] as const;
-  const [tableResults, itemUnitResult, salespersonResult, translationResult] = await Promise.all([
+  const [tableResults, salespersonResult, translationResult] = await Promise.all([
     Promise.all(tables.map((table) => supabase.from(table).select("id,name,name_urdu"))),
-    supabase.from("items").select("id,unit"),
     supabase.from("chart_of_accounts").select("id,name").eq("account_role", "sales_person"),
     supabase.from("entity_translations").select("entity_id,language_code,name").eq("language_code", secondary),
   ]);
@@ -220,13 +190,6 @@ async function loadMasterCatalog(language: RuntimeLanguage): Promise<MasterCatal
     if (id && name && secondaryName && secondaryName !== name) entries.push({ id, name, secondaryName });
   }
 
-  const itemUnits = new Map<string, string>();
-  for (const row of itemUnitResult.data ?? []) {
-    const id = String(row.id ?? "");
-    const unit = String(row.unit ?? "").trim();
-    if (id && unit) itemUnits.set(id, unit);
-  }
-
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
   const byEnglishName = new Map<string, MasterName>();
   for (const entry of entries) {
@@ -237,7 +200,6 @@ async function loadMasterCatalog(language: RuntimeLanguage): Promise<MasterCatal
     byId,
     byEnglishName,
     namesByLength: [...entries].sort((a, b) => b.name.length - a.name.length),
-    itemUnits,
   };
 }
 
@@ -283,24 +245,20 @@ export default function LanguageRuntime() {
             }
           });
         }
-        applyStockQuantityUnit(catalog);
       });
       observer.observe(root, { subtree: true, childList: true, characterData: true });
     };
 
     const refresh = () => void start();
-    const onChange = () => window.setTimeout(() => applyStockQuantityUnit(catalog), 0);
     void start();
     window.addEventListener("navilo-language-changed", refresh);
     window.addEventListener("navilo-master-data-changed", refresh);
-    document.addEventListener("change", onChange, true);
 
     return () => {
       active = false;
       observer?.disconnect();
       window.removeEventListener("navilo-language-changed", refresh);
       window.removeEventListener("navilo-master-data-changed", refresh);
-      document.removeEventListener("change", onChange, true);
     };
   }, []);
 

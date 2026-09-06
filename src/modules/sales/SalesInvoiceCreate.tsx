@@ -32,6 +32,7 @@ interface InvoiceRow {
   rate: string;
   tax_percent: string;
   godown_id: string;
+  description: string;
 }
 
 interface AccountItem {
@@ -49,6 +50,7 @@ interface AccountItem {
 interface Godown {
   id: string;
   name: string;
+  name_urdu?: string | null;
 }
 
 interface Category {
@@ -63,6 +65,7 @@ interface LineDataRecord {
   unit_price: number | string;
   tax_percent?: number | string;
   godown_id?: string | null;
+  description?: string | null;
 }
 
 interface ChargeAccRecord {
@@ -146,7 +149,7 @@ export default function SalesInvoiceCreate() {
   const [taxRateConfigured, setTaxRateConfigured] = useState(false);
 
   const [rows, setRows] = useState<InvoiceRow[]>([
-    { item_id: "", qty: "0", rate: "0", tax_percent: "0", godown_id: "" },
+    { item_id: "", qty: "0", rate: "0", tax_percent: "0", godown_id: "", description: "" },
   ]);
 
   const [charges, setCharges] = useState<Record<string, string>>({});
@@ -289,7 +292,7 @@ export default function SalesInvoiceCreate() {
             .eq("is_active", true)
             .eq("is_group", false)
             .order("name"),
-          supabase.from("godowns").select("id, name").order("name"),
+          supabase.from("godowns").select("id, name, name_urdu").order("name"),
           supabase.from("categories").select("id, name").order("name"),
           supabase
             .from("charge_master")
@@ -2139,7 +2142,7 @@ export default function SalesInvoiceCreate() {
               <select className="input" value={newItemForm.godown_id} onChange={(e) => setNewItemForm({ ...newItemForm, godown_id: e.target.value })}>
                 <option value="">— Select Godown —</option>
                 {godowns.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
+                  <option key={g.id} value={g.id}>{g.name}{g.name_urdu ? ` / ${g.name_urdu}` : ""}</option>
                 ))}
               </select>
               {godowns.length === 0 && (

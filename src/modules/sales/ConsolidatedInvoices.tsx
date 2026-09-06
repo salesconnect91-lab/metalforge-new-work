@@ -18,17 +18,20 @@ import PrintLayout from "@/components/PrintLayout";
 type Customer = {
   id: string;
   name: string;
+  name_urdu?: string | null;
 };
 
 type Item = {
   id: string;
   name: string;
   sku?: string | null;
+  name_urdu?: string | null;
 };
 
 type Godown = {
   id: string;
   name: string;
+  name_urdu?: string | null;
 };
 
 type ChargeMaster = {
@@ -84,6 +87,7 @@ type InvoiceRow = {
   qty: string;
   rate: string;
   tax_percent: string;
+  description: string;
 };
 
 type ChargeRow = {
@@ -119,6 +123,7 @@ const emptyRow = (tax = "0"): InvoiceRow => ({
   qty: "0",
   rate: "0",
   tax_percent: tax,
+  description: "",
 });
 
 export default function ConsolidatedInvoices() {
@@ -164,9 +169,9 @@ export default function ConsolidatedInvoices() {
   const loadBaseData = useCallback(async () => {
     const [customersRes, itemsRes, godownsRes, chargesRes, taxRes, companyRes] =
       await Promise.all([
-        supabase.from("customers").select("id,name").order("name"),
-        supabase.from("items").select("id,name,sku").order("name"),
-        supabase.from("godowns").select("id,name").order("name"),
+        supabase.from("customers").select("id,name,name_urdu").order("name"),
+        supabase.from("items").select("id,name,name_urdu,sku").order("name"),
+        supabase.from("godowns").select("id,name,name_urdu").order("name"),
         supabase
           .from("charge_master")
           .select(
@@ -228,7 +233,7 @@ export default function ConsolidatedInvoices() {
         status,
         main_sales_order_id,
         posted_at,
-        customer:customers(id,name)
+        customer:customers(id,name,name_urdu)
         `
       )
       .order("invoice_date", { ascending: false })
@@ -295,7 +300,7 @@ export default function ConsolidatedInvoices() {
       supabase
         .from("consolidated_sales_invoice_lines")
         .select(
-          "id,item_id,godown_id,qty,unit_price,tax_percent"
+          "id,item_id,godown_id,qty,unit_price,tax_percent,description"
         )
         .eq("invoice_id", invoice.id)
         .order("created_at"),
@@ -325,6 +330,7 @@ export default function ConsolidatedInvoices() {
             qty: String(row.qty ?? 0),
             rate: String(row.unit_price ?? 0),
             tax_percent: String(row.tax_percent ?? 0),
+            description: row.description ?? "",
           }))
         : [emptyRow(String(invoice.tax_percent ?? configuredTaxRate ?? 0))]
     );
@@ -334,6 +340,7 @@ export default function ConsolidatedInvoices() {
         charge_key: row.charge_key,
         amount: String(row.amount ?? 0),
         tax_percent: String(row.tax_percent ?? 0),
+            description: row.description ?? "",
       }))
     );
 
@@ -669,7 +676,7 @@ export default function ConsolidatedInvoices() {
           status,
           main_sales_order_id,
           posted_at,
-          customer:customers(id,name)
+          customer:customers(id,name,name_urdu)
           `
         )
         .eq("id", invoiceId)

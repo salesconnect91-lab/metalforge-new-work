@@ -18,7 +18,7 @@ type PurchaseOrder = {
   paid_amount?: number | string | null;
   outstanding_amount?: number | string | null;
   payment_status?: string | null;
-  supplier?: { id: string; name: string; phone?: string | null; address?: string | null } | null;
+  supplier?: { id: string; name: string; name_urdu?: string | null; phone?: string | null; address?: string | null } | null;
   loading_charge?: number | string | null;
   unloading_charge?: number | string | null;
   cutting_charge?: number | string | null;
@@ -36,9 +36,10 @@ type Line = {
   unit_cost: number | string;
   tax_percent?: number | string | null;
   line_total: number | string;
+  description?: string | null;
   source_consolidated_purchase_invoice_id?: string | null;
-  item?: { id: string; name: string; sku?: string | null } | null;
-  godown?: { id: string; name: string } | null;
+  item?: { id: string; name: string; name_urdu?: string | null; sku?: string | null } | null;
+  godown?: { id: string; name: string; name_urdu?: string | null } | null;
 };
 
 type Option = { id: string; name: string; sku?: string | null; cost?: number | string | null };
@@ -157,10 +158,10 @@ export default function PurchaseInvoiceDetail() {
     setLoading(true);
     setError(null);
     const [orderRes, linesRes, itemsRes, godownRes] = await Promise.all([
-      supabase.from("purchase_orders").select("*, supplier:suppliers(id,name,phone,address)").eq("id", id).maybeSingle(),
-      supabase.from("purchase_order_lines").select("*, item:items(id,name,sku), godown:godowns(id,name)").eq("order_id", id).order("created_at"),
-      supabase.from("items").select("id,name,sku,cost").order("name"),
-      supabase.from("godowns").select("id,name").order("name"),
+      supabase.from("purchase_orders").select("*, supplier:suppliers(id,name,name_urdu,phone,address)").eq("id", id).maybeSingle(),
+      supabase.from("purchase_order_lines").select("*, item:items(id,name,name_urdu,sku), godown:godowns(id,name,name_urdu)").eq("order_id", id).order("created_at"),
+      supabase.from("items").select("id,name,name_urdu,sku,cost").order("name"),
+      supabase.from("godowns").select("id,name,name_urdu").order("name"),
     ]);
     const firstError = orderRes.error || linesRes.error || itemsRes.error || godownRes.error;
     if (firstError) { setError(firstError.message); setLoading(false); return; }
@@ -266,7 +267,7 @@ export default function PurchaseInvoiceDetail() {
 
   const rowsForExport = lines.map((line) => ({
     source: line.source_consolidated_purchase_invoice_id ? "Consolidated" : "Direct",
-    item: line.item?.name ?? "—", godown: line.godown?.name ?? "—", qty: n(line.qty), unit_cost: n(line.unit_cost),
+    item: `${line.item?.name ?? "—"}${line.item?.name_urdu ? ` / ${line.item.name_urdu}` : ""}`, description: line.description ?? "", godown: line.godown?.name ?? "—", qty: n(line.qty), unit_cost: n(line.unit_cost),
     vat_percent: isTax ? n(line.tax_percent) : 0,
     vat_amount: isTax ? n(line.line_total) * n(line.tax_percent) / 100 : 0,
     base_amount: n(line.line_total), amount_incl_vat: n(line.line_total) + (isTax ? n(line.line_total) * n(line.tax_percent) / 100 : 0),

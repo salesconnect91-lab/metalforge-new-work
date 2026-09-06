@@ -4,10 +4,10 @@ import { supabase } from "@/lib/supabase";
 import { ErrorBanner, PageHeader, StatusBadge, formatCurrency, formatDate } from "@/components/ui";
 import PrintLayout from "@/components/PrintLayout";
 
-type Supplier = { id: string; name: string; phone?: string | null; address?: string | null };
-type Item = { id: string; name: string; sku?: string | null; cost?: number | string | null };
-type Godown = { id: string; name: string };
-type Row = { item_id: string; godown_id: string; qty: string; unit_cost: string; tax_percent: string };
+type Supplier = { id: string; name: string; name_urdu?: string | null; phone?: string | null; address?: string | null };
+type Item = { id: string; name: string; name_urdu?: string | null; sku?: string | null; cost?: number | string | null };
+type Godown = { id: string; name: string; name_urdu?: string | null };
+type Row = { item_id: string; description: string; godown_id: string; qty: string; unit_cost: string; tax_percent: string };
 type Invoice = {
   id: string;
   invoice_no: string;
@@ -72,7 +72,7 @@ const makeNo = () => {
   const d = new Date();
   return `CP-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}-${String(d.getHours()).padStart(2, "0")}${String(d.getMinutes()).padStart(2, "0")}${String(d.getSeconds()).padStart(2, "0")}`;
 };
-const emptyRow = (tax = "0", godown = ""): Row => ({ item_id: "", godown_id: godown, qty: "1", unit_cost: "0", tax_percent: tax });
+const emptyRow = (tax = "0", godown = ""): Row => ({ item_id: "", description: "", godown_id: godown, qty: "1", unit_cost: "0", tax_percent: tax });
 const n = (value: unknown) => Number(value) || 0;
 
 export default function ConsolidatedPurchaseInvoices() {
@@ -103,10 +103,10 @@ export default function ConsolidatedPurchaseInvoices() {
   const load = useCallback(async () => {
     setLoading(true);
     const [supplierRes, itemRes, godownRes, invoiceRes, taxRes, companyRes, visibilityRes] = await Promise.all([
-      supabase.from("suppliers").select("id,name,phone,address").eq("is_active", true).order("name"),
-      supabase.from("items").select("id,name,sku,cost").order("name"),
-      supabase.from("godowns").select("id,name").order("name"),
-      supabase.from("consolidated_purchase_invoices").select("*,supplier:suppliers(id,name,phone,address)").order("invoice_date", { ascending: false }).order("created_at", { ascending: false }),
+      supabase.from("suppliers").select("id,name,name_urdu,phone,address").eq("is_active", true).order("name"),
+      supabase.from("items").select("id,name,name_urdu,sku,cost").order("name"),
+      supabase.from("godowns").select("id,name,name_urdu").order("name"),
+      supabase.from("consolidated_purchase_invoices").select("*,supplier:suppliers(id,name,name_urdu,phone,address)").order("invoice_date", { ascending: false }).order("created_at", { ascending: false }),
       supabase.from("tax_rates").select("rate,is_fixed").eq("is_active", true).eq("is_fixed", true).in("applies_to", ["purchase", "both"]).order("created_at").limit(1).maybeSingle(),
       supabase.from("company_settings").select("*").maybeSingle(),
       supabase.from("document_print_visibility").select("*").eq("document_type", "purchase_invoice").maybeSingle(),
@@ -183,7 +183,7 @@ export default function ConsolidatedPurchaseInvoices() {
     setReferenceNotes(invoice.reference_notes ?? "");
     setInvoiceType(invoice.invoice_type);
     setTaxPercent(String(invoice.tax_percent ?? taxPercent));
-    setRows((lineData ?? []).length ? (lineData ?? []).map((line: any) => ({ item_id: line.item_id, godown_id: line.godown_id, qty: String(line.qty), unit_cost: String(line.unit_cost), tax_percent: String(line.tax_percent) })) : [emptyRow(taxPercent, godowns[0]?.id ?? "")]);
+    setRows((lineData ?? []).length ? (lineData ?? []).map((line: any) => ({ item_id: line.item_id, godown_id: line.godown_id, qty: String(line.qty), unit_cost: String(line.unit_cost), tax_percent: String(line.tax_percent), description: line.description ?? "" })) : [emptyRow(taxPercent, godowns[0]?.id ?? "")]);
     setShowForm(true);
   };
 
@@ -209,7 +209,7 @@ export default function ConsolidatedPurchaseInvoices() {
         if (insertError) throw insertError;
         invoiceId = data.id;
       }
-      const { error: lineError } = await supabase.from("consolidated_purchase_invoice_lines").insert(validRows.map((row) => ({ invoice_id: invoiceId, item_id: row.item_id, godown_id: row.godown_id, qty: n(row.qty), unit_cost: n(row.unit_cost), tax_percent: invoiceType === "Tax Invoice" ? n(row.tax_percent) : 0, line_total: n(row.qty) * n(row.unit_cost) })));
+      const { error: lineError } = await supabase.from("consolidated_purchase_invoice_lines").insert(validRows.map((row) => ({ invoice_id: invoiceId, item_id: row.item_id, godown_id: row.godown_id, qty: n(row.qty), unit_cost: n(row.unit_cost), tax_percent: invoiceType === "Tax Invoice" ? n(row.tax_percent) : 0, description: row.description.trim() || null, line_total: n(row.qty) * n(row.unit_cost) })));
       if (lineError) throw lineError;
       setSuccess("Consolidated Purchase Invoice saved. Post it when goods are physically received.");
       reset();
@@ -238,10 +238,10 @@ export default function ConsolidatedPurchaseInvoices() {
 
       {showForm && <form onSubmit={save} className="card mb-6 space-y-5 p-6">
         <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">{editingId ? "Open" : "New"} Consolidated Purchase Invoice</h3><div className="flex gap-2">{editingId && <button type="button" className="btn-secondary" onClick={printInvoice}>Print / PDF</button>}<button type="button" className="btn-secondary" onClick={reset}>Close</button></div></div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4"><div><label className="label">Invoice No.</label><input className="input bg-slate-50 cursor-not-allowed" value={invoiceNo} readOnly tabIndex={-1} title="Invoice number is generated automatically" /></div><div><label className="label">Supplier</label><select className="input" value={supplierId} disabled={locked} onChange={(e) => setSupplierId(e.target.value)}><option value="">— Select —</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></div><div><label className="label">Date</label><input className="input" type="date" value={invoiceDate} disabled={locked} onChange={(e) => setInvoiceDate(e.target.value)} /></div><div><label className="label">Type</label><select className="input" value={invoiceType} disabled={locked} onChange={(e) => handleInvoiceType(e.target.value as "Purchase Invoice" | "Tax Invoice")}><option value="Purchase Invoice">Without Tax / بغیر ٹیکس</option><option value="Tax Invoice">With Tax / ٹیکس کے ساتھ</option></select></div></div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4"><div><label className="label">Invoice No.</label><input className="input bg-slate-50 cursor-not-allowed" value={invoiceNo} readOnly tabIndex={-1} title="Invoice number is generated automatically" /></div><div><label className="label">Supplier</label><select className="input" value={supplierId} disabled={locked} onChange={(e) => setSupplierId(e.target.value)}><option value="">— Select —</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}{supplier.name_urdu ? ` / ${supplier.name_urdu}` : ""}</option>)}</select></div><div><label className="label">Date</label><input className="input" type="date" value={invoiceDate} disabled={locked} onChange={(e) => setInvoiceDate(e.target.value)} /></div><div><label className="label">Type</label><select className="input" value={invoiceType} disabled={locked} onChange={(e) => handleInvoiceType(e.target.value as "Purchase Invoice" | "Tax Invoice")}><option value="Purchase Invoice">Without Tax / بغیر ٹیکس</option><option value="Tax Invoice">With Tax / ٹیکس کے ساتھ</option></select></div></div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3"><div><label className="label">Reference Name</label><input className="input" value={referenceName} disabled={locked} onChange={(e) => setReferenceName(e.target.value)} /></div><div><label className="label">Reference No.</label><input className="input" value={referenceNo} disabled={locked} onChange={(e) => setReferenceNo(e.target.value)} /></div><div><label className="label">Notes</label><input className="input" value={referenceNotes} disabled={locked} onChange={(e) => setReferenceNotes(e.target.value)} /></div></div>
         {invoiceType === "Tax Invoice" && <div className="max-w-xs"><label className="label">Configured VAT %</label><input className="input cursor-not-allowed bg-slate-50" disabled value={taxPercent} /></div>}
-        <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b"><th className="py-2 text-left">Item</th><th>Godown</th><th className="text-right">Qty</th><th className="text-right">Unit Cost</th>{invoiceType === "Tax Invoice" && <><th className="text-right">VAT %</th><th className="text-right">VAT Amount</th></>}<th className="text-right">Amount</th><th /></tr></thead><tbody>{rows.map((row, index) => { const base = n(row.qty) * n(row.unit_cost); const tax = invoiceType === "Tax Invoice" ? base * n(row.tax_percent) / 100 : 0; return <tr key={index} className="border-b border-slate-100"><td className="py-2 pr-2"><select className="input" disabled={locked} value={row.item_id} onChange={(e) => updateRow(index, "item_id", e.target.value)}><option value="">— Select —</option>{items.map((item) => <option key={item.id} value={item.id}>{item.name}{item.sku ? ` (${item.sku})` : ""}</option>)}</select></td><td className="px-2"><select className="input" disabled={locked} value={row.godown_id} onChange={(e) => updateRow(index, "godown_id", e.target.value)}><option value="">— Select —</option>{godowns.map((godown) => <option key={godown.id} value={godown.id}>{godown.name}</option>)}</select></td><td className="px-2"><input className="input w-24 text-right" type="number" step="0.01" disabled={locked} value={row.qty} onChange={(e) => updateRow(index, "qty", e.target.value)} /></td><td className="px-2"><input className="input w-28 text-right" type="number" step="0.01" disabled={locked} value={row.unit_cost} onChange={(e) => updateRow(index, "unit_cost", e.target.value)} /></td>{invoiceType === "Tax Invoice" && <><td className="px-2 text-right">{n(row.tax_percent)}%</td><td className="px-2 text-right">{formatCurrency(tax)}</td></>}<td className="px-2 text-right font-medium">{formatCurrency(base + tax)}</td><td className="pl-2">{!locked && rows.length > 1 && <button type="button" className="text-error-600" onClick={() => setRows(rows.filter((_, i) => i !== index))}>Remove</button>}</td></tr>; })}</tbody></table></div>
+        <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b"><th className="py-2 text-left">Item</th><th className="text-left">Description / تفصیل</th><th>Godown</th><th className="text-right">Qty</th><th className="text-right">Unit Cost</th>{invoiceType === "Tax Invoice" && <><th className="text-right">VAT %</th><th className="text-right">VAT Amount</th></>}<th className="text-right">Amount</th><th /></tr></thead><tbody>{rows.map((row, index) => { const base = n(row.qty) * n(row.unit_cost); const tax = invoiceType === "Tax Invoice" ? base * n(row.tax_percent) / 100 : 0; return <tr key={index} className="border-b border-slate-100"><td className="py-2 pr-2"><select className="input" disabled={locked} value={row.item_id} onChange={(e) => updateRow(index, "item_id", e.target.value)}><option value="">— Select —</option>{items.map((item) => <option key={item.id} value={item.id}>{item.name}{item.sku ? ` (${item.sku})` : ""}</option>)}</select></td><td className="px-2"><select className="input" disabled={locked} value={row.godown_id} onChange={(e) => updateRow(index, "godown_id", e.target.value)}><option value="">— Select —</option>{godowns.map((godown) => <option key={godown.id} value={godown.id}>{godown.name}{godown.name_urdu ? ` / ${godown.name_urdu}` : ""}</option>)}</select></td><td className="px-2"><input className="input w-24 text-right" type="number" step="0.01" disabled={locked} value={row.qty} onChange={(e) => updateRow(index, "qty", e.target.value)} /></td><td className="px-2"><input className="input w-28 text-right" type="number" step="0.01" disabled={locked} value={row.unit_cost} onChange={(e) => updateRow(index, "unit_cost", e.target.value)} /></td>{invoiceType === "Tax Invoice" && <><td className="px-2 text-right">{n(row.tax_percent)}%</td><td className="px-2 text-right">{formatCurrency(tax)}</td></>}<td className="px-2 text-right font-medium">{formatCurrency(base + tax)}</td><td className="pl-2">{!locked && rows.length > 1 && <button type="button" className="text-error-600" onClick={() => setRows(rows.filter((_, i) => i !== index))}>Remove</button>}</td></tr>; })}</tbody></table></div>
         {!locked && <button type="button" className="btn-secondary" onClick={() => setRows([...rows, emptyRow(invoiceType === "Tax Invoice" ? taxPercent : "0", godowns[0]?.id ?? "")])}>+ Add Row</button>}
         <div className="ml-auto max-w-sm space-y-2"><div className="flex justify-between"><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>{invoiceType === "Tax Invoice" && <div className="flex justify-between"><span>VAT Amount</span><span>{formatCurrency(itemTax)}</span></div>}<div className="flex justify-between border-t pt-2 text-lg font-bold"><span>Total</span><span>{formatCurrency(total)}</span></div></div>
         {!locked && <div className="flex justify-end"><button className="btn-primary" disabled={saving}>{saving ? "Saving..." : "Save Consolidated Purchase"}</button></div>}

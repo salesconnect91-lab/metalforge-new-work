@@ -5,10 +5,10 @@ import { ErrorBanner, PageHeader, formatCurrency } from "@/components/ui";
 import { buildChargePayload, createEmptyCharges, type ChargeValues } from "@/lib/chargeTypes";
 import { calculateConfiguredChargeAmount, type ConfiguredChargeUnit } from "@/lib/chargeCalculation";
 
-type Supplier = { id: string; name: string };
-type Item = { id: string; name: string; sku?: string | null; cost?: number | string | null; unit?: string | null };
-type Godown = { id: string; name: string };
-type PurchaseLine = { item_id: string; godown_id: string; qty: string; unit_cost: string; tax_percent: string };
+type Supplier = { id: string; name: string; name_urdu?: string | null };
+type Item = { id: string; name: string; name_urdu?: string | null; sku?: string | null; cost?: number | string | null; unit?: string | null };
+type Godown = { id: string; name: string; name_urdu?: string | null };
+type PurchaseLine = { item_id: string; description: string; godown_id: string; qty: string; unit_cost: string; tax_percent: string };
 type ConsolidatedOption = {
   id: string;
   invoice_no: string;
@@ -27,7 +27,7 @@ type ConfiguredCharge = {
   unit: ConfiguredChargeUnit;
 };
 
-const emptyLine = (tax = "0", godown = ""): PurchaseLine => ({ item_id: "", godown_id: godown, qty: "1", unit_cost: "0", tax_percent: tax });
+const emptyLine = (tax = "0", godown = ""): PurchaseLine => ({ item_id: "", description: "", godown_id: godown, qty: "1", unit_cost: "0", tax_percent: tax });
 const treatmentOf = (charge: ConfiguredCharge) => charge.charge_key === "other" ? "expense" : (charge.purchase_treatment || "landed_cost");
 
 export default function MainPurchaseInvoiceV2() {
@@ -54,9 +54,9 @@ export default function MainPurchaseInvoiceV2() {
 
   const loadBase = useCallback(async () => {
     const [supplierRes, itemRes, godownRes, orderNoRes, taxRes, chargeRes] = await Promise.all([
-      supabase.from("suppliers").select("id,name").eq("is_active", true).order("name"),
-      supabase.from("items").select("id,name,sku,cost,unit").order("name"),
-      supabase.from("godowns").select("id,name").order("name"),
+      supabase.from("suppliers").select("id,name,name_urdu").eq("is_active", true).order("name"),
+      supabase.from("items").select("id,name,name_urdu,sku,cost,unit").order("name"),
+      supabase.from("godowns").select("id,name,name_urdu").order("name"),
       supabase.rpc("next_purchase_order_no"),
       supabase.from("tax_rates").select("rate,is_fixed").eq("is_active", true).eq("is_fixed", true).in("applies_to", ["purchase", "both"]).order("created_at").limit(1).maybeSingle(),
       supabase.from("charge_master").select("charge_key,charge_name,default_rate,is_fixed,tax_applicable,purchase_treatment,unit").eq("is_active", true).in("applies_to", ["purchase", "both"]).order("charge_name"),
@@ -184,6 +184,7 @@ export default function MainPurchaseInvoiceV2() {
         const { error: lineError } = await supabase.from("purchase_order_lines").insert(validRows.map((row) => ({
           order_id: order.id, item_id: row.item_id, godown_id: row.godown_id, qty: Number(row.qty) || 0,
           unit_cost: Number(row.unit_cost) || 0, tax_percent: invoiceType === "Tax Invoice" ? Number(row.tax_percent) || 0 : 0,
+          description: row.description.trim() || null,
           line_total: (Number(row.qty) || 0) * (Number(row.unit_cost) || 0),
         })));
         if (lineError) throw lineError;
@@ -202,13 +203,13 @@ export default function MainPurchaseInvoiceV2() {
     <form onSubmit={handleSave} className="space-y-6">
       <div className="card p-6"><div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <div><label className="label">Invoice No.</label><input className="input bg-slate-50" readOnly value={orderNo} /></div>
-        <div><label className="label">Supplier / سپلائر</label><select className="input" required value={supplierId} onChange={(e) => setSupplierId(e.target.value)}><option value="">— Select supplier —</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+        <div><label className="label">Supplier / سپلائر</label><select className="input" required value={supplierId} onChange={(e) => setSupplierId(e.target.value)}><option value="">— Select supplier —</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}{s.name_urdu ? ` / ${s.name_urdu}` : ""}</option>)}</select></div>
         <div><label className="label">Date / تاریخ</label><input className="input" type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} /></div>
         <div><label className="label">Invoice Type / قسم</label><select className="input" value={invoiceType} onChange={(e) => setInvoiceType(e.target.value as "Purchase Invoice" | "Tax Invoice")}><option value="Purchase Invoice">Without Tax / بغیر ٹیکس</option><option value="Tax Invoice">With Tax / ٹیکس کے ساتھ</option></select></div>
       </div>{invoiceType === "Tax Invoice" && <div className="mt-4 max-w-xs"><label className="label">Configured VAT % / مقررہ ویٹ</label><input className="input bg-slate-50 cursor-not-allowed" disabled value={globalTaxPercent} /></div>}</div>
 
       <div className="card p-6"><div className="mb-4 flex items-center justify-between"><h3 className="font-semibold">Direct Main Invoice Items / مین انوائس آئٹمز</h3><button type="button" className="btn-secondary text-sm" onClick={() => setRows([...rows, emptyLine(globalTaxPercent, godowns[0]?.id ?? "")])}>+ Add Row</button></div>
-        <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b"><th className="py-2 text-left">Item</th><th>Godown</th><th className="text-right">Qty</th><th className="text-right">Unit Cost</th>{invoiceType === "Tax Invoice" && <th className="text-right">VAT</th>}<th className="text-right">Amount</th><th /></tr></thead><tbody>{rows.map((row, index) => { const base=(Number(row.qty)||0)*(Number(row.unit_cost)||0); const tax=invoiceType==="Tax Invoice"?base*(Number(row.tax_percent)||0)/100:0; return <tr key={index} className="border-b border-slate-100"><td className="py-2 pr-2"><select className="input" value={row.item_id} onChange={(e)=>updateLine(index,"item_id",e.target.value)}><option value="">— Select —</option>{items.map((item)=><option key={item.id} value={item.id}>{item.name}{item.sku?` (${item.sku})`:""}</option>)}</select></td><td className="px-2"><select className="input" value={row.godown_id} onChange={(e)=>updateLine(index,"godown_id",e.target.value)}><option value="">— Select —</option>{godowns.map((g)=><option key={g.id} value={g.id}>{g.name}</option>)}</select></td><td className="px-2"><input className="input w-24 text-right" type="number" min="0" step="0.01" value={row.qty} onChange={(e)=>updateLine(index,"qty",e.target.value)} /></td><td className="px-2"><input className="input w-28 text-right" type="number" min="0" step="0.01" value={row.unit_cost} onChange={(e)=>updateLine(index,"unit_cost",e.target.value)} /></td>{invoiceType==="Tax Invoice"&&<td className="px-2"><input className="input w-20 bg-slate-50 text-right cursor-not-allowed" disabled value={row.tax_percent}/></td>}<td className="px-2 text-right font-medium">{formatCurrency(base+tax)}</td><td className="pl-2 text-right">{rows.length>1&&<button type="button" className="text-error-600" onClick={()=>setRows(rows.filter((_,i)=>i!==index))}>Remove</button>}</td></tr>; })}</tbody></table></div>
+        <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b"><th className="py-2 text-left">Item</th><th className="text-left">Description / تفصیل</th><th>Godown</th><th className="text-right">Qty</th><th className="text-right">Unit Cost</th>{invoiceType === "Tax Invoice" && <th className="text-right">VAT</th>}<th className="text-right">Amount</th><th /></tr></thead><tbody>{rows.map((row, index) => { const base=(Number(row.qty)||0)*(Number(row.unit_cost)||0); const tax=invoiceType==="Tax Invoice"?base*(Number(row.tax_percent)||0)/100:0; return <tr key={index} className="border-b border-slate-100"><td className="py-2 pr-2"><select className="input" value={row.item_id} onChange={(e)=>updateLine(index,"item_id",e.target.value)}><option value="">— Select —</option>{items.map((item)=><option key={item.id} value={item.id}>{item.name}{item.sku?` (${item.sku})`:""}</option>)}</select></td><td className="px-2"><select className="input" value={row.godown_id} onChange={(e)=>updateLine(index,"godown_id",e.target.value)}><option value="">— Select —</option>{godowns.map((g)=><option key={g.id} value={g.id}>{g.name}{g.name_urdu ? ` / ${g.name_urdu}` : ""}</option>)}</select></td><td className="px-2"><input className="input w-24 text-right" type="number" min="0" step="0.01" value={row.qty} onChange={(e)=>updateLine(index,"qty",e.target.value)} /></td><td className="px-2"><input className="input w-28 text-right" type="number" min="0" step="0.01" value={row.unit_cost} onChange={(e)=>updateLine(index,"unit_cost",e.target.value)} /></td>{invoiceType==="Tax Invoice"&&<td className="px-2"><input className="input w-20 bg-slate-50 text-right cursor-not-allowed" disabled value={row.tax_percent}/></td>}<td className="px-2 text-right font-medium">{formatCurrency(base+tax)}</td><td className="pl-2 text-right">{rows.length>1&&<button type="button" className="text-error-600" onClick={()=>setRows(rows.filter((_,i)=>i!==index))}>Remove</button>}</td></tr>; })}</tbody></table></div>
       </div>
 
       <div className="card p-6"><div className="mb-4"><h3 className="font-semibold">Purchase Charges / خریداری چارجز</h3><p className="mt-1 text-xs text-slate-500">Sirf required charge add karein. Landed Cost inventory value mein capitalize hota hai; Expense period expense mein jata hai. VAT sirf Taxable charges par lagega.</p></div>

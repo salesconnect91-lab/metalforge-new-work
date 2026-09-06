@@ -13,6 +13,18 @@ type NodeState = {
   applied: string;
 };
 
+type MasterName = {
+  id: string;
+  name: string;
+  secondaryName: string;
+};
+
+type MasterCatalog = {
+  byId: Map<string, MasterName>;
+  byEnglishName: Map<string, MasterName>;
+  namesByLength: MasterName[];
+};
+
 const URDU_RE = /[\u0600-\u06FF]/;
 const LATIN_RE = /[A-Za-z]/;
 const nodeState = new WeakMap<Text, NodeState>();
@@ -36,9 +48,6 @@ function renderLegacyBilingualText(value: string, language: RuntimeLanguage) {
       return selected.length ? selected.join(" / ") : "";
     }
 
-    // English and all other single-language modes must never leak the legacy
-    // Urdu half of an English/Urdu label. Other languages can progressively
-    // use the generic translation layer while English remains the safe fallback.
     const selected = parts.filter((part) => !URDU_RE.test(part));
     return selected.length ? selected.join(" / ") : "";
   }
@@ -48,15 +57,10 @@ function renderLegacyBilingualText(value: string, language: RuntimeLanguage) {
   const hasUrdu = URDU_RE.test(trimmed);
   const hasLatin = LATIN_RE.test(trimmed);
 
-  // Many legacy bilingual screens render the English and Urdu captions as
-  // separate sibling text nodes (for example dashboard KPI cards). In single
-  // English mode those standalone Urdu nodes must also disappear.
   if (language.primary === "en" && hasUrdu && !hasLatin) {
     return value.replace(trimmed, "");
   }
 
-  // For another non-Urdu single-language selection, legacy standalone Urdu is
-  // also suppressed until the generic translation layer supplies that language.
   if (language.primary !== "ur" && hasUrdu && !hasLatin) {
     return value.replace(trimmed, "");
   }
@@ -64,22 +68,51 @@ function renderLegacyBilingualText(value: string, language: RuntimeLanguage) {
   return value;
 }
 
-function applyToTextNode(node: Text, language: RuntimeLanguage) {
+function decorateMasterName(value: string, node: Text, language: RuntimeLanguage, catalog: MasterCatalog) {
+  if (language.mode !== "bilingual" || !language.secondary || catalog.byId.size === 0) return value;
+  if (value.includes(" / ")) return value;
+
+  const parent = node.parentElement;
+  const trimmed = value.trim();
+  if (!trimmed) return value;
+
+  if (parent?.tagName === "OPTION") {
+    const option = parent as HTMLOptionElement;
+    const byId = option.value ? catalog.byId.get(option.value) : undefined;
+    if (byId && byId.secondaryName && value.includes(byId.name)) {
+      return value.replace(byId.name, `${byId.name} / ${byId.secondaryName}`);
+    }
+
+    for (const entry of catalog.namesByLength) {
+      if (entry.secondaryName && value.includes(entry.name)) {
+        return value.replace(entry.name, `${entry.name} / ${entry.secondaryName}`);
+      }
+    }
+    return value;
+  }
+
+  const exact = catalog.byEnglishName.get(trimmed.toLowerCase());
+  if (!exact?.secondaryName) return value;
+  return value.replace(trimmed, `${exact.name} / ${exact.secondaryName}`);
+}
+
+function applyToTextNode(node: Text, language: RuntimeLanguage, catalog: MasterCatalog) {
   const current = node.nodeValue ?? "";
   const previous = nodeState.get(node);
   const original = previous && current === previous.applied ? previous.original : current;
-  const next = renderLegacyBilingualText(original, language);
+  const decorated = decorateMasterName(original, node, language, catalog);
+  const next = renderLegacyBilingualText(decorated, language);
   nodeState.set(node, { original, applied: next });
   if (current !== next) node.nodeValue = next;
 }
 
-function applyLanguageToDom(language: RuntimeLanguage) {
+function applyLanguageToDom(language: RuntimeLanguage, catalog: MasterCatalog) {
   const root = document.getElementById("root");
   if (!root) return;
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   let node = walker.nextNode();
   while (node) {
-    applyToTextNode(node as Text, language);
+    applyToTextNode(node as Text, language, catalog);
     node = walker.nextNode();
   }
 
@@ -124,40 +157,98 @@ async function loadRuntimeLanguage(): Promise<RuntimeLanguage> {
   };
 }
 
+async function loadMasterCatalog(language: RuntimeLanguage): Promise<MasterCatalog> {
+  const empty = (): MasterCatalog => ({ byId: new Map(), byEnglishName: new Map(), namesByLength: [] });
+  if (language.mode !== "bilingual" || !language.secondary) return empty();
+
+  const secondary = language.secondary;
+  const tables = ["items", "customers", "suppliers", "warehouses", "godowns", "categories", "uom", "transporters"] as const;
+  const tableResults = await Promise.all(
+    tables.map((table) => supabase.from(table).select("id,name,name_urdu"))
+  );
+  const salespersonResult = await supabase
+    .from("chart_of_accounts")
+    .select("id,name")
+    .eq("account_role", "sales_person");
+  const translationResult = await supabase
+    .from("entity_translations")
+    .select("entity_id,language_code,name")
+    .eq("language_code", secondary);
+
+  const translatedById = new Map<string, string>();
+  for (const row of translationResult.data ?? []) {
+    if (row.entity_id && row.name) translatedById.set(String(row.entity_id), String(row.name).trim());
+  }
+
+  const entries: MasterName[] = [];
+  for (const result of tableResults) {
+    for (const row of result.data ?? []) {
+      const id = String(row.id ?? "");
+      const name = String(row.name ?? "").trim();
+      if (!id || !name) continue;
+      const legacyUrdu = secondary === "ur" ? String(row.name_urdu ?? "").trim() : "";
+      const secondaryName = translatedById.get(id) || legacyUrdu;
+      if (secondaryName && secondaryName !== name) entries.push({ id, name, secondaryName });
+    }
+  }
+
+  for (const row of salespersonResult.data ?? []) {
+    const id = String(row.id ?? "");
+    const name = String(row.name ?? "").trim();
+    const secondaryName = translatedById.get(id) || "";
+    if (id && name && secondaryName && secondaryName !== name) entries.push({ id, name, secondaryName });
+  }
+
+  const byId = new Map(entries.map((entry) => [entry.id, entry]));
+  const byEnglishName = new Map<string, MasterName>();
+  for (const entry of entries) {
+    const key = entry.name.toLowerCase();
+    if (!byEnglishName.has(key)) byEnglishName.set(key, entry);
+  }
+  return {
+    byId,
+    byEnglishName,
+    namesByLength: [...entries].sort((a, b) => b.name.length - a.name.length),
+  };
+}
+
 export default function LanguageRuntime() {
   useEffect(() => {
     let active = true;
     let observer: MutationObserver | null = null;
     let language: RuntimeLanguage = { mode: "bilingual", primary: "en", secondary: "ur" };
+    let catalog: MasterCatalog = { byId: new Map(), byEnglishName: new Map(), namesByLength: [] };
 
     const start = async () => {
       observer?.disconnect();
       observer = null;
       try {
         language = await loadRuntimeLanguage();
+        catalog = await loadMasterCatalog(language);
       } catch {
         language = { mode: "bilingual", primary: "en", secondary: "ur" };
+        catalog = { byId: new Map(), byEnglishName: new Map(), namesByLength: [] };
       }
       if (!active) return;
 
-      applyLanguageToDom(language);
+      applyLanguageToDom(language, catalog);
       const root = document.getElementById("root");
       if (!root) return;
 
       observer = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
           if (mutation.type === "characterData") {
-            applyToTextNode(mutation.target as Text, language);
+            applyToTextNode(mutation.target as Text, language, catalog);
             continue;
           }
           mutation.addedNodes.forEach((added) => {
             if (added.nodeType === Node.TEXT_NODE) {
-              applyToTextNode(added as Text, language);
+              applyToTextNode(added as Text, language, catalog);
             } else if (added.nodeType === Node.ELEMENT_NODE) {
               const walker = document.createTreeWalker(added, NodeFilter.SHOW_TEXT);
               let child = walker.nextNode();
               while (child) {
-                applyToTextNode(child as Text, language);
+                applyToTextNode(child as Text, language, catalog);
                 child = walker.nextNode();
               }
             }
@@ -170,11 +261,13 @@ export default function LanguageRuntime() {
     const refresh = () => void start();
     void start();
     window.addEventListener("navilo-language-changed", refresh);
+    window.addEventListener("navilo-master-data-changed", refresh);
 
     return () => {
       active = false;
       observer?.disconnect();
       window.removeEventListener("navilo-language-changed", refresh);
+      window.removeEventListener("navilo-master-data-changed", refresh);
     };
   }, []);
 

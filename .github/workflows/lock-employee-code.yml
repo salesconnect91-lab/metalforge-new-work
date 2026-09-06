@@ -16,40 +16,26 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
       - name: Patch employee code UI
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('src/modules/master-data/Employees.tsx')
-          s=p.read_text(encoding='utf-8')
-          old='''        employee_code: form.employee_code.trim() || null,
-'''
-          new='''        employee_code: editing ? (editing.employee_code ?? null) : null,
-'''
+          p = Path('src/modules/master-data/Employees.tsx')
+          s = p.read_text(encoding='utf-8')
+          old = '        employee_code: form.employee_code.trim() || null,\n'
+          new = '        employee_code: editing ? (editing.employee_code ?? null) : null,\n'
           if old not in s: raise SystemExit('employee payload marker not found')
-          s=s.replace(old,new,1)
-          old='''                <input
-                  className="input mt-1 w-full"
-                  value={form.employee_code}
-                  onChange={(e) =>
-                    setForm((x) => ({ ...x, employee_code: e.target.value }))
-                  }
-                  placeholder="EMP-001"
-                />
-'''
-          new='''                <input
-                  className="input mt-1 w-full cursor-not-allowed bg-slate-50 text-slate-500"
-                  value={editing?.employee_code ?? ""}
-                  readOnly
-                  disabled
-                  placeholder={editing ? "" : "Auto-generated on save"}
-                  title="Employee code is generated automatically and cannot be edited"
-                />
-'''
+          s = s.replace(old, new, 1)
+          old = '                <input\n                  className="input mt-1 w-full"\n                  value={form.employee_code}\n                  onChange={(e) =>\n                    setForm((x) => ({ ...x, employee_code: e.target.value }))\n                  }\n                  placeholder="EMP-001"\n                />\n'
+          new = '                <input\n                  className="input mt-1 w-full cursor-not-allowed bg-slate-50 text-slate-500"\n                  value={editing?.employee_code ?? ""}\n                  readOnly\n                  disabled\n                  placeholder={editing ? "" : "Auto-generated on save"}\n                  title="Employee code is generated automatically and cannot be edited"\n                />\n'
           if old not in s: raise SystemExit('employee code input marker not found')
-          s=s.replace(old,new,1)
-          p.write_text(s,encoding='utf-8')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
           PY
           npm ci
           npm run build

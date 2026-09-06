@@ -440,6 +440,7 @@ export default function SalesInvoiceCreate() {
               rate: String(l.unit_price),
               tax_percent: l.tax_percent !== undefined ? String(l.tax_percent) : "18",
               godown_id: l.godown_id ? String(l.godown_id) : "",
+              description: l.description || "",
             }))
           );
         }
@@ -877,6 +878,7 @@ export default function SalesInvoiceCreate() {
         unit_price: parseFloat(r.rate) || 0,
         tax_percent: invoiceType === "Tax Invoice" ? parseFloat(r.tax_percent) || 0 : 0,
         godown_id: r.godown_id || null,
+        description: r.description.trim() || null,
         line_total: (parseFloat(r.qty) || 0) * (parseFloat(r.rate) || 0),
       }));
 
@@ -1465,7 +1467,8 @@ export default function SalesInvoiceCreate() {
               <table className="w-full min-w-[760px] text-[12px]">
                 <thead className="bg-slate-50">
                   <tr className="border-b border-slate-200 text-[12px] font-semibold uppercase tracking-wide text-slate-500">
-                    <th className="w-[36%] px-3 py-2 text-left">Item / آئٹم</th>
+                    <th className="w-[28%] px-3 py-2 text-left">Item / آئٹم</th>
+                    <th className="w-[22%] px-2 py-2 text-left">Description / تفصیل</th>
                     <th className="w-[18%] px-2 py-2 text-left">
                       Godown / گودام
                     </th>
@@ -1521,11 +1524,15 @@ export default function SalesInvoiceCreate() {
                             <option value="">— Select item —</option>
                             {items.map((item) => (
                               <option key={item.id} value={item.id}>
-                                {item.name}
+                                {item.name}{item.name_urdu ? ` / ${item.name_urdu}` : ""}
                                 {item.sku ? ` · ${item.sku}` : ""}
                               </option>
                             ))}
                           </select>
+                        </td>
+
+                        <td className="px-2 py-2">
+                          <input className="input min-w-[170px]" placeholder="Optional description / تفصیل" disabled={isLocked} value={row.description} onChange={(event) => updateRow(index, "description", event.target.value)} />
                         </td>
 
                         <td className="px-2 py-2">

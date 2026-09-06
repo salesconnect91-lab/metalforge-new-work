@@ -10,22 +10,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
-      - name: Finish sales invoice UI
+      - name: Finish preview and print fields
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p=Path('src/modules/sales/SalesInvoiceCreate.tsx'); s=p.read_text(encoding='utf-8'); o=s
-          s=s.replace('''              godown_id: l.godown_id ? String(l.godown_id) : "",\n            }))''','''              godown_id: l.godown_id ? String(l.godown_id) : "",\n              description: l.description || "",\n            }))''')
-          s=s.replace('''        godown_id: r.godown_id || null,\n        line_total:''','''        godown_id: r.godown_id || null,\n        description: r.description.trim() || null,\n        line_total:''')
-          s=s.replace('''                    <th className="w-[36%] px-3 py-2 text-left">Item / آئٹم</th>\n                    <th className="w-[18%] px-2 py-2 text-left">\n                      Godown / گودام\n                    </th>''','''                    <th className="w-[28%] px-3 py-2 text-left">Item / آئٹم</th>\n                    <th className="w-[22%] px-2 py-2 text-left">Description / تفصیل</th>\n                    <th className="w-[18%] px-2 py-2 text-left">\n                      Godown / گودام\n                    </th>''')
-          s=s.replace('''                                {item.name}\n                                {item.sku ? ` · ${item.sku}` : ""}''','''                                {item.name}{item.name_urdu ? ` / ${item.name_urdu}` : ""}\n                                {item.sku ? ` · ${item.sku}` : ""}''')
-          marker='''                        </td>\n\n                        <td className="px-2 py-2">\n                          <select\n                            className="input"\n                            disabled={isLocked}\n                            value={row.godown_id}'''
-          replacement='''                        </td>\n\n                        <td className="px-2 py-2">\n                          <input className="input min-w-[170px]" placeholder="Optional description / تفصیل" disabled={isLocked} value={row.description} onChange={(event) => updateRow(index, "description", event.target.value)} />\n                        </td>\n\n                        <td className="px-2 py-2">\n                          <select\n                            className="input"\n                            disabled={isLocked}\n                            value={row.godown_id}'''
-          if 'placeholder="Optional description / تفصیل"' not in s: s=s.replace(marker,replacement,1)
-          s=s.replace('''                              {g.name}\n                            </option>''','''                              {g.name}{g.name_urdu ? ` / ${g.name_urdu}` : ""}\n                            </option>''')
-          s=s.replace('''<td className="py-2">{item?.name || "—"}</td>''','''<td className="py-2"><div>{item?.name || "—"}{item?.name_urdu ? ` / ${item.name_urdu}` : ""}</div>{row.description && <div className="text-xs text-slate-500">{row.description}</div>}</td>''')
-          s=s.replace('''<div className="font-semibold">{selectedCustomer?.name || "—"}</div>''','''<div className="font-semibold">{selectedCustomer?.name || "—"}{selectedCustomer?.name_urdu ? ` / ${selectedCustomer.name_urdu}` : ""}</div>''')
+          s=s.replace('{godown.name}\n                              </option>','{godown.name}{godown.name_urdu ? ` / ${godown.name_urdu}` : ""}\n                              </option>')
+          s=s.replace('<div className="mt-1 text-sm font-bold">{selectedCustomerObj?.name || "—"}</div>','<div className="mt-1 text-sm font-bold">{selectedCustomerObj?.name || "—"}{selectedCustomerObj?.name_urdu ? ` / ${selectedCustomerObj.name_urdu}` : ""}</div>')
+          s=s.replace('''<td className="border border-slate-300 px-2 py-2 font-semibold">{item?.name || "—"}<div className="text-[12px] font-normal text-slate-400">SKU: {item?.sku || "—"}</div></td>''','''<td className="border border-slate-300 px-2 py-2 font-semibold"><div>{item?.name || "—"}{item?.name_urdu ? ` / ${item.name_urdu}` : ""}</div>{r.description && <div className="mt-0.5 text-[12px] font-normal text-slate-600">{r.description}</div>}<div className="text-[12px] font-normal text-slate-400">SKU: {item?.sku || "—"}</div></td>''')
+          s=s.replace('''{godowns.find((g) => g.id === r.godown_id)?.name || "—"}''','''{(() => { const g = godowns.find((x) => x.id === r.godown_id); return g ? `${g.name}${g.name_urdu ? ` / ${g.name_urdu}` : ""}` : "—"; })()}''')
           p.write_text(s,encoding='utf-8'); print('changed',s!=o)
           PY
           git diff --check
@@ -33,5 +27,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add src/modules/sales/SalesInvoiceCreate.tsx
           git diff --cached --quiet && exit 0
-          git commit -m 'Finish sales invoice Urdu description UI'
+          git commit -m 'Show Urdu and descriptions in invoice preview print'
           git push origin main

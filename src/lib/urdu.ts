@@ -7,12 +7,13 @@ const WORDS: Record<string, string> = {
   sheet: "شیٹ", sheets: "شیٹس", pipe: "پائپ", pipes: "پائپس", coil: "کوائل", coils: "کوائلز", bar: "بار", bars: "بارز",
   rod: "راڈ", rods: "راڈز", scrap: "اسکریپ", plate: "پلیٹ", plates: "پلیٹس", angle: "اینگل", angles: "اینگلز", channel: "چینل", channels: "چینلز",
   customer: "گاہک", customers: "گاہک", supplier: "سپلائر", suppliers: "سپلائرز", transport: "ٹرانسپورٹ", transporter: "ٹرانسپورٹر",
-  loading: "لوڈنگ", unloading: "ان لوڈنگ", cutting: "کٹنگ", labour: "مزدوری", labor: "مزدوری", handling: "ہینڈلنگ", freight: "فریٹ",
+  loading: "لوڈنگ", unloading: "ان لوڈنگ", cutting: "کٹنگ", labour: "مزدوری", labor: "مزدوری", handling: "ہینڈلنگ", freight: "مال برداری",
   charge: "چارج", charges: "چارجز", warehouse: "گودام", warehouses: "گودام", godown: "گودام", godowns: "گودام",
   kilogram: "کلوگرام", kilograms: "کلوگرام", kg: "کلوگرام", ton: "ٹن", tons: "ٹن", piece: "عدد", pieces: "عدد", pcs: "عدد",
   serya: "سریا", rebar: "سریا", girder: "گرڈر", beam: "بیم", main: "مرکزی", branch: "برانچ", lahore: "لاہور",
-  production: "پیداوار", accounts: "اکاؤنٹس", account: "اکاؤنٹ", operator: "آپریٹر", manager: "منیجر", sales: "فروخت", purchase: "خریداری",
+  production: "پیداوار", accounts: "اکاؤنٹس", account: "اکاؤنٹ", operator: "آپریٹر", manager: "منیجر", sales: "فروخت", sale: "فروخت", purchase: "خریداری",
   store: "اسٹور", office: "دفتر", address: "پتہ", location: "مقام", department: "شعبہ", designation: "عہدہ",
+  head: "مرکزی", raw: "خام", material: "مال", materials: "مال", finished: "تیار", goods: "مال", service: "سروس", services: "سروسز",
 };
 
 const PHRASES: Record<string, string> = {
@@ -23,6 +24,9 @@ const PHRASES: Record<string, string> = {
   "sales department": "شعبہ فروخت",
   "purchase department": "شعبہ خریداری",
   "production department": "شعبہ پیداوار",
+  "raw material": "خام مال",
+  "raw materials": "خام مال",
+  "finished goods": "تیار مال",
 };
 
 const REPLACEMENTS: Array<[string, string]> = [
@@ -37,19 +41,31 @@ function normalize(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
 }
 
+function transliterateUnknownWord(word: string) {
+  let out = word;
+  for (const [latin, urdu] of REPLACEMENTS) out = out.split(latin).join(urdu);
+  return out;
+}
+
+/**
+ * Central legacy English -> Urdu helper used by NAVILO Auto Urdu controls.
+ * Separators such as '-', '_', '/', and repeated spaces are normalized first,
+ * so business phrases (for example Main-Warehouse) resolve semantically.
+ */
 export function toUrduName(value: string): string {
   const input = value.trim();
   if (!input) return "";
   if (/[\u0600-\u06FF]/.test(input)) return input;
 
   const normalized = normalize(input);
-  if (PHRASES[normalized]) return PHRASES[normalized];
+  if (!normalized) return "";
+
+  const exactPhrase = PHRASES[normalized];
+  if (exactPhrase) return exactPhrase;
 
   return normalized.split(" ").filter(Boolean).map((word) => {
     if (WORDS[word]) return WORDS[word];
     if (/^\d+$/.test(word)) return word;
-    let out = word;
-    for (const [latin, urdu] of REPLACEMENTS) out = out.split(latin).join(urdu);
-    return out;
+    return transliterateUnknownWord(word);
   }).join(" ");
 }

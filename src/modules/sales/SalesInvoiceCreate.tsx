@@ -1547,7 +1547,7 @@ export default function SalesInvoiceCreate() {
                             <option value="">— Select godown —</option>
                             {godowns.map((godown) => (
                               <option key={godown.id} value={godown.id}>
-                                {godown.name}
+                                {godown.name}{godown.name_urdu ? ` / ${godown.name_urdu}` : ""}
                               </option>
                             ))}
                           </select>
@@ -2019,7 +2019,7 @@ export default function SalesInvoiceCreate() {
             <div className="mt-4 grid grid-cols-2 gap-3">
               <div className="rounded border border-slate-200 p-3">
                 <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400">Bill To / بل برائے</div>
-                <div className="mt-1 text-sm font-bold">{selectedCustomerObj?.name || "—"}</div>
+                <div className="mt-1 text-sm font-bold">{selectedCustomerObj?.name || "—"}{selectedCustomerObj?.name_urdu ? ` / ${selectedCustomerObj.name_urdu}` : ""}</div>
                 <div className="mt-2 text-[12px] text-slate-500">Previous Balance / سابقہ بقایا</div>
                 <div className="font-bold">{formatCurrency(customerSnapshot?.previousBalance ?? 0)}</div>
               </div>
@@ -2051,8 +2051,8 @@ export default function SalesInvoiceCreate() {
                     const tax = invoiceType === "Tax Invoice" ? (base * (Number(r.tax_percent) || 0)) / 100 : 0;
                     return (
                       <tr key={idx}>
-                        <td className="border border-slate-300 px-2 py-2 font-semibold">{item?.name || "—"}<div className="text-[12px] font-normal text-slate-400">SKU: {item?.sku || "—"}</div></td>
-                        <td className="border border-slate-300 px-2 py-2">{godowns.find((g) => g.id === r.godown_id)?.name || "—"}</td>
+                        <td className="border border-slate-300 px-2 py-2 font-semibold"><div>{item?.name || "—"}{item?.name_urdu ? ` / ${item.name_urdu}` : ""}</div>{r.description && <div className="mt-0.5 text-[12px] font-normal text-slate-600">{r.description}</div>}<div className="text-[12px] font-normal text-slate-400">SKU: {item?.sku || "—"}</div></td>
+                        <td className="border border-slate-300 px-2 py-2">{(() => { const g = godowns.find((x) => x.id === r.godown_id); return g ? `${g.name}${g.name_urdu ? ` / ${g.name_urdu}` : ""}` : "—"; })()}</td>
                         <td className="border border-slate-300 px-2 py-2 text-right">{r.qty}</td>
                         <td className="border border-slate-300 px-2 py-2 text-right">{formatCurrency(Number(r.rate) || 0)}</td>
                         {invoiceType === "Tax Invoice" && <td className="border border-slate-300 px-2 py-2 text-right">{r.tax_percent}%<div className="text-[12px] text-slate-400">{formatCurrency(tax)}</div></td>}

@@ -96,16 +96,50 @@ export default function InvoiceCommercialControls(){
 
  useEffect(()=>{if(!ctx||!dirty)return;const t=window.setTimeout(()=>{const amount=Number(calculated.toFixed(2));if(ctx.type==="sales_main"&&documentNo.endsWith("-AUTO")){sessionStorage.setItem("navilo-pending-sales-main-discount",JSON.stringify({mode,value:numericValue,amount}));setStoredAmount(amount);setDirty(false);setMessage("Discount ready; it will attach to the generated invoice number on Save.");return}if(!documentNo)return;setSaving(true);void supabase.rpc("upsert_commercial_invoice_discount",{p_document_type:ctx.type,p_document_no:documentNo,p_mode:mode,p_value:numericValue,p_amount:amount}).then(({error})=>{setSaving(false);if(error){setMessage(error.message);return}setStoredAmount(amount);setDirty(false);setMessage(amount>0?"Discount saved with accounting control.":"Discount removed.")})},500);return()=>window.clearTimeout(t)},[ctx,dirty,documentNo,mode,numericValue,calculated]);
 
- // Consolidated Sales: fixed/configured Charge Master calculations now follow the same engine as Main Sales Invoice.
- useEffect(()=>{if(pathname!=="/sales/consolidated")return;let active=true;let masters:ChargeMasterRow[]=[];let items:ItemRow[]=[];void Promise.all([
-  supabase.from("charge_master").select("charge_key,charge_name,default_rate,unit,is_fixed,applies_to,is_active").eq("is_active",true).in("applies_to",["sales","both"]),
-  supabase.from("items").select("id,unit")
- ]).then(([m,i])=>{if(!active)return;masters=(m.data??[]) as ChargeMasterRow[];items=(i.data??[]) as ItemRow[]});
- const timer=window.setInterval(()=>{if(!active||!masters.length)return;const form=Array.from(document.querySelectorAll("form")).find(f=>f.offsetParent!==null&&(f.textContent||"").includes("Applicable Charges")) as HTMLFormElement|undefined;if(!form)return;const itemIds=new Set(items.map(i=>i.id));const invoiceRows:Array<{item_id:string;qty:string}> = [];let base=0;
-  form.querySelectorAll("tr").forEach(tr=>{const selects=Array.from(tr.querySelectorAll("select")) as HTMLSelectElement[];const itemSelect=selects.find(s=>itemIds.has(s.value));if(!itemSelect)return;const nums=Array.from(tr.querySelectorAll('input[type="number"]')) as HTMLInputElement[];if(nums.length<2)return;const qty=Number(nums[0].value)||0,rate=Number(nums[1].value)||0;invoiceRows.push({item_id:itemSelect.value,qty:String(qty)});base+=qty*rate});
-  masters.filter(m=>m.is_fixed).forEach(master=>{const nameNodes=Array.from(form.querySelectorAll("div,span,strong")).filter(el=>(el.textContent||"").trim()===master.charge_name) as HTMLElement[];for(const nameNode of nameNodes){let card:HTMLElement|null=nameNode.parentElement;for(let d=0;d<5&&card&&!card.querySelector('input[type="number"]');d++)card=card.parentElement;if(!card)continue;const inputs=Array.from(card.querySelectorAll('input[type="number"]')) as HTMLInputElement[];if(!inputs.length)continue;const amount=calculateConfiguredChargeAmount({unit:master.unit,rate:Number(master.default_rate)||0,rows:invoiceRows,items,baseAmount:base});setReactInput(inputs[0],String(amount));card.setAttribute("title",`Auto calculated from Charge Master: ${master.default_rate} ${master.unit}`);break}}
-  })
- },800);return()=>{active=false;window.clearInterval(timer)}},[pathname]);
+ useEffect(()=>{
+  if(pathname!=="/sales/consolidated")return;
+  let active=true;
+  let masters:ChargeMasterRow[]=[];
+  let items:ItemRow[]=[];
+  void Promise.all([
+   supabase.from("charge_master").select("charge_key,charge_name,default_rate,unit,is_fixed,applies_to,is_active").eq("is_active",true).in("applies_to",["sales","both"]),
+   supabase.from("items").select("id,unit")
+  ]).then(([m,i])=>{if(!active)return;masters=(m.data??[]) as ChargeMasterRow[];items=(i.data??[]) as ItemRow[]});
+  const timer=window.setInterval(()=>{
+   if(!active||!masters.length)return;
+   const form=Array.from(document.querySelectorAll("form")).find(f=>f.offsetParent!==null&&(f.textContent||"").includes("Applicable Charges")) as HTMLFormElement|undefined;
+   if(!form)return;
+   const itemIds=new Set(items.map(i=>i.id));
+   const invoiceRows:Array<{item_id:string;qty:string}>=[];
+   let base=0;
+   form.querySelectorAll("tr").forEach(tr=>{
+    const selects=Array.from(tr.querySelectorAll("select")) as HTMLSelectElement[];
+    const itemSelect=selects.find(s=>itemIds.has(s.value));
+    if(!itemSelect)return;
+    const nums=Array.from(tr.querySelectorAll('input[type="number"]')) as HTMLInputElement[];
+    if(nums.length<2)return;
+    const qty=Number(nums[0].value)||0;
+    const rate=Number(nums[1].value)||0;
+    invoiceRows.push({item_id:itemSelect.value,qty:String(qty)});
+    base+=qty*rate;
+   });
+   masters.filter(m=>m.is_fixed).forEach(master=>{
+    const nameNodes=Array.from(form.querySelectorAll("div,span,strong")).filter(el=>(el.textContent||"").trim()===master.charge_name) as HTMLElement[];
+    for(const nameNode of nameNodes){
+     let card:HTMLElement|null=nameNode.parentElement;
+     for(let d=0;d<5&&card&&!card.querySelector('input[type="number"]');d++)card=card.parentElement;
+     if(!card)continue;
+     const inputs=Array.from(card.querySelectorAll('input[type="number"]')) as HTMLInputElement[];
+     if(!inputs.length)continue;
+     const amount=calculateConfiguredChargeAmount({unit:master.unit,rate:Number(master.default_rate)||0,rows:invoiceRows,items,baseAmount:base});
+     setReactInput(inputs[0],String(amount));
+     card.setAttribute("title",`Auto calculated from Charge Master: ${master.default_rate} ${master.unit}`);
+     break;
+    }
+   });
+  },800);
+  return()=>{active=false;window.clearInterval(timer)};
+ },[pathname]);
 
  if(!ctx||!slot)return null;
  return createPortal(<section data-navilo-discount-panel className="rounded-lg border border-emerald-200 bg-white shadow-sm"><div className="border-b border-emerald-100 bg-emerald-50 px-3 py-2.5"><div className="text-[12px] font-bold text-emerald-900">{ctx.label} / {ctx.urdu}</div><div className="mt-0.5 text-[12px] text-emerald-700">Controlled invoice-level commercial discount. Tax remains as invoiced; accounting posts a separate auditable discount entry.</div></div><div className="grid grid-cols-1 gap-3 p-3 md:grid-cols-4"><div><label className="label">Discount Type / قسم</label><select className="input" value={mode} onChange={e=>{setMode(e.target.value as DiscountMode);setDirty(true);setMessage("")}}><option value="fixed">Fixed Amount / مقررہ رقم</option><option value="percent">Percentage / فیصد</option></select></div><div><label className="label">{mode==="percent"?"Discount % / رعایت فیصد":"Discount Amount / رعایت رقم"}</label><input className="input text-right" type="number" min="0" max={mode==="percent"?100:undefined} step="0.01" value={value} onChange={e=>{setValue(e.target.value);setDirty(true);setMessage("")}}/></div><div className="rounded-lg bg-slate-50 px-3 py-2"><div className="text-[11px] uppercase text-slate-400">Gross Total / مجموعی</div><div className="mt-1 font-bold text-slate-800">{money(gross)}</div><div className="mt-1 text-xs text-rose-600">− {money(calculated)}</div></div><div className="rounded-lg bg-emerald-50 px-3 py-2"><div className="text-[11px] uppercase text-emerald-600">Net Total / خالص کل</div><div className="mt-1 text-lg font-bold text-emerald-800">{money(net)}</div><div className="mt-1 text-[11px] text-emerald-600">{saving?"Saving…":message||"Saved in audit trail"}</div></div></div></section>,slot)

@@ -1,0 +1,138 @@
+name: Invoice Urdu and description patch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/invoice-urdu-description.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch invoice forms
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def patch(path, reps):
+              p=Path(path); s=p.read_text(encoding='utf-8'); original=s
+              for old,new in reps:
+                  if old in s: s=s.replace(old,new)
+              if s==original: print('no changes',path)
+              else: p.write_text(s,encoding='utf-8'); print('patched',path)
+
+          # Main purchase: bilingual master labels + optional per-line description.
+          patch('src/modules/purchase/MainPurchaseInvoiceV2.tsx', [
+            ('type Supplier = { id: string; name: string };','type Supplier = { id: string; name: string; name_urdu?: string | null };'),
+            ('type Item = { id: string; name: string; sku?: string | null; cost?: number | string | null; unit?: string | null };','type Item = { id: string; name: string; name_urdu?: string | null; sku?: string | null; cost?: number | string | null; unit?: string | null };'),
+            ('type Godown = { id: string; name: string };','type Godown = { id: string; name: string; name_urdu?: string | null };'),
+            ('type PurchaseLine = { item_id: string; godown_id: string; qty: string; unit_cost: string; tax_percent: string };','type PurchaseLine = { item_id: string; description: string; godown_id: string; qty: string; unit_cost: string; tax_percent: string };'),
+            ('({ item_id: "", godown_id: godown, qty: "1", unit_cost: "0", tax_percent: tax })','({ item_id: "", description: "", godown_id: godown, qty: "1", unit_cost: "0", tax_percent: tax })'),
+            ('select("id,name").eq("is_active", true)','select("id,name,name_urdu").eq("is_active", true)'),
+            ('select("id,name,sku,cost,unit")','select("id,name,name_urdu,sku,cost,unit")'),
+            ('select("id,name").order("name")','select("id,name,name_urdu").order("name")'),
+            ('>{s.name}</option>', '>{s.name}{s.name_urdu ? ` / ${s.name_urdu}` : ""}</option>'),
+            ('>{item.name}</option>', '>{item.name}{item.name_urdu ? ` / ${item.name_urdu}` : ""}</option>'),
+            ('>{g.name}</option>', '>{g.name}{g.name_urdu ? ` / ${g.name_urdu}` : ""}</option>'),
+            ('<th>Godown</th>', '<th className="text-left">Description / تفصیل</th><th>Godown</th>'),
+            ('line_total: (Number(row.qty) || 0) * (Number(row.unit_cost) || 0),','description: row.description.trim() || null,\n          line_total: (Number(row.qty) || 0) * (Number(row.unit_cost) || 0),'),
+          ])
+          p=Path('src/modules/purchase/MainPurchaseInvoiceV2.tsx'); s=p.read_text(encoding='utf-8')
+          marker='</select></td><td className="py-2 px-2"><select'
+          if marker in s and 'placeholder="Optional description"' not in s:
+              s=s.replace(marker, '</select></td><td className="py-2 px-2"><input className="input" placeholder="Optional description" value={row.description} onChange={(e)=>updateLine(index,"description",e.target.value)} /></td><td className="py-2 px-2"><select',1)
+              p.write_text(s,encoding='utf-8')
+
+          # Consolidated purchase.
+          patch('src/modules/purchase/ConsolidatedPurchaseInvoices.tsx', [
+            ('type Supplier = { id: string; name: string; phone?: string | null; address?: string | null };','type Supplier = { id: string; name: string; name_urdu?: string | null; phone?: string | null; address?: string | null };'),
+            ('type Item = { id: string; name: string; sku?: string | null; cost?: number | string | null };','type Item = { id: string; name: string; name_urdu?: string | null; sku?: string | null; cost?: number | string | null };'),
+            ('type Godown = { id: string; name: string };','type Godown = { id: string; name: string; name_urdu?: string | null };'),
+            ('type Row = { item_id: string; godown_id: string; qty: string; unit_cost: string; tax_percent: string };','type Row = { item_id: string; description: string; godown_id: string; qty: string; unit_cost: string; tax_percent: string };'),
+            ('({ item_id: "", godown_id: godown, qty: "1", unit_cost: "0", tax_percent: tax })','({ item_id: "", description: "", godown_id: godown, qty: "1", unit_cost: "0", tax_percent: tax })'),
+            ('select("id,name,phone,address")','select("id,name,name_urdu,phone,address")'),
+            ('select("id,name,sku,cost")','select("id,name,name_urdu,sku,cost")'),
+            ('select("id,name").order("name")','select("id,name,name_urdu").order("name")'),
+            ('supplier:suppliers(id,name,phone,address)','supplier:suppliers(id,name,name_urdu,phone,address)'),
+            ('>{supplier.name}</option>', '>{supplier.name}{supplier.name_urdu ? ` / ${supplier.name_urdu}` : ""}</option>'),
+            ('>{item.name}</option>', '>{item.name}{item.name_urdu ? ` / ${item.name_urdu}` : ""}</option>'),
+            ('>{godown.name}</option>', '>{godown.name}{godown.name_urdu ? ` / ${godown.name_urdu}` : ""}</option>'),
+            ('tax_percent: String(line.tax_percent) }))','tax_percent: String(line.tax_percent), description: line.description ?? "" }))'),
+            ('line_total: n(row.qty) * n(row.unit_cost) }))','description: row.description.trim() || null, line_total: n(row.qty) * n(row.unit_cost) }))'),
+            ('<th>Godown</th>', '<th className="text-left">Description / تفصیل</th><th>Godown</th>'),
+          ])
+          p=Path('src/modules/purchase/ConsolidatedPurchaseInvoices.tsx'); s=p.read_text(encoding='utf-8')
+          marker='</select></td><td><select'
+          if marker in s and 'placeholder="Optional description"' not in s:
+              s=s.replace(marker, '</select></td><td><input className="input" placeholder="Optional description" value={row.description} onChange={(e)=>updateRow(index,"description",e.target.value)} /></td><td><select',1)
+              p.write_text(s,encoding='utf-8')
+
+          # Consolidated sales: bilingual + description persistence.
+          patch('src/modules/sales/ConsolidatedInvoices.tsx', [
+            ('  name: string;\n};\n\ntype Item', '  name: string;\n  name_urdu?: string | null;\n};\n\ntype Item'),
+            ('  sku?: string | null;\n};\n\ntype Godown', '  sku?: string | null;\n  name_urdu?: string | null;\n};\n\ntype Godown'),
+            ('type Godown = {\n  id: string;\n  name: string;\n};','type Godown = {\n  id: string;\n  name: string;\n  name_urdu?: string | null;\n};'),
+            ('  tax_percent: string;\n};\n\ntype ChargeRow', '  tax_percent: string;\n  description: string;\n};\n\ntype ChargeRow'),
+            ('  tax_percent: tax,\n});','  tax_percent: tax,\n  description: "",\n});'),
+            ('select("id,name")','select("id,name,name_urdu")'),
+            ('select("id,name,sku")','select("id,name,name_urdu,sku")'),
+            ('customer:customers(id,name)','customer:customers(id,name,name_urdu)'),
+            ('"id,item_id,godown_id,qty,unit_price,tax_percent"','"id,item_id,godown_id,qty,unit_price,tax_percent,description"'),
+            ('tax_percent: String(row.tax_percent ?? 0),','tax_percent: String(row.tax_percent ?? 0),\n            description: row.description ?? "",'),
+            ('tax_percent: Number(row.tax_percent) || 0,','tax_percent: Number(row.tax_percent) || 0,\n          description: row.description.trim() || null,'),
+            ('>{customer.name}</option>', '>{customer.name}{customer.name_urdu ? ` / ${customer.name_urdu}` : ""}</option>'),
+            ('>{item.name}</option>', '>{item.name}{item.name_urdu ? ` / ${item.name_urdu}` : ""}</option>'),
+            ('>{godown.name}</option>', '>{godown.name}{godown.name_urdu ? ` / ${godown.name_urdu}` : ""}</option>'),
+            ('<th>Godown</th>', '<th>Description / تفصیل</th><th>Godown</th>'),
+          ])
+
+          # Main sales create: bilingual selections + description persistence.
+          patch('src/modules/sales/SalesInvoiceCreate.tsx', [
+            ('  godown_id: string;\n}', '  godown_id: string;\n  description: string;\n}',1),
+          ]) if False else None
+          p=Path('src/modules/sales/SalesInvoiceCreate.tsx'); s=p.read_text(encoding='utf-8')
+          s=s.replace('  godown_id: string;\n}\n\ninterface AccountItem', '  godown_id: string;\n  description: string;\n}\n\ninterface AccountItem',1)
+          s=s.replace('interface Godown {\n  id: string;\n  name: string;\n}', 'interface Godown {\n  id: string;\n  name: string;\n  name_urdu?: string | null;\n}',1)
+          s=s.replace('{ item_id: "", qty: "0", rate: "0", tax_percent: "0", godown_id: "" }','{ item_id: "", qty: "0", rate: "0", tax_percent: "0", godown_id: "", description: "" }')
+          s=s.replace('supabase.from("godowns").select("id, name")','supabase.from("godowns").select("id, name, name_urdu")')
+          s=s.replace('godown_id?: string | null;\n}', 'godown_id?: string | null;\n  description?: string | null;\n}',1)
+          s=s.replace('godown_id: line.godown_id || "",', 'godown_id: line.godown_id || "",\n              description: line.description || "",')
+          s=s.replace('godown_id: row.godown_id || null,', 'godown_id: row.godown_id || null,\n        description: row.description.trim() || null,')
+          s=s.replace('>{c.name}</option>', '>{c.name}{c.name_urdu ? ` / ${c.name_urdu}` : ""}</option>')
+          s=s.replace('>{item.name}</option>', '>{item.name}{item.name_urdu ? ` / ${item.name_urdu}` : ""}</option>')
+          s=s.replace('>{g.name}</option>', '>{g.name}{g.name_urdu ? ` / ${g.name_urdu}` : ""}</option>')
+          s=s.replace('<th className="text-left">Godown', '<th className="text-left">Description / تفصیل</th><th className="text-left">Godown')
+          p.write_text(s,encoding='utf-8')
+
+          # Purchase detail/print data: Urdu + description.
+          patch('src/modules/purchase/PurchaseInvoiceDetail.tsx', [
+            ('supplier?: { id: string; name: string; phone?: string | null; address?: string | null }','supplier?: { id: string; name: string; name_urdu?: string | null; phone?: string | null; address?: string | null }'),
+            ('item?: { id: string; name: string; sku?: string | null }','item?: { id: string; name: string; name_urdu?: string | null; sku?: string | null }'),
+            ('godown?: { id: string; name: string }','godown?: { id: string; name: string; name_urdu?: string | null }'),
+            ('  line_total: number | string;','  line_total: number | string;\n  description?: string | null;'),
+            ('supplier:suppliers(id,name,phone,address)','supplier:suppliers(id,name,name_urdu,phone,address)'),
+            ('item:items(id,name,sku), godown:godowns(id,name)','item:items(id,name,name_urdu,sku), godown:godowns(id,name,name_urdu)'),
+            ('supabase.from("items").select("id,name,sku,cost")','supabase.from("items").select("id,name,name_urdu,sku,cost")'),
+            ('supabase.from("godowns").select("id,name")','supabase.from("godowns").select("id,name,name_urdu")'),
+            ('item: line.item?.name ?? "—", godown:', 'item: `${line.item?.name ?? "—"}${line.item?.name_urdu ? ` / ${line.item.name_urdu}` : ""}`, description: line.description ?? "", godown:'),
+          ])
+
+          # Shared TS purchase line type.
+          p=Path('src/types/index.ts'); s=p.read_text(encoding='utf-8-sig')
+          s=s.replace('godown_id:string|null; qty:number; unit_cost:number;', 'godown_id:string|null; description?:string|null; qty:number; unit_cost:number;',1)
+          p.write_text(s,encoding='utf-8')
+          PY
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/modules/sales/SalesInvoiceCreate.tsx src/modules/sales/ConsolidatedInvoices.tsx src/modules/purchase/MainPurchaseInvoiceV2.tsx src/modules/purchase/ConsolidatedPurchaseInvoices.tsx src/modules/purchase/PurchaseInvoiceDetail.tsx src/types/index.ts
+          git commit -m 'Show Urdu names and add invoice line descriptions'
+          git push origin main

@@ -166,7 +166,7 @@ export default function Employees() {
 
       const payload = {
         user_id: user.id,
-        employee_code: form.employee_code.trim() || null,
+        employee_code: editing ? (editing.employee_code ?? null) : null,
         name: form.name.trim(),
         name_urdu: form.name_urdu.trim() || toUrduName(form.name),
         phone: form.phone.trim() || null,
@@ -677,12 +677,12 @@ export default function Employees() {
               <label className="text-xs font-semibold">
                 Employee Code / ملازم کوڈ
                 <input
-                  className="input mt-1 w-full"
-                  value={form.employee_code}
-                  onChange={(e) =>
-                    setForm((x) => ({ ...x, employee_code: e.target.value }))
-                  }
-                  placeholder="EMP-001"
+                  className="input mt-1 w-full cursor-not-allowed bg-slate-50 text-slate-500"
+                  value={editing?.employee_code ?? ""}
+                  readOnly
+                  disabled
+                  placeholder={editing ? "" : "Auto-generated on save"}
+                  title="Employee code is generated automatically and cannot be edited"
                 />
               </label>
 

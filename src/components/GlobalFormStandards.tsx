@@ -46,15 +46,6 @@ function standardizeVisibleAccountLabels(root: ParentNode) {
   }
 }
 
-function removeStrayCommercialPanels() {
-  if (window.location.pathname !== "/sales/consolidated") return;
-  const hasInvoiceForm = Array.from(document.querySelectorAll<HTMLElement>("div"))
-    .some((el) => (el.textContent || "").trim().startsWith("Applicable Charges /"));
-  if (hasInvoiceForm) return;
-  document.querySelectorAll("[data-navilo-discount-panel],[data-navilo-commercial-slot='sales_consolidated']")
-    .forEach((node) => node.remove());
-}
-
 function findUrduInput(label: HTMLLabelElement) {
   const targetId = label.htmlFor;
   if (targetId) {
@@ -141,7 +132,6 @@ function process(root: ParentNode) {
   selects.forEach((select) => standardizeAccountDropdown(select));
   standardizeVisibleAccountLabels(root);
   standardizeAutoUrdu(root);
-  removeStrayCommercialPanels();
 }
 
 const STYLE = `
@@ -187,7 +177,6 @@ export default function GlobalFormStandards() {
             else if (node.parentElement) process(node.parentElement);
           });
         }
-        removeStrayCommercialPanels();
       });
     });
     observer.observe(document.body, { childList: true, subtree: true });

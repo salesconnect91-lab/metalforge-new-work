@@ -135,17 +135,65 @@ function process(root: ParentNode) {
 }
 
 const STYLE = `
+body.navilo-compact-ui {
+  font-size:12.5px!important;
+  line-height:1.38!important;
+}
+body.navilo-compact-ui .text-4xl { font-size:22px!important; line-height:1.2!important; }
+body.navilo-compact-ui .text-3xl { font-size:20px!important; line-height:1.22!important; }
+body.navilo-compact-ui .text-2xl { font-size:18px!important; line-height:1.25!important; }
+body.navilo-compact-ui .text-xl { font-size:16px!important; line-height:1.3!important; }
+body.navilo-compact-ui .text-lg { font-size:14px!important; line-height:1.35!important; }
+body.navilo-compact-ui .text-base { font-size:12.5px!important; line-height:1.4!important; }
+body.navilo-compact-ui .text-sm { font-size:12px!important; line-height:1.4!important; }
+body.navilo-compact-ui .text-xs { font-size:11px!important; line-height:1.35!important; }
+body.navilo-compact-ui .text-\\[13px\\] { font-size:12px!important; line-height:1.4!important; }
+body.navilo-compact-ui .text-\\[12px\\] { font-size:11.5px!important; line-height:1.38!important; }
+body.navilo-compact-ui .text-\\[11px\\],
+body.navilo-compact-ui .text-\\[10px\\],
+body.navilo-compact-ui .text-\\[9px\\],
+body.navilo-compact-ui .text-\\[8px\\] { font-size:10.5px!important; line-height:1.35!important; }
+body.navilo-compact-ui .btn,
+body.navilo-compact-ui .btn-primary,
+body.navilo-compact-ui .btn-secondary,
+body.navilo-compact-ui .btn-danger {
+  min-height:30px!important;
+  height:30px!important;
+  padding:0 9px!important;
+  font-size:11.5px!important;
+  line-height:1.2!important;
+}
+body.navilo-compact-ui .input,
+body.navilo-compact-ui input:not([type='checkbox']):not([type='radio']),
+body.navilo-compact-ui select {
+  min-height:30px!important;
+  height:30px!important;
+  font-size:11.5px!important;
+  line-height:1.25!important;
+}
+body.navilo-compact-ui textarea { font-size:11.5px!important; line-height:1.35!important; }
+body.navilo-compact-ui .label,
+body.navilo-compact-ui label { font-size:11px!important; line-height:1.35!important; }
+body.navilo-compact-ui table { font-size:11.5px!important; }
+body.navilo-compact-ui th { font-size:10.5px!important; line-height:1.3!important; }
+body.navilo-compact-ui td { font-size:11.5px!important; line-height:1.35!important; }
+body.navilo-compact-ui th,
+body.navilo-compact-ui td { padding-top:6px!important; padding-bottom:6px!important; }
+body.navilo-compact-ui [role='dialog'] h1,
+body.navilo-compact-ui [role='dialog'] h2,
+body.navilo-compact-ui .fixed h1,
+body.navilo-compact-ui .fixed h2 { font-size:14px!important; line-height:1.3!important; }
 .navilo-auto-urdu {
   display:inline-flex!important;
   align-items:center!important;
   justify-content:center!important;
-  min-height:30px!important;
-  padding:5px 10px!important;
+  min-height:28px!important;
+  padding:4px 9px!important;
   border:1px solid #2563eb!important;
   border-radius:7px!important;
   background:#2563eb!important;
   color:#ffffff!important;
-  font-size:12px!important;
+  font-size:11px!important;
   line-height:1.15!important;
   font-weight:700!important;
   white-space:nowrap!important;
@@ -157,6 +205,7 @@ const STYLE = `
 
 export default function GlobalFormStandards() {
   useEffect(() => {
+    document.body.classList.add("navilo-compact-ui");
     const oldStyle = document.getElementById("navilo-global-form-standards");
     oldStyle?.remove();
     const style = document.createElement("style");
@@ -184,6 +233,7 @@ export default function GlobalFormStandards() {
     return () => {
       observer.disconnect();
       style.remove();
+      document.body.classList.remove("navilo-compact-ui");
     };
   }, []);
 

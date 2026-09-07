@@ -58,7 +58,7 @@ function findTransactionRoot(ctx: DiscountContext): HTMLElement | null {
   if (ctx.type === "sales_main") return visibleForms.find((form) => form.textContent?.includes("Invoice Items")) ?? visibleForms[0] ?? null;
   if (ctx.type === "sales_consolidated") {
     const section = findChargeSection();
-    return (section?.parentElement as HTMLElement | null) ?? document.querySelector<HTMLElement>("main");
+    return (section?.parentElement as HTMLElement | null) ?? null;
   }
   if (ctx.type === "purchase_main") return visibleForms.find((form) => form.textContent?.includes("Direct Main Invoice Items")) ?? visibleForms[0] ?? document.querySelector<HTMLElement>("main");
   return visibleForms.find((form) => form.textContent?.includes("Consolidated Purchase Invoice")) ?? document.querySelector<HTMLElement>("main");
@@ -153,7 +153,7 @@ function applyBranding(branding: Branding) {
 function accountLabel(accounts: AccountRow[], id: string | null) {
   const account = accounts.find((row) => row.id === id);
   if (!account) return "Not mapped";
-  return `${account.code ? `${account.code} - ` : ""}${account.name}`;
+  return account.name;
 }
 
 function collectConsolidatedRows(root: HTMLElement, items: ItemRow[]) {
@@ -345,12 +345,15 @@ export default function InvoiceCommercialControls() {
         setSlot(ensureSlot(root, ctx));
         setDocumentNo(findDocumentNo(root));
         setGross(findGrossTotal(root));
+      } else if (ctx.type === "sales_consolidated") {
+        setSlot(null);
+        setDocumentNo("");
+        setGross(0);
       }
       if (attempts > 120) window.clearInterval(timer);
     }, 350);
     return () => {
       window.clearInterval(timer);
-      document.querySelectorAll(`[data-navilo-commercial-slot="${ctx.type}"]`).forEach((node) => node.remove());
     };
   }, [ctx]);
 
@@ -358,7 +361,10 @@ export default function InvoiceCommercialControls() {
     if (!ctx || !slot) return;
     const timer = window.setInterval(() => {
       const root = findTransactionRoot(ctx);
-      if (!root) return;
+      if (!root) {
+        if (ctx.type === "sales_consolidated") setSlot(null);
+        return;
+      }
       setDocumentNo(findDocumentNo(root));
       setGross(findGrossTotal(root));
     }, 700);
@@ -468,7 +474,7 @@ export default function InvoiceCommercialControls() {
     };
   }, [pathname]);
 
-  if (!ctx || !slot) return null;
+  if (!ctx || !slot || !slot.isConnected) return null;
 
   return createPortal(
     <section data-navilo-discount-panel className="rounded-lg border border-emerald-200 bg-white shadow-sm">

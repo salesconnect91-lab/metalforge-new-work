@@ -3,6 +3,7 @@ import PurchaseOrderList from "./PurchaseOrderList";
 import MainPurchaseInvoice from "./MainPurchaseInvoiceV2";
 import ConsolidatedPurchaseInvoices from "./ConsolidatedPurchaseInvoices";
 import PurchaseInvoiceDetail from "./PurchaseInvoiceDetail";
+import OrderBook from "@/modules/orders/OrderBook";
 
 export default function Purchase() {
   return (
@@ -10,6 +11,7 @@ export default function Purchase() {
       <Route path="/" element={<PurchaseOrderList />} />
       <Route path="/new" element={<MainPurchaseInvoice />} />
       <Route path="/consolidated" element={<ConsolidatedPurchaseInvoices />} />
+      <Route path="/order-book" element={<OrderBook type="purchase" />} />
       <Route path="/:id" element={<PurchaseInvoiceDetail />} />
     </Routes>
   );

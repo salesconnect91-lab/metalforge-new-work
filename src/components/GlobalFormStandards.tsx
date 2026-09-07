@@ -32,6 +32,29 @@ function standardizeAccountDropdown(select: HTMLSelectElement) {
   select.dataset.naviloAccountNamesOnly = "true";
 }
 
+function standardizeVisibleAccountLabels(root: ParentNode) {
+  const nodes = root instanceof Element
+    ? [root, ...Array.from(root.querySelectorAll("[data-navilo-charge-parity] strong"))]
+    : Array.from(root.querySelectorAll("[data-navilo-charge-parity] strong"));
+
+  for (const node of nodes) {
+    if (!(node instanceof HTMLElement)) continue;
+    const current = (node.textContent ?? "").trim();
+    if (!looksLikeAccountOption(current)) continue;
+    const cleaned = cleanAccountLabel(current);
+    if (cleaned) node.textContent = cleaned;
+  }
+}
+
+function removeStrayCommercialPanels() {
+  if (window.location.pathname !== "/sales/consolidated") return;
+  const hasInvoiceForm = Array.from(document.querySelectorAll<HTMLElement>("div"))
+    .some((el) => (el.textContent || "").trim().startsWith("Applicable Charges /"));
+  if (hasInvoiceForm) return;
+  document.querySelectorAll("[data-navilo-discount-panel],[data-navilo-commercial-slot='sales_consolidated']")
+    .forEach((node) => node.remove());
+}
+
 function findUrduInput(label: HTMLLabelElement) {
   const targetId = label.htmlFor;
   if (targetId) {
@@ -116,7 +139,9 @@ function process(root: ParentNode) {
     ? [root]
     : Array.from(root.querySelectorAll("select"));
   selects.forEach((select) => standardizeAccountDropdown(select));
+  standardizeVisibleAccountLabels(root);
   standardizeAutoUrdu(root);
+  removeStrayCommercialPanels();
 }
 
 const STYLE = `
@@ -162,6 +187,7 @@ export default function GlobalFormStandards() {
             else if (node.parentElement) process(node.parentElement);
           });
         }
+        removeStrayCommercialPanels();
       });
     });
     observer.observe(document.body, { childList: true, subtree: true });

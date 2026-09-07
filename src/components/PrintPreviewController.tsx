@@ -17,6 +17,7 @@ function getPrintableTarget(selector?: string) {
     if (selected) return selected;
   }
   return (
+    document.querySelector<HTMLElement>("#printable-invoice-area") ||
     document.querySelector<HTMLElement>(".print-document") ||
     document.querySelector<HTMLElement>("[data-print-root]") ||
     document.querySelector<HTMLElement>(".print-report") ||
@@ -75,7 +76,7 @@ const A4_PRINT_CSS = `
     font-size: 10.5px !important;
     line-height: 1.35 !important;
   }
-  .mf-print-output > *, .print-document, .print-report, [data-print-root] {
+  .mf-print-output > *, .print-document, .print-report, [data-print-root], #printable-invoice-area {
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
@@ -85,7 +86,7 @@ const A4_PRINT_CSS = `
     position: static !important;
     visibility: visible !important;
   }
-  .print-document *, .print-report *, [data-print-root] * { visibility: visible !important; }
+  .print-document *, .print-report *, [data-print-root] *, #printable-invoice-area * { visibility: visible !important; }
   button, .no-print, [data-no-print], nav, aside { display: none !important; }
   img, svg { max-width: 100% !important; }
   h1 { font-size: 16px !important; line-height: 1.2 !important; margin: 0 0 6px !important; }
@@ -142,13 +143,17 @@ export default function PrintPreviewController() {
   useEffect(() => {
     const previousPrint = window.print;
 
+    const showTargetPreview = (target: HTMLElement, title?: string) => {
+      setPreview({ html: cleanClone(target), title: title || document.title || "NAVILO" });
+    };
+
     const openPreview = () => {
       const target = getPrintableTarget();
       if (!target) {
         previousPrint.call(window);
         return;
       }
-      setPreview({ html: cleanClone(target), title: document.title || "NAVILO" });
+      showTargetPreview(target);
     };
 
     const onPreviewEvent = (event: Event) => {
@@ -159,14 +164,28 @@ export default function PrintPreviewController() {
         return;
       }
       const target = getPrintableTarget(detail.selector);
-      if (target) setPreview({ html: cleanClone(target), title: detail.title || document.title || "NAVILO" });
+      if (target) showTargetPreview(target, detail.title);
+    };
+
+    const onPrintClick = (event: MouseEvent) => {
+      const button = (event.target as Element | null)?.closest("button");
+      if (!(button instanceof HTMLButtonElement)) return;
+      const text = (button.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
+      if (!/\bprint\b|پرنٹ/.test(text)) return;
+      const invoiceTarget = document.querySelector<HTMLElement>("#printable-invoice-area");
+      if (!invoiceTarget) return;
+      event.preventDefault();
+      event.stopPropagation();
+      showTargetPreview(invoiceTarget);
     };
 
     window.addEventListener("navilo:print-preview", onPreviewEvent as EventListener);
+    document.addEventListener("click", onPrintClick, true);
     const timer = window.setTimeout(() => { window.print = openPreview; }, 0);
     return () => {
       window.clearTimeout(timer);
       window.removeEventListener("navilo:print-preview", onPreviewEvent as EventListener);
+      document.removeEventListener("click", onPrintClick, true);
       if (window.print === openPreview) window.print = previousPrint;
     };
   }, []);
@@ -220,8 +239,8 @@ export default function PrintPreviewController() {
           <style>{`
             .mf-live-preview { width:190mm;max-width:190mm;overflow:hidden;font-size:10.5px!important;line-height:1.35!important;color:#0f172a!important; }
             .mf-live-preview .print-document { display:block!important;position:static!important;visibility:visible!important;width:100%!important;max-width:100%!important; }
-            .mf-live-preview .print-document *, .mf-live-preview .print-report *, .mf-live-preview [data-print-root] * { visibility:visible!important; }
-            .mf-live-preview .print-report, .mf-live-preview [data-print-root] { width:100%!important;max-width:100%!important;min-width:0!important; }
+            .mf-live-preview .print-document *, .mf-live-preview .print-report *, .mf-live-preview [data-print-root] *, .mf-live-preview #printable-invoice-area * { visibility:visible!important; }
+            .mf-live-preview .print-report, .mf-live-preview [data-print-root], .mf-live-preview #printable-invoice-area { width:100%!important;max-width:100%!important;min-width:0!important; }
             .mf-live-preview button,.mf-live-preview .no-print,.mf-live-preview [data-no-print]{display:none!important}
             .mf-live-preview table{width:100%!important;max-width:100%!important;border-collapse:collapse!important;border-spacing:0!important;font-size:9.75px!important;margin:6px 0 10px!important}
             .mf-live-preview th{background:#f1f5f9!important;color:#334155!important;font-weight:700!important;border:1px solid #94a3b8!important;padding:4px 5px!important;text-align:left!important;white-space:normal!important}

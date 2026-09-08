@@ -1,0 +1,24 @@
+alter view public.salesperson_performance_report set (security_invoker = true);
+
+revoke execute on function public.apply_document_discount_total() from public, anon;
+revoke execute on function public.bootstrap_default_business_unit() from public, anon;
+revoke execute on function public.capture_consolidated_order_fulfillment() from public, anon;
+revoke execute on function public.current_operating_location_id() from public, anon;
+revoke execute on function public.enforce_active_business_unit_write_scope() from public, anon;
+revoke execute on function public.enforce_consolidated_sales_charge_master() from public, anon;
+revoke execute on function public.enforce_journal_core_rules() from public, anon;
+revoke execute on function public.ensure_commercial_discount_accounts() from public, anon;
+revoke execute on function public.ensure_company_core_defaults() from public, anon;
+revoke execute on function public.guard_journal_line_accounting_rules() from public, anon;
+revoke execute on function public.guard_journal_line_delete() from public, anon;
+revoke execute on function public.guard_posted_journal_immutability() from public, anon;
+revoke execute on function public.guard_purchase_consolidated_link_match() from public, anon;
+revoke execute on function public.guard_sales_consolidated_link_match() from public, anon;
+revoke execute on function public.lock_user_to_branch_workspace(uuid,uuid) from public, anon;
+revoke execute on function public.lock_user_to_business_workspace(uuid,uuid) from public, anon;
+revoke execute on function public.propagate_business_unit_from_parent() from public, anon;
+revoke execute on function public.set_current_operating_location(uuid) from public, anon;
+revoke execute on function public.stamp_stock_movement_audit_context() from public, anon;
+revoke execute on function public.sync_consolidated_purchase_inventory_cost() from public, anon;
+revoke execute on function public.sync_default_business_unit_membership() from public, anon;
+revoke execute on function public.sync_return_line_inventory_cost() from public, anon;

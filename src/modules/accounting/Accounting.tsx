@@ -16,6 +16,8 @@ import BankReconciliation from "./BankReconciliation";
 import FiscalYearClosing from "./FiscalYearClosing";
 import CashFlowStatement from "./CashFlowStatement";
 import FinancialControls from "./FinancialControls";
+import PaymentReversals from "./PaymentReversals";
+import VatRegister from "./VatRegister";
 import ReportSurface from "@/components/reports/ReportSurface";
 
 const report = (node: React.ReactNode) => <ReportSurface>{node}</ReportSurface>;
@@ -26,6 +28,8 @@ export default function Accounting() {
       <Routes>
         <Route path="/" element={<JournalEntryList />} />
         <Route path="/cash-counter" element={<CashCounter />} />
+        <Route path="/payment-reversals" element={<PaymentReversals />} />
+        <Route path="/vat-register" element={report(<VatRegister />)} />
         <Route path="/day-book" element={report(<DayBook />)} />
         <Route path="/accounts" element={<ChartOfAccounts />} />
         <Route path="/mappings" element={<AccountMappingSetup />} />

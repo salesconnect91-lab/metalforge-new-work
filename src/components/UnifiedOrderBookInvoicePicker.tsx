@@ -151,7 +151,10 @@ export default function UnifiedOrderBookInvoicePicker(){
         window.sessionStorage.setItem("navilo:lastOrderBookConsolidatedDraft",draftId);
         window.location.assign(path||pathname);
       }else{
-        navigate(kind==="sales"?`/sales/${draftId}/edit`:`/purchase/${draftId}/edit`);
+        // Backend owns the canonical draft destination for each document kind.
+        // This is especially important for Purchase, whose draft/detail route differs
+        // from Sales. Never invent an /edit URL if the RPC returned the correct path.
+        navigate(path||(kind==="sales"?`/sales/${draftId}/edit`:`/purchase/${draftId}`));
       }
     }catch(e:any){setError(e?.message||"Could not create invoice from Order Book.");}
     finally{setSaving(false);}

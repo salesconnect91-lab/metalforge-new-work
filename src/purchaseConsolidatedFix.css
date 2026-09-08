@@ -1,0 +1,5 @@
+/* Consolidated Purchase is a stock-receiving document only.
+   Commercial discounts belong to the Main Purchase Invoice where AP/VAT accounting is posted. */
+[data-navilo-commercial-slot="purchase_consolidated"] {
+  display: none !important;
+}

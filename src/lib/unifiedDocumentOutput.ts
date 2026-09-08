@@ -33,16 +33,24 @@ function findMatchingPrintButton(pdfButton: HTMLButtonElement): HTMLButtonElemen
 
 /**
  * Keep every document output visually identical.
- * PDF actions are routed through the exact same printable DOM and print engine
- * used by the Print button. In the browser dialog, choosing "Save as PDF"
- * therefore produces the same layout as physical print/preview instead of a
- * separately drawn jsPDF template drifting out of sync.
+ * Standalone PDF buttons are routed through a neighboring Print action.
+ * Buttons that already carry an explicit print target must be left alone so
+ * PrintPreviewController receives the exact document root instead of a generic
+ * fallback target. The preview's own Print / Save PDF button is also excluded.
  */
 export function installUnifiedDocumentOutput(): () => void {
   const handler = (event: MouseEvent) => {
     const target = event.target as Element | null;
     const button = target?.closest("button") as HTMLButtonElement | null;
     if (!button || button.disabled || !isPdfButton(button)) return;
+
+    // Explicit Print/PDF actions already know their printable root. Re-routing
+    // these loses data-print-selector and can make the preview clone the inner
+    // .print-document only, which strips the document-specific layout context.
+    if (button.dataset.printSelector || button.hasAttribute("data-direct-print")) return;
+
+    // Never intercept the A4 preview's own Print / Save PDF action.
+    if (button.closest("[data-navilo-print-preview]")) return;
 
     const printButton = findMatchingPrintButton(button);
     if (!printButton || printButton.disabled) return;

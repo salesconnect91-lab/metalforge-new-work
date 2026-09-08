@@ -207,17 +207,43 @@ export default function PrintPreviewController() {
     if (!doc) { frame.remove(); return; }
 
     doc.open();
-    doc.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${preview.title}</title>${styleMarkup}<style>${A4_PRINT_CSS}</style></head><body><div class="mf-print-output">${preview.html}</div></body></html>`);
+    doc.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="${document.baseURI}"><title>${preview.title}</title>${styleMarkup}<style>${A4_PRINT_CSS}</style></head><body><div class="mf-print-output">${preview.html}</div></body></html>`);
     doc.close();
 
-    const doPrint = () => {
-      frame.contentWindow?.focus();
-      frame.contentWindow?.print();
-      window.setTimeout(() => frame.remove(), 1200);
+    const waitForPrintAssets = async () => {
+      try {
+        const images = Array.from(doc.images);
+        await Promise.all(images.map((img) => img.complete ? Promise.resolve() : new Promise<void>((resolve) => {
+          const done = () => resolve();
+          img.addEventListener("load", done, { once: true });
+          img.addEventListener("error", done, { once: true });
+        })));
+        if (doc.fonts?.ready) await doc.fonts.ready;
+        const links = Array.from(doc.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'));
+        await Promise.all(links.map((link) => {
+          if (link.sheet) return Promise.resolve();
+          return new Promise<void>((resolve) => {
+            const done = () => resolve();
+            link.addEventListener("load", done, { once: true });
+            link.addEventListener("error", done, { once: true });
+            window.setTimeout(done, 1500);
+          });
+        }));
+      } catch {
+        // Printing should still continue even if a non-critical asset fails.
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 250));
     };
 
-    if (doc.readyState === "complete") doPrint();
-    else frame.onload = doPrint;
+    const doPrint = async () => {
+      await waitForPrintAssets();
+      frame.contentWindow?.focus();
+      frame.contentWindow?.print();
+      window.setTimeout(() => frame.remove(), 1800);
+    };
+
+    if (doc.readyState === "complete") void doPrint();
+    else frame.onload = () => { void doPrint(); };
   };
 
   if (!preview) return null;

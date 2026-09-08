@@ -1,0 +1,242 @@
+/* Deterministic screen + iframe layout for Consolidated Purchase PrintLayout.
+   This is intentionally scoped to the dedicated print root so other reports are unaffected. */
+.mf-live-preview #consolidated-purchase-print-root,
+.mf-print-output #consolidated-purchase-print-root {
+  display:block !important;
+  visibility:visible !important;
+  width:100% !important;
+  max-width:100% !important;
+  margin:0 !important;
+  padding:0 !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .print-document,
+.mf-print-output #consolidated-purchase-print-root .print-document {
+  display:block !important;
+  visibility:visible !important;
+  position:static !important;
+  width:100% !important;
+  max-width:100% !important;
+  margin:0 !important;
+  padding:0 !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .print-page,
+.mf-print-output #consolidated-purchase-print-root .print-page {
+  display:block !important;
+  width:100% !important;
+  max-width:190mm !important;
+  margin:0 auto !important;
+  padding:0 !important;
+  color:#111827 !important;
+  background:#fff !important;
+  font-family:Arial,Helvetica,sans-serif !important;
+  font-size:8.5pt !important;
+  line-height:1.25 !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .print-header,
+.mf-print-output #consolidated-purchase-print-root .print-header {
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) auto !important;
+  align-items:start !important;
+  gap:8mm !important;
+  margin:0 0 3mm !important;
+  padding:0 0 3mm !important;
+  border-bottom:1.2px solid #111827 !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .print-company,
+.mf-print-output #consolidated-purchase-print-root .print-company {
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:flex-start !important;
+  gap:1mm !important;
+  min-width:0 !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .print-logo,
+.mf-print-output #consolidated-purchase-print-root .print-logo {
+  display:block !important;
+  width:auto !important;
+  height:16mm !important;
+  max-width:60mm !important;
+  max-height:16mm !important;
+  object-fit:contain !important;
+  object-position:left top !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .print-company-name,
+.mf-print-output #consolidated-purchase-print-root .print-company-name {
+  display:block !important;
+  margin:0 !important;
+  font-size:15pt !important;
+  line-height:1.08 !important;
+  font-weight:800 !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .print-company-addr,
+.mf-live-preview #consolidated-purchase-print-root .print-company-tax,
+.mf-print-output #consolidated-purchase-print-root .print-company-addr,
+.mf-print-output #consolidated-purchase-print-root .print-company-tax {
+  display:block !important;
+  margin:1mm 0 0 !important;
+  font-size:7pt !important;
+  line-height:1.3 !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .print-voucher-title-box,
+.mf-print-output #consolidated-purchase-print-root .print-voucher-title-box {
+  display:flex !important;
+  align-items:flex-start !important;
+  justify-content:flex-end !important;
+  gap:3mm !important;
+  min-width:50mm !important;
+  text-align:right !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .print-voucher-title,
+.mf-print-output #consolidated-purchase-print-root .print-voucher-title {
+  display:block !important;
+  margin:0 !important;
+  font-size:13pt !important;
+  line-height:1.15 !important;
+  font-weight:800 !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .print-meta,
+.mf-print-output #consolidated-purchase-print-root .print-meta {
+  display:grid !important;
+  grid-template-columns:1fr 1fr !important;
+  gap:3mm !important;
+  margin:0 0 3mm !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .print-meta-col,
+.mf-live-preview #consolidated-purchase-print-root .print-party-box,
+.mf-print-output #consolidated-purchase-print-root .print-meta-col,
+.mf-print-output #consolidated-purchase-print-root .print-party-box {
+  display:block !important;
+  min-width:0 !important;
+  border:1px solid #cbd5e1 !important;
+  padding:2mm !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .print-meta-row,
+.mf-print-output #consolidated-purchase-print-root .print-meta-row {
+  display:grid !important;
+  grid-template-columns:38mm minmax(0,1fr) !important;
+  gap:2mm !important;
+  padding:.6mm 0 !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .print-meta-label,
+.mf-live-preview #consolidated-purchase-print-root .print-party-label,
+.mf-print-output #consolidated-purchase-print-root .print-meta-label,
+.mf-print-output #consolidated-purchase-print-root .print-party-label {
+  display:block !important;
+  font-size:7pt !important;
+  font-weight:700 !important;
+  color:#475569 !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .print-meta-value,
+.mf-live-preview #consolidated-purchase-print-root .print-party-name,
+.mf-print-output #consolidated-purchase-print-root .print-meta-value,
+.mf-print-output #consolidated-purchase-print-root .print-party-name {
+  display:block !important;
+  font-size:7.5pt !important;
+  font-weight:700 !important;
+  overflow-wrap:anywhere !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .invoice-items-wrap,
+.mf-print-output #consolidated-purchase-print-root .invoice-items-wrap {
+  display:block !important;
+  width:100% !important;
+  margin:0 0 3mm !important;
+  border-top:1px solid #cbd5e1 !important;
+  border-left:1px solid #cbd5e1 !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .invoice-items-grid,
+.mf-print-output #consolidated-purchase-print-root .invoice-items-grid {
+  display:grid !important;
+  width:100% !important;
+  box-sizing:border-box !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .invoice-items-grid-tax,
+.mf-print-output #consolidated-purchase-print-root .invoice-items-grid-tax {
+  grid-template-columns:5% 27% 9% 8% 9% 13% 12% 17% !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .invoice-items-grid-no-tax,
+.mf-print-output #consolidated-purchase-print-root .invoice-items-grid-no-tax {
+  grid-template-columns:5% 31% 11% 10% 10% 14% 19% !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .invoice-items-head,
+.mf-print-output #consolidated-purchase-print-root .invoice-items-head {
+  background:#eef2f7 !important;
+  font-weight:800 !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .invoice-items-grid > div,
+.mf-print-output #consolidated-purchase-print-root .invoice-items-grid > div {
+  display:block !important;
+  min-width:0 !important;
+  box-sizing:border-box !important;
+  padding:1.7mm 1.2mm !important;
+  border-right:1px solid #cbd5e1 !important;
+  border-bottom:1px solid #cbd5e1 !important;
+  font-size:7pt !important;
+  line-height:1.2 !important;
+  overflow:hidden !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .invoice-num,
+.mf-print-output #consolidated-purchase-print-root .invoice-num { text-align:right !important; white-space:nowrap !important; }
+.mf-live-preview #consolidated-purchase-print-root .invoice-center,
+.mf-print-output #consolidated-purchase-print-root .invoice-center { text-align:center !important; }
+.mf-live-preview #consolidated-purchase-print-root .print-totals-section,
+.mf-print-output #consolidated-purchase-print-root .print-totals-section {
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) 70mm !important;
+  gap:4mm !important;
+  align-items:start !important;
+  margin-top:3mm !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .print-charges-box,
+.mf-live-preview #consolidated-purchase-print-root .print-totals-side,
+.mf-print-output #consolidated-purchase-print-root .print-charges-box,
+.mf-print-output #consolidated-purchase-print-root .print-totals-side {
+  display:block !important;
+  min-width:0 !important;
+  border:1px solid #cbd5e1 !important;
+  padding:2mm !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .print-charge-row,
+.mf-live-preview #consolidated-purchase-print-root .print-total-row,
+.mf-print-output #consolidated-purchase-print-root .print-charge-row,
+.mf-print-output #consolidated-purchase-print-root .print-total-row {
+  display:flex !important;
+  justify-content:space-between !important;
+  gap:3mm !important;
+  padding:.8mm 0 !important;
+  border-bottom:1px solid #edf0f4 !important;
+  font-size:7.2pt !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .print-grand-total,
+.mf-print-output #consolidated-purchase-print-root .print-grand-total {
+  margin-top:1mm !important;
+  padding-top:1.5mm !important;
+  border-top:1.2px solid #111827 !important;
+  border-bottom:0 !important;
+  font-size:9pt !important;
+  font-weight:900 !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .print-payment-summary,
+.mf-print-output #consolidated-purchase-print-root .print-payment-summary {
+  display:block !important;
+  margin-top:3mm !important;
+  padding:2mm !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .print-signatures,
+.mf-print-output #consolidated-purchase-print-root .print-signatures {
+  display:grid !important;
+  grid-template-columns:repeat(3,1fr) !important;
+  gap:8mm !important;
+  margin-top:8mm !important;
+}
+.mf-live-preview #consolidated-purchase-print-root .print-signature-block,
+.mf-print-output #consolidated-purchase-print-root .print-signature-block { display:block !important; text-align:center !important; }
+.mf-live-preview #consolidated-purchase-print-root .print-signature-line,
+.mf-print-output #consolidated-purchase-print-root .print-signature-line { display:block !important; border-top:1px solid #64748b !important; margin-bottom:1mm !important; }
+.mf-live-preview #consolidated-purchase-print-root .print-footer,
+.mf-print-output #consolidated-purchase-print-root .print-footer {
+  display:block !important;
+  margin-top:4mm !important;
+  padding-top:2mm !important;
+  border-top:1px solid #e2e8f0 !important;
+  text-align:center !important;
+}

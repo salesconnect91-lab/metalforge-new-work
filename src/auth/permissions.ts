@@ -21,10 +21,24 @@ export type ModuleKey =
   | "settings";
 
 export type ModuleAction = "view" | "create" | "edit" | "delete" | "post" | "print";
+export type ModulePermissionSet = Record<ModuleAction, boolean>;
+export type PermissionMatrix = Partial<Record<ModuleKey, Partial<ModulePermissionSet>>>;
+
+const ALL_MODULES: ModuleKey[] = [
+  "dashboard",
+  "master",
+  "sales",
+  "purchase",
+  "inventory",
+  "production",
+  "accounting",
+  "reports",
+  "settings",
+];
 
 const VIEW_MODULES: Record<string, ModuleKey[]> = {
-  company_owner: ["dashboard", "master", "sales", "purchase", "inventory", "production", "accounting", "reports", "settings"],
-  admin: ["dashboard", "master", "sales", "purchase", "inventory", "production", "accounting", "reports", "settings"],
+  company_owner: ALL_MODULES,
+  admin: ALL_MODULES,
   accounts: ["dashboard", "accounting", "reports", "master"],
   sales: ["dashboard", "sales", "reports", "master", "inventory"],
   purchase: ["dashboard", "purchase", "reports", "master", "inventory"],
@@ -33,10 +47,59 @@ const VIEW_MODULES: Record<string, ModuleKey[]> = {
   viewer: ["dashboard", "reports"],
 };
 
+const OPERATIONAL_MODULE: Partial<Record<string, ModuleKey>> = {
+  accounts: "accounting",
+  sales: "sales",
+  purchase: "purchase",
+  store: "inventory",
+  production: "production",
+};
+
 export function canViewModule(role: CompanyRole | null | undefined, module: ModuleKey, isPlatformOwner = false) {
   if (isPlatformOwner) return true;
   if (!role) return false;
   return VIEW_MODULES[role]?.includes(module) ?? false;
+}
+
+export function defaultRolePermissions(role: CompanyRole | null | undefined): PermissionMatrix {
+  const matrix: PermissionMatrix = {};
+  for (const module of ALL_MODULES) {
+    const canView = canViewModule(role, module, false);
+    const fullAccess = role === "company_owner" || role === "admin";
+    const operationalAccess = OPERATIONAL_MODULE[role ?? ""] === module;
+    matrix[module] = {
+      view: canView,
+      print: canView,
+      create: fullAccess || operationalAccess,
+      edit: fullAccess || operationalAccess,
+      delete: fullAccess,
+      post: fullAccess || operationalAccess,
+    };
+  }
+  return matrix;
+}
+
+export function mergePermissions(base: PermissionMatrix, overrides?: PermissionMatrix | null): PermissionMatrix {
+  const merged: PermissionMatrix = {};
+  for (const module of ALL_MODULES) {
+    merged[module] = {
+      ...(base[module] ?? {}),
+      ...(overrides?.[module] ?? {}),
+    };
+  }
+  return merged;
+}
+
+export function hasPermission(
+  role: CompanyRole | null | undefined,
+  module: ModuleKey,
+  action: ModuleAction,
+  permissions?: PermissionMatrix | null,
+  isPlatformOwner = false,
+) {
+  if (isPlatformOwner) return true;
+  const effective = mergePermissions(defaultRolePermissions(role), permissions);
+  return effective[module]?.[action] === true;
 }
 
 export function canPerformModule(
@@ -46,28 +109,7 @@ export function canPerformModule(
   permissions?: Record<string, unknown> | null,
   isPlatformOwner = false,
 ) {
-  if (isPlatformOwner || role === "company_owner" || role === "admin") return true;
-  if (!role) return false;
-
-  const moduleOverrides = permissions?.[module];
-  if (moduleOverrides && typeof moduleOverrides === "object") {
-    const override = (moduleOverrides as Record<string, unknown>)[action];
-    if (typeof override === "boolean") return override;
-  }
-
-  if (action === "view" || action === "print") {
-    return canViewModule(role, module, false);
-  }
-  if (action === "delete") return false;
-
-  const operationalModule: Partial<Record<string, ModuleKey>> = {
-    accounts: "accounting",
-    sales: "sales",
-    purchase: "purchase",
-    store: "inventory",
-    production: "production",
-  };
-  return operationalModule[role] === module;
+  return hasPermission(role, module, action, permissions as PermissionMatrix | null | undefined, isPlatformOwner);
 }
 
 export function roleLabel(role: CompanyRole | null | undefined) {

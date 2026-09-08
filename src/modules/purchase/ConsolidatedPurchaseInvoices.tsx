@@ -8,7 +8,16 @@ import { calculateConfiguredChargeAmount, type ConfiguredChargeUnit } from "@/li
 type Supplier = { id: string; name: string; name_urdu?: string | null; phone?: string | null; address?: string | null };
 type Item = { id: string; name: string; name_urdu?: string | null; sku?: string | null; cost?: number | string | null; unit?: string | null };
 type Godown = { id: string; name: string; name_urdu?: string | null };
-type Row = { item_id: string; description: string; godown_id: string; qty: string; unit_cost: string; tax_percent: string };
+type Row = {
+  id?: string;
+  item_id: string;
+  description: string;
+  godown_id: string;
+  qty: string;
+  unit_cost: string;
+  tax_percent: string;
+  order_book_commitment_id?: string | null;
+};
 type Charge = {
   charge_key: string; charge_name: string; charge_name_urdu?: string | null; default_rate: number | string;
   unit: ConfiguredChargeUnit; is_fixed: boolean; tax_applicable: boolean; purchase_treatment?: "landed_cost" | "expense" | null;
@@ -43,7 +52,7 @@ const makeNo = () => {
   const d = new Date();
   return `CP-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}-${String(d.getHours()).padStart(2, "0")}${String(d.getMinutes()).padStart(2, "0")}${String(d.getSeconds()).padStart(2, "0")}`;
 };
-const emptyRow = (tax = "0", godown = ""): Row => ({ item_id: "", description: "", godown_id: godown, qty: "1", unit_cost: "0", tax_percent: tax });
+const emptyRow = (tax = "0", godown = ""): Row => ({ item_id: "", description: "", godown_id: godown, qty: "1", unit_cost: "0", tax_percent: tax, order_book_commitment_id: null });
 const n = (value: unknown) => Number(value) || 0;
 const unitLabel = (unit: ConfiguredChargeUnit) => ({ fixed: "Fixed", percent: "%", per_kg: "per kg", per_ton: "per ton", per_piece: "per piece" }[unit] || unit);
 
@@ -72,6 +81,7 @@ export default function ConsolidatedPurchaseInvoices() {
   const [taxConfigured, setTaxConfigured] = useState(false);
   const [rows, setRows] = useState<Row[]>([emptyRow()]);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [postingId, setPostingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -100,6 +110,8 @@ export default function ConsolidatedPurchaseInvoices() {
     if (taxRes.data) {
       const rate = String(n(taxRes.data.rate)); setTaxPercent(rate); setTaxConfigured(true);
       if (!editingId) setRows((current) => current.map((row) => ({ ...row, tax_percent: rate, godown_id: row.godown_id || loadedGodowns[0]?.id || "" })));
+    } else {
+      setTaxConfigured(false);
     }
   }, [editingId]);
 
@@ -135,18 +147,37 @@ export default function ConsolidatedPurchaseInvoices() {
   }, [selectedChargeKeys, configuredCharges, rows, items, subtotal]);
 
   const handleInvoiceType = (value: "Purchase Invoice" | "Tax Invoice") => {
-    if (locked) return; setInvoiceType(value); setRows((current) => current.map((row) => ({ ...row, tax_percent: value === "Tax Invoice" ? taxPercent : "0" })));
+    if (locked) return;
+    setInvoiceType(value);
+    setRows((current) => current.map((row) => ({ ...row, tax_percent: value === "Tax Invoice" ? taxPercent : "0" })));
   };
+
   const updateRow = (index: number, field: keyof Row, value: string) => {
     if (locked) return;
     setRows((current) => current.map((row, i) => {
-      if (i !== index) return row; const next = { ...row, [field]: value };
+      if (i !== index) return row;
+      const next = { ...row, [field]: value };
       if (field === "item_id") { const item = items.find((candidate) => candidate.id === value); if (item) next.unit_cost = String(n(item.cost)); }
       return next;
     }));
   };
+
+  const addLine = () => {
+    if (locked) return;
+    setRows((current) => [...current, emptyRow(invoiceType === "Tax Invoice" ? taxPercent : "0", godowns[0]?.id ?? "")]);
+  };
+
+  const removeLine = (index: number) => {
+    if (locked) return;
+    setRows((current) => {
+      if (current.length <= 1) return [emptyRow(invoiceType === "Tax Invoice" ? taxPercent : "0", godowns[0]?.id ?? "")];
+      return current.filter((_, i) => i !== index);
+    });
+  };
+
   const addCharge = () => {
-    if (!chargeToAdd || locked) return; const charge = configuredCharges.find((candidate) => candidate.charge_key === chargeToAdd); if (!charge) return;
+    if (!chargeToAdd || locked) return;
+    const charge = configuredCharges.find((candidate) => candidate.charge_key === chargeToAdd); if (!charge) return;
     const amount = calculateConfiguredChargeAmount({ unit: charge.unit, rate: n(charge.default_rate), rows, items, baseAmount: subtotal });
     setSelectedChargeKeys((current) => current.includes(charge.charge_key) ? current : [...current, charge.charge_key]);
     setChargeAmounts((current) => ({ ...current, [charge.charge_key]: String(amount) })); setChargeToAdd("");
@@ -162,44 +193,93 @@ export default function ConsolidatedPurchaseInvoices() {
     setEditingId(invoice.id); setInvoiceNo(invoice.invoice_no); setInvoiceDate(invoice.invoice_date); setSupplierId(invoice.supplier_id ?? "");
     setReferenceName(invoice.reference_name ?? ""); setReferenceNo(invoice.reference_no ?? ""); setReferenceNotes(invoice.reference_notes ?? "");
     setInvoiceType(invoice.invoice_type); setTaxPercent(String(invoice.tax_percent ?? taxPercent));
-    setRows((lineRes.data ?? []).length ? (lineRes.data ?? []).map((line: any) => ({ item_id: line.item_id, description: line.description ?? "", godown_id: line.godown_id, qty: String(line.qty), unit_cost: String(line.unit_cost), tax_percent: String(line.tax_percent) })) : [emptyRow(taxPercent, godowns[0]?.id ?? "")]);
-    const chargeRows = chargeRes.data ?? []; setSelectedChargeKeys(chargeRows.map((row: any) => row.charge_key));
+    setRows((lineRes.data ?? []).length ? (lineRes.data ?? []).map((line: any) => ({
+      id: line.id,
+      item_id: line.item_id,
+      description: line.description ?? "",
+      godown_id: line.godown_id,
+      qty: String(line.qty),
+      unit_cost: String(line.unit_cost),
+      tax_percent: String(line.tax_percent),
+      order_book_commitment_id: line.order_book_commitment_id ?? null,
+    })) : [emptyRow(taxPercent, godowns[0]?.id ?? "")]);
+    const chargeRows = chargeRes.data ?? [];
+    setSelectedChargeKeys(chargeRows.map((row: any) => row.charge_key));
     setChargeAmounts(Object.fromEntries(chargeRows.map((row: any) => [row.charge_key, String(row.amount)])));
-    setShowForm(true); requestAnimationFrame(() => requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })));
+    setShowForm(true);
+    requestAnimationFrame(() => requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })));
+  };
+
+  const deleteDraft = async (invoiceId: string, invoiceLabel: string) => {
+    if (!window.confirm(`Delete draft ${invoiceLabel}? This cannot be undone.`)) return;
+    setDeleting(true); setError(null); setSuccess(null);
+    const { error: deleteError } = await supabase.rpc("delete_consolidated_purchase_draft", { p_invoice_id: invoiceId });
+    setDeleting(false);
+    if (deleteError) { setError(deleteError.message); return; }
+    if (editingId === invoiceId) reset();
+    setSuccess(`${invoiceLabel} draft deleted.`);
+    await load();
   };
 
   const save = async (event: React.FormEvent) => {
-    event.preventDefault(); if (locked) return; setSaving(true); setError(null); setSuccess(null);
+    event.preventDefault(); if (locked) return;
+    setSaving(true); setError(null); setSuccess(null);
     try {
       if (!supplierId) throw new Error("Please select a supplier.");
       if (invoiceType === "Tax Invoice" && !taxConfigured) throw new Error("Add and fix an active Purchase/Both tax rate in Tax Settings first.");
       const validRows = rows.filter((row) => row.item_id && n(row.qty) > 0);
       if (!validRows.length) throw new Error("Add at least one item.");
       if (validRows.some((row) => !row.godown_id)) throw new Error("Select a godown for every item.");
-      const payload = { invoice_no: invoiceNo, invoice_date: invoiceDate, supplier_id: supplierId, reference_name: referenceName.trim() || null, reference_no: referenceNo.trim() || null, reference_notes: referenceNotes.trim() || null, invoice_type: invoiceType, tax_percent: invoiceType === "Tax Invoice" ? n(taxPercent) : 0, subtotal, item_tax: itemTax, charges_total: chargesTotal, charge_tax: chargeTax, total };
+      const payload = {
+        invoice_no: invoiceNo, invoice_date: invoiceDate, supplier_id: supplierId,
+        reference_name: referenceName.trim() || null, reference_no: referenceNo.trim() || null, reference_notes: referenceNotes.trim() || null,
+        invoice_type: invoiceType, tax_percent: invoiceType === "Tax Invoice" ? n(taxPercent) : 0,
+        subtotal, item_tax: itemTax, charges_total: chargesTotal, charge_tax: chargeTax, total,
+      };
       let invoiceId = editingId;
       if (editingId) {
         const { error: updateError } = await supabase.from("consolidated_purchase_invoices").update(payload).eq("id", editingId); if (updateError) throw updateError;
         const { error: deleteError } = await supabase.from("consolidated_purchase_invoice_lines").delete().eq("invoice_id", editingId); if (deleteError) throw deleteError;
       } else {
-        const { data, error: insertError } = await supabase.from("consolidated_purchase_invoices").insert({ ...payload, status: "draft" }).select().single(); if (insertError) throw insertError; invoiceId = data.id;
+        const { data, error: insertError } = await supabase.from("consolidated_purchase_invoices").insert({ ...payload, status: "draft" }).select().single();
+        if (insertError) throw insertError; invoiceId = data.id;
       }
       if (!invoiceId) throw new Error("Invoice id missing.");
-      const { error: lineError } = await supabase.from("consolidated_purchase_invoice_lines").insert(validRows.map((row) => ({ invoice_id: invoiceId, item_id: row.item_id, godown_id: row.godown_id, qty: n(row.qty), unit_cost: n(row.unit_cost), tax_percent: invoiceType === "Tax Invoice" ? n(row.tax_percent) : 0, description: row.description.trim() || null, line_total: n(row.qty) * n(row.unit_cost) })));
+      const { error: lineError } = await supabase.from("consolidated_purchase_invoice_lines").insert(validRows.map((row) => ({
+        invoice_id: invoiceId,
+        item_id: row.item_id,
+        godown_id: row.godown_id,
+        qty: n(row.qty),
+        unit_cost: n(row.unit_cost),
+        tax_percent: invoiceType === "Tax Invoice" ? n(row.tax_percent) : 0,
+        description: row.description.trim() || null,
+        line_total: n(row.qty) * n(row.unit_cost),
+        order_book_commitment_id: row.order_book_commitment_id ?? null,
+      })));
       if (lineError) throw lineError;
-      const chargePayload = selectedCharges.map((charge) => ({ charge_key: charge.charge_key, amount: n(chargeAmounts[charge.charge_key]), tax_percent: invoiceType === "Tax Invoice" && charge.tax_applicable ? n(taxPercent) : 0 })).filter((row) => row.amount > 0);
+      const chargePayload = selectedCharges.map((charge) => ({
+        charge_key: charge.charge_key,
+        amount: n(chargeAmounts[charge.charge_key]),
+        tax_percent: invoiceType === "Tax Invoice" && charge.tax_applicable ? n(taxPercent) : 0,
+      })).filter((row) => row.amount > 0);
       const { error: chargeError } = await supabase.rpc("replace_consolidated_purchase_invoice_charges", { p_invoice_id: invoiceId, p_charges: chargePayload });
       if (chargeError) throw chargeError;
-      setSuccess("Consolidated Purchase Invoice saved. Post it when goods are physically received."); reset(); await load();
-    } catch (e: any) { setError(e?.message || "Failed to save Consolidated Purchase Invoice."); }
-    finally { setSaving(false); }
+      setSuccess("Consolidated Purchase Invoice saved. Post it when goods are physically received.");
+      reset(); await load();
+    } catch (e: any) {
+      setError(e?.message || "Failed to save Consolidated Purchase Invoice.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const post = async (invoice: Invoice) => {
     setPostingId(invoice.id); setError(null); setSuccess(null);
-    const { error: postError } = await supabase.rpc("post_consolidated_purchase_invoice", { p_invoice_id: invoice.id }); setPostingId(null);
+    const { error: postError } = await supabase.rpc("post_consolidated_purchase_invoice", { p_invoice_id: invoice.id });
+    setPostingId(null);
     if (postError) { setError(postError.message); return; }
-    setSuccess(`${invoice.invoice_no} posted: stock received. Supplier accounting will be created only when it is added to a Main Purchase Invoice and that Main Invoice is posted.`); await load();
+    setSuccess(`${invoice.invoice_no} posted: stock received. Supplier accounting will be created only when it is added to a Main Purchase Invoice and that Main Invoice is posted.`);
+    await load();
   };
 
   const printCharges = selectedCharges.map((charge) => ({ label: charge.charge_name, amount: n(chargeAmounts[charge.charge_key]) }));
@@ -207,36 +287,71 @@ export default function ConsolidatedPurchaseInvoices() {
   return <div>
     <div className="print:hidden">
       <Link to="/purchase" className="mb-4 inline-block text-sm text-primary-600">← Back to Purchase</Link>
-      <PageHeader title="Consolidated Purchase Invoices / کنسولیڈیٹڈ خریداری" subtitle="Separate receiving documents; add them later to a Main Purchase Invoice" action={<button className="btn-primary" onClick={() => { reset(); setShowForm(true); requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })); }}>+ New Consolidated Purchase</button>} />
+      <PageHeader
+        title="Consolidated Purchase Invoices / کنسولیڈیٹڈ خریداری"
+        subtitle="Separate receiving documents; add them later to a Main Purchase Invoice"
+        action={<button className="btn-primary" onClick={() => { reset(); setShowForm(true); requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })); }}>+ New Consolidated Purchase</button>}
+      />
       {error && <ErrorBanner message={error} />}
       {success && <div className="mb-4 rounded-lg border border-success-200 bg-success-50 px-4 py-3 text-sm text-success-700">{success}</div>}
 
       {showForm && <form ref={formRef} onSubmit={save} className="card mb-6 space-y-5 p-4 md:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">{editingId ? "Open" : "New"} Consolidated Purchase Invoice</h3><div className="flex gap-2">{editingId && <button type="button" className="btn-secondary" data-print-selector="#consolidated-purchase-print-root">Print / PDF</button>}<button type="button" className="btn-secondary" onClick={reset}>Close</button></div></div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="font-semibold">{editingId ? "Open" : "New"} Consolidated Purchase Invoice</h3>
+          <div className="flex flex-wrap gap-2">
+            {editingId && <button type="button" className="btn-secondary" data-print-selector="#consolidated-purchase-print-root">Print / PDF</button>}
+            {!locked && <button type="button" className="btn-secondary" onClick={addLine}>+ Add Line / لائن شامل کریں</button>}
+            {editingId && currentInvoice?.status === "draft" && <button type="button" className="btn-danger" disabled={deleting} onClick={() => void deleteDraft(editingId, invoiceNo)}>{deleting ? "Deleting..." : "Delete Draft / بل حذف کریں"}</button>}
+            <button type="button" className="btn-secondary" onClick={reset}>Close / بند کریں</button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
           <div><label className="label">Invoice No.</label><input className="input cursor-not-allowed bg-slate-50" value={invoiceNo} readOnly tabIndex={-1} /></div>
           <div><label className="label">Supplier / سپلائر</label><select className="input" value={supplierId} disabled={locked} onChange={(e) => setSupplierId(e.target.value)}><option value="">— Select —</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}{supplier.name_urdu ? ` / ${supplier.name_urdu}` : ""}</option>)}</select></div>
           <div><label className="label">Date / تاریخ</label><input className="input" type="date" value={invoiceDate} disabled={locked} onChange={(e) => setInvoiceDate(e.target.value)} /></div>
           <div><label className="label">Type / قسم</label><select className="input" value={invoiceType} disabled={locked} onChange={(e) => handleInvoiceType(e.target.value as "Purchase Invoice" | "Tax Invoice")}><option value="Purchase Invoice">Without Tax / بغیر ٹیکس</option><option value="Tax Invoice">With Tax / ٹیکس کے ساتھ</option></select></div>
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3"><div><label className="label">Reference Name</label><input className="input" value={referenceName} disabled={locked} onChange={(e) => setReferenceName(e.target.value)} /></div><div><label className="label">Reference No.</label><input className="input" value={referenceNo} disabled={locked} onChange={(e) => setReferenceNo(e.target.value)} /></div><div><label className="label">Notes</label><input className="input" value={referenceNotes} disabled={locked} onChange={(e) => setReferenceNotes(e.target.value)} /></div></div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div><label className="label">Reference Name</label><input className="input" value={referenceName} disabled={locked} onChange={(e) => setReferenceName(e.target.value)} /></div>
+          <div><label className="label">Reference No.</label><input className="input" value={referenceNo} disabled={locked} onChange={(e) => setReferenceNo(e.target.value)} /></div>
+          <div><label className="label">Notes</label><input className="input" value={referenceNotes} disabled={locked} onChange={(e) => setReferenceNotes(e.target.value)} /></div>
+        </div>
         {invoiceType === "Tax Invoice" && <div className="max-w-xs"><label className="label">Configured VAT %</label><input className="input cursor-not-allowed bg-slate-50" disabled value={taxPercent} /></div>}
 
-        <div className="overflow-x-auto rounded-lg border border-slate-200"><table className="w-full min-w-[1180px] table-fixed text-sm"><thead className="bg-slate-50"><tr className="border-b border-slate-200"><th className="p-2 text-left">Item / آئٹم</th><th className="p-2 text-left">Description / تفصیل</th><th className="p-2 text-left">Godown / گودام</th><th className="p-2 text-right">Qty / مقدار</th><th className="p-2 text-right">Unit Cost</th>{invoiceType === "Tax Invoice" && <><th className="p-2 text-right">VAT %</th><th className="p-2 text-right">VAT Amount</th></>}<th className="p-2 text-right">Amount / رقم</th><th className="p-2" /></tr></thead><tbody>{rows.map((row, index) => { const base = n(row.qty) * n(row.unit_cost); const tax = invoiceType === "Tax Invoice" ? base * n(row.tax_percent) / 100 : 0; return <tr key={index} className="border-b border-slate-100 align-top"><td className="p-2"><select className="input w-full" disabled={locked} value={row.item_id} onChange={(e) => updateRow(index, "item_id", e.target.value)}><option value="">— Select —</option>{items.map((item) => <option key={item.id} value={item.id}>{item.name}{item.sku ? ` (${item.sku})` : ""}</option>)}</select></td><td className="p-2"><input className="input w-full" disabled={locked} value={row.description} placeholder="Optional description" onChange={(e) => updateRow(index, "description", e.target.value)} /></td><td className="p-2"><select className="input w-full" disabled={locked} value={row.godown_id} onChange={(e) => updateRow(index, "godown_id", e.target.value)}><option value="">— Select —</option>{godowns.map((godown) => <option key={godown.id} value={godown.id}>{godown.name}{godown.name_urdu ? ` / ${godown.name_urdu}` : ""}</option>)}</select></td><td className="p-2"><input className="input w-full text-right" type="number" min="0.001" step="0.001" disabled={locked} value={row.qty} onChange={(e) => updateRow(index, "qty", e.target.value)} /></td><td className="p-2"><input className="input w-full text-right" type="number" min="0" step="0.01" disabled={locked} value={row.unit_cost} onChange={(e) => updateRow(index, "unit_cost", e.target.value)} /></td>{invoiceType === "Tax Invoice" && <><td className="p-2 text-right font-medium">{n(row.tax_percent)}%</td><td className="p-2 text-right whitespace-nowrap">{formatCurrency(tax)}</td></>}<td className="p-2 text-right font-semibold whitespace-nowrap">{formatCurrency(base + tax)}</td><td className="p-2 text-center">{!locked && rows.length > 1 && <button type="button" className="text-xs font-semibold text-error-600" onClick={() => setRows((current) => current.filter((_, i) => i !== index))}>Remove</button>}</td></tr>; })}</tbody></table></div>
+        <div className="overflow-x-auto rounded-lg border border-slate-200">
+          <table className="w-full min-w-[1220px] table-fixed text-sm">
+            <thead className="bg-slate-50"><tr className="border-b border-slate-200"><th className="p-2 text-left">Item / آئٹم</th><th className="p-2 text-left">Description / تفصیل</th><th className="p-2 text-left">Godown / گودام</th><th className="p-2 text-right">Qty / مقدار</th><th className="p-2 text-right">Unit Cost</th>{invoiceType === "Tax Invoice" && <><th className="p-2 text-right">VAT %</th><th className="p-2 text-right">VAT Amount</th></>}<th className="p-2 text-right">Amount / رقم</th><th className="p-2 text-center">Action / کارروائی</th></tr></thead>
+            <tbody>{rows.map((row, index) => {
+              const base = n(row.qty) * n(row.unit_cost);
+              const tax = invoiceType === "Tax Invoice" ? base * n(row.tax_percent) / 100 : 0;
+              return <tr key={`${row.id || "new"}-${index}`} className="border-b border-slate-100 align-top">
+                <td className="p-2"><select className="input w-full" disabled={locked} value={row.item_id} onChange={(e) => updateRow(index, "item_id", e.target.value)}><option value="">— Select —</option>{items.map((item) => <option key={item.id} value={item.id}>{item.name}{item.sku ? ` (${item.sku})` : ""}</option>)}</select>{row.order_book_commitment_id && <div className="mt-1 text-[11px] font-medium text-primary-600">Order Book linked / آرڈر بک لنک</div>}</td>
+                <td className="p-2"><input className="input w-full" disabled={locked} value={row.description} placeholder="Optional description" onChange={(e) => updateRow(index, "description", e.target.value)} /></td>
+                <td className="p-2"><select className="input w-full" disabled={locked} value={row.godown_id} onChange={(e) => updateRow(index, "godown_id", e.target.value)}><option value="">— Select —</option>{godowns.map((godown) => <option key={godown.id} value={godown.id}>{godown.name}{godown.name_urdu ? ` / ${godown.name_urdu}` : ""}</option>)}</select></td>
+                <td className="p-2"><input className="input w-full text-right" type="number" min="0.001" step="0.001" disabled={locked} value={row.qty} onChange={(e) => updateRow(index, "qty", e.target.value)} /></td>
+                <td className="p-2"><input className="input w-full text-right" type="number" min="0" step="0.01" disabled={locked || Boolean(row.order_book_commitment_id)} value={row.unit_cost} onChange={(e) => updateRow(index, "unit_cost", e.target.value)} /></td>
+                {invoiceType === "Tax Invoice" && <><td className="p-2 text-right font-medium">{n(row.tax_percent)}%</td><td className="p-2 text-right whitespace-nowrap">{formatCurrency(tax)}</td></>}
+                <td className="p-2 text-right font-semibold whitespace-nowrap">{formatCurrency(base + tax)}</td>
+                <td className="p-2 text-center">{!locked && <button type="button" className="btn-danger px-3 py-1.5 text-xs" onClick={() => removeLine(index)}>Remove Line / لائن حذف کریں</button>}</td>
+              </tr>;
+            })}</tbody>
+          </table>
+        </div>
 
-        {!locked && <div className="flex flex-wrap gap-2"><button type="button" className="btn-secondary" onClick={() => setRows((current) => [...current, emptyRow(invoiceType === "Tax Invoice" ? taxPercent : "0", godowns[0]?.id ?? "")])}>+ Add Row</button></div>}
+        {!locked && <div className="flex flex-wrap gap-2"><button type="button" className="btn-secondary" onClick={addLine}>+ Add Line / لائن شامل کریں</button></div>}
 
         <div className="rounded-lg border border-slate-200 p-4">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h4 className="font-semibold text-slate-900">Purchase Charges / خریداری چارجز</h4><p className="text-xs text-slate-500">Charge Master se Purchase/Both charges. Taxable charges par fixed VAT apply hota hai.</p></div></div>
+          <div className="mb-3"><h4 className="font-semibold text-slate-900">Purchase Charges / خریداری چارجز</h4><p className="text-xs text-slate-500">Charge Master se Purchase/Both charges. Taxable charges par fixed VAT apply hota hai.</p></div>
           {!locked && <div className="mb-3 flex flex-wrap gap-2"><select className="input max-w-sm" value={chargeToAdd} onChange={(e) => setChargeToAdd(e.target.value)}><option value="">— Select charge to add —</option>{availableCharges.map((charge) => <option key={charge.charge_key} value={charge.charge_key}>{charge.charge_name}{charge.charge_name_urdu ? ` / ${charge.charge_name_urdu}` : ""} · {n(charge.default_rate)} {unitLabel(charge.unit)}</option>)}</select><button type="button" className="btn-secondary" disabled={!chargeToAdd} onClick={addCharge}>+ Add Charge</button></div>}
           {selectedCharges.length === 0 ? <div className="rounded-lg border border-dashed border-slate-200 p-4 text-sm text-slate-400">No purchase charges added.</div> : <div className="space-y-2">{selectedCharges.map((charge) => <div key={charge.charge_key} className="grid grid-cols-1 items-center gap-3 rounded-lg border border-slate-200 p-3 md:grid-cols-[1fr_150px_120px_120px_auto]"><div><div className="font-medium">{charge.charge_name}{charge.charge_name_urdu ? ` / ${charge.charge_name_urdu}` : ""}</div><div className="text-xs text-slate-500">{n(charge.default_rate)} {unitLabel(charge.unit)} · {charge.purchase_treatment === "expense" ? "Expense" : "Landed Cost / Inventory"}</div></div><input className="input text-right" type="number" min="0" step="0.01" disabled={locked || charge.is_fixed} value={chargeAmounts[charge.charge_key] ?? "0"} onChange={(e) => setChargeAmounts((current) => ({ ...current, [charge.charge_key]: e.target.value }))} /><div className="text-right text-sm">{charge.tax_applicable && invoiceType === "Tax Invoice" ? `${n(taxPercent)}% VAT` : "No VAT"}</div><div className="text-right font-semibold">{formatCurrency(n(chargeAmounts[charge.charge_key]))}</div>{!locked && <button type="button" className="text-sm font-semibold text-error-600" onClick={() => { setSelectedChargeKeys((current) => current.filter((key) => key !== charge.charge_key)); setChargeAmounts((current) => ({ ...current, [charge.charge_key]: "0" })); }}>Remove</button>}</div>)}</div>}
         </div>
 
         <div className="flex justify-end"><div className="w-full max-w-md rounded-lg border border-slate-200 bg-slate-50 p-4"><div className="flex justify-between py-1.5"><span>Subtotal / ذیلی مجموعہ</span><span className="font-semibold">{formatCurrency(subtotal)}</span></div><div className="flex justify-between py-1.5"><span>Charges / چارجز</span><span className="font-semibold">{formatCurrency(chargesTotal)}</span></div>{invoiceType === "Tax Invoice" && <><div className="flex justify-between py-1.5"><span>Items VAT / آئٹمز ٹیکس</span><span className="font-semibold">{formatCurrency(itemTax)}</span></div><div className="flex justify-between py-1.5"><span>Charges VAT / چارجز ٹیکس</span><span className="font-semibold">{formatCurrency(chargeTax)}</span></div></>}<div className="mt-2 flex justify-between border-t border-slate-300 pt-3 text-lg font-bold"><span>Invoice Total / کل</span><span>{formatCurrency(total)}</span></div></div></div>
-        {!locked && <div className="flex justify-end border-t border-slate-200 pt-4"><button className="btn-primary" disabled={saving}>{saving ? "Saving..." : "Save Consolidated Purchase"}</button></div>}
+        {!locked && <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4">{editingId && currentInvoice?.status === "draft" && <button type="button" className="btn-danger" disabled={deleting} onClick={() => void deleteDraft(editingId, invoiceNo)}>{deleting ? "Deleting..." : "Delete Draft / بل حذف کریں"}</button>}<button className="btn-primary" disabled={saving}>{saving ? "Saving..." : "Save Consolidated Purchase"}</button></div>}
       </form>}
 
-      <div className="card overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b bg-slate-50"><th className="p-3 text-left">Invoice</th><th className="p-3 text-left">Supplier</th><th className="p-3 text-left">Date</th><th className="p-3 text-left">Type</th><th className="p-3 text-left">Status</th><th className="p-3 text-right">VAT</th><th className="p-3 text-right">Total</th><th className="p-3 text-right">Actions</th></tr></thead><tbody>{loading ? <tr><td colSpan={8} className="p-8 text-center text-slate-400">Loading…</td></tr> : invoices.length === 0 ? <tr><td colSpan={8} className="p-8 text-center text-slate-400">No Consolidated Purchase Invoices yet.</td></tr> : invoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="p-3 font-medium">{invoice.invoice_no}</td><td className="p-3">{invoice.supplier?.name ?? "—"}</td><td className="p-3">{formatDate(invoice.invoice_date)}</td><td className="p-3">{invoice.invoice_type === "Tax Invoice" ? "With Tax" : "Without Tax"}</td><td className="p-3"><StatusBadge status={invoice.status} /></td><td className="p-3 text-right">{invoice.invoice_type === "Tax Invoice" ? formatCurrency(n(invoice.item_tax) + n(invoice.charge_tax)) : "—"}</td><td className="p-3 text-right font-semibold">{formatCurrency(n(invoice.total))}</td><td className="p-3 text-right"><div className="flex justify-end gap-2"><button type="button" className="btn-secondary text-xs" onClick={() => void editInvoice(invoice)}>{editingId === invoice.id && showForm ? "Editing" : "Open / Edit"}</button>{invoice.status === "draft" && <button type="button" className="btn-primary text-xs" disabled={postingId === invoice.id} onClick={() => void post(invoice)}>{postingId === invoice.id ? "Posting..." : "Post / Receive Stock"}</button>}</div></td></tr>)}</tbody></table></div>
+      <div className="card overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b bg-slate-50"><th className="p-3 text-left">Invoice</th><th className="p-3 text-left">Supplier</th><th className="p-3 text-left">Date</th><th className="p-3 text-left">Type</th><th className="p-3 text-left">Status</th><th className="p-3 text-right">VAT</th><th className="p-3 text-right">Total</th><th className="p-3 text-right">Actions</th></tr></thead><tbody>{loading ? <tr><td colSpan={8} className="p-8 text-center text-slate-400">Loading…</td></tr> : invoices.length === 0 ? <tr><td colSpan={8} className="p-8 text-center text-slate-400">No Consolidated Purchase Invoices yet.</td></tr> : invoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="p-3 font-medium">{invoice.invoice_no}</td><td className="p-3">{invoice.supplier?.name ?? "—"}</td><td className="p-3">{formatDate(invoice.invoice_date)}</td><td className="p-3">{invoice.invoice_type === "Tax Invoice" ? "With Tax" : "Without Tax"}</td><td className="p-3"><StatusBadge status={invoice.status} /></td><td className="p-3 text-right">{invoice.invoice_type === "Tax Invoice" ? formatCurrency(n(invoice.item_tax) + n(invoice.charge_tax)) : "—"}</td><td className="p-3 text-right font-semibold">{formatCurrency(n(invoice.total))}</td><td className="p-3 text-right"><div className="flex justify-end gap-2"><button type="button" className="btn-secondary text-xs" onClick={() => void editInvoice(invoice)}>{editingId === invoice.id && showForm ? "Editing" : "Open / Edit"}</button>{invoice.status === "draft" && <button type="button" className="btn-danger text-xs" disabled={deleting} onClick={() => void deleteDraft(invoice.id, invoice.invoice_no)}>Delete</button>}{invoice.status === "draft" && <button type="button" className="btn-primary text-xs" disabled={postingId === invoice.id} onClick={() => void post(invoice)}>{postingId === invoice.id ? "Posting..." : "Post / Receive Stock"}</button>}</div></td></tr>)}</tbody></table></div>
     </div>
 
     {showForm && editingId && <div id="consolidated-purchase-print-root" className="hidden print:block" data-print-root><PrintLayout

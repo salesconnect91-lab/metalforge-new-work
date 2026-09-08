@@ -29,7 +29,7 @@ import ChargeMaster from "@/modules/sales/ChargeMaster";
 import Purchase from "@/modules/purchase/Purchase";
 import Godown from "@/modules/master-data/Godown";
 import Production from "@/modules/production/Production";
-import Cutting from "@/modules/production/Cutting";
+import Cutting from "@/modules/cutting/Cutting";
 import Accounting from "@/modules/accounting/Accounting";
 import CustomerInvoiceStatement from "@/modules/accounting/CustomerInvoiceStatement";
 import Settings from "@/modules/settings/Settings";

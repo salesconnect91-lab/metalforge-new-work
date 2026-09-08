@@ -67,6 +67,7 @@ export default function DraftSalesOperationalBridge() {
   const linkedRef = useRef<LinkedLine[]>([]);
   const chargesRef = useRef<Charge[]>([]);
   const selectedChargeRef = useRef("");
+  const pendingQtyRef = useRef<Map<string, string>>(new Map());
   const saveInFlightRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
@@ -147,7 +148,15 @@ export default function DraftSalesOperationalBridge() {
       ]);
 
       if (!alive) return;
-      if (!lineRes.error) linkedRef.current = (lineRes.data ?? []) as LinkedLine[];
+      if (!lineRes.error) {
+        linkedRef.current = (lineRes.data ?? []) as LinkedLine[];
+        for (const line of linkedRef.current) {
+          const pending = pendingQtyRef.current.get(line.id);
+          if (pending != null && sameNumber(pending, line.qty)) {
+            pendingQtyRef.current.delete(line.id);
+          }
+        }
+      }
       if (!chargeRes.error) chargesRef.current = (chargeRes.data ?? []) as Charge[];
     };
 
@@ -195,6 +204,11 @@ export default function DraftSalesOperationalBridge() {
           controls.godown.disabled = false;
           controls.godown.removeAttribute("aria-readonly");
           controls.godown.title = "Godown can be selected for this partial delivery";
+
+          const pendingQty = pendingQtyRef.current.get(line.id);
+          if (pendingQty != null && controls.qty.value !== pendingQty) {
+            controls.qty.value = pendingQty;
+          }
         }
       }
 
@@ -224,7 +238,8 @@ export default function DraftSalesOperationalBridge() {
       const lineId = row.dataset.naviloObLineId || "";
       if (!lineId) return;
       const controls = rowControls(row);
-      const qty = Number(controls.qty?.value || 0);
+      const qtyText = pendingQtyRef.current.get(lineId) ?? controls.qty?.value ?? "0";
+      const qty = Number(qtyText || 0);
       const godownId = controls.godown?.value || "";
       if (qty <= 0 || !godownId) return;
 
@@ -239,6 +254,7 @@ export default function DraftSalesOperationalBridge() {
         linkedRef.current = linkedRef.current.map((line) =>
           line.id === lineId ? { ...line, qty, godown_id: godownId } : line
         );
+        pendingQtyRef.current.delete(lineId);
       })();
 
       saveInFlightRef.current = task;
@@ -246,6 +262,7 @@ export default function DraftSalesOperationalBridge() {
         await task;
       } catch (error: any) {
         window.alert(error?.message || "Could not save the partial invoice quantity.");
+        pendingQtyRef.current.delete(lineId);
         await refresh();
         decorate();
       } finally {
@@ -299,6 +316,18 @@ export default function DraftSalesOperationalBridge() {
       }
     };
 
+    const onInput = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement) || target.type !== "number") return;
+      const row = target.closest("tr[data-navilo-ob-line-id]");
+      if (!(row instanceof HTMLTableRowElement)) return;
+      const controls = rowControls(row);
+      if (controls.qty !== target) return;
+      const lineId = row.dataset.naviloObLineId || "";
+      if (!lineId) return;
+      pendingQtyRef.current.set(lineId, target.value);
+    };
+
     const onChange = (event: Event) => {
       const target = event.target;
       const section = chargeSection();
@@ -338,6 +367,7 @@ export default function DraftSalesOperationalBridge() {
     void refresh().then(decorate);
     const refreshTimer = window.setInterval(() => void refresh(), 1400);
     const decorateTimer = window.setInterval(decorate, 180);
+    document.addEventListener("input", onInput, true);
     document.addEventListener("change", onChange, true);
     document.addEventListener("click", onClick, true);
 
@@ -345,6 +375,8 @@ export default function DraftSalesOperationalBridge() {
       alive = false;
       window.clearInterval(refreshTimer);
       window.clearInterval(decorateTimer);
+      pendingQtyRef.current.clear();
+      document.removeEventListener("input", onInput, true);
       document.removeEventListener("change", onChange, true);
       document.removeEventListener("click", onClick, true);
     };

@@ -1,0 +1,183 @@
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { useLocation } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
+
+type CommitmentRow = {
+  id: string;
+  item_name: string;
+  agreed_rate: number | string | null;
+  rate_status: string;
+  ordered_qty: number | string;
+  fulfilled_qty: number | string;
+  cancelled_qty: number | string;
+  header?: { order_no?: string | null } | { order_no?: string | null }[] | null;
+};
+
+type Target = {
+  id: string;
+  orderNo: string;
+  itemName: string;
+  currentRate: number;
+  openQty: number;
+};
+
+const num = (value: unknown) => Number(value ?? 0) || 0;
+
+export default function OrderBookRateRevisionBridge() {
+  const { pathname } = useLocation();
+  const active = pathname === "/sales/order-book" || pathname === "/purchase/order-book";
+  const [rows, setRows] = useState<Target[]>([]);
+  const [target, setTarget] = useState<Target | null>(null);
+  const [newRate, setNewRate] = useState("");
+  const [effectiveDate, setEffectiveDate] = useState(new Date().toISOString().slice(0, 10));
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const type = useMemo(() => pathname.startsWith("/purchase/") ? "purchase" : "sales", [pathname]);
+
+  useEffect(() => {
+    if (!active) return;
+    let cancelled = false;
+
+    const load = async () => {
+      const { data, error: loadError } = await supabase
+        .from("order_book_commitments")
+        .select("id,item_name,agreed_rate,rate_status,ordered_qty,fulfilled_qty,cancelled_qty,header:order_book_headers!inner(order_no,order_type)")
+        .eq("header.order_type", type);
+      if (cancelled || loadError) return;
+      const mapped = ((data ?? []) as CommitmentRow[])
+        .map((row) => {
+          const header = Array.isArray(row.header) ? row.header[0] : row.header;
+          const openQty = Math.max(0, num(row.ordered_qty) - num(row.fulfilled_qty) - num(row.cancelled_qty));
+          return {
+            id: row.id,
+            orderNo: String(header?.order_no ?? ""),
+            itemName: String(row.item_name ?? ""),
+            currentRate: num(row.agreed_rate),
+            openQty,
+          };
+        })
+        .filter((row) => row.orderNo && row.itemName && row.openQty > 0);
+      setRows(mapped);
+    };
+
+    void load();
+    const timer = window.setInterval(load, 2500);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [active, type]);
+
+  useEffect(() => {
+    if (!active || rows.length === 0) return;
+    const decorate = () => {
+      const tableRows = Array.from(document.querySelectorAll<HTMLTableRowElement>("table tbody tr"));
+      for (const tr of tableRows) {
+        const text = (tr.textContent || "").replace(/\s+/g, " ");
+        const match = rows.find((row) => text.includes(row.orderNo) && text.includes(row.itemName));
+        if (!match) continue;
+        const cells = tr.querySelectorAll("td");
+        const actionCell = cells[cells.length - 1];
+        if (!(actionCell instanceof HTMLTableCellElement)) continue;
+        if (actionCell.querySelector(`[data-navilo-rate-revise="${match.id}"]`)) continue;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "btn";
+        button.dataset.naviloRateRevise = match.id;
+        button.textContent = match.currentRate > 0 ? "Revise Rate / ریٹ تبدیل کریں" : "Set Rate / ریٹ لگائیں";
+        button.onclick = (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setTarget(match);
+          setNewRate(match.currentRate > 0 ? String(match.currentRate) : "");
+          setEffectiveDate(new Date().toISOString().slice(0, 10));
+          setReason("");
+          setError("");
+        };
+        actionCell.prepend(button);
+      }
+    };
+    decorate();
+    const observer = new MutationObserver(decorate);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [active, rows]);
+
+  if (!active || !target) return null;
+
+  const save = async () => {
+    const rate = Number(newRate);
+    if (!Number.isFinite(rate) || rate <= 0) {
+      setError("New rate must be greater than zero. / نیا ریٹ صفر سے زیادہ ہونا چاہیے۔");
+      return;
+    }
+    if (!reason.trim()) {
+      setError("Reason is required. / وجہ لکھنا ضروری ہے۔");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    const { error: rpcError } = await supabase.rpc("revise_order_book_rate", {
+      p_commitment_id: target.id,
+      p_new_rate: rate,
+      p_effective_date: effectiveDate,
+      p_reason: reason.trim(),
+    });
+    if (rpcError) {
+      setError(rpcError.message);
+      setSaving(false);
+      return;
+    }
+    setSaving(false);
+    setTarget(null);
+    window.location.reload();
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/45 p-4">
+      <div className="w-full max-w-xl rounded-2xl bg-white p-5 shadow-2xl">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Revise Rate / ریٹ تبدیل کریں</h2>
+            <p className="mt-1 text-xs text-slate-500">{target.orderNo} · {target.itemName}</p>
+          </div>
+          <button type="button" className="btn" onClick={() => setTarget(null)}>Close / بند کریں</button>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg border bg-slate-50 p-3 text-sm">
+            <div className="text-xs text-slate-500">Current Rate / موجودہ ریٹ</div>
+            <div className="mt-1 font-bold">Rs {target.currentRate.toLocaleString()}</div>
+          </div>
+          <div className="rounded-lg border bg-slate-50 p-3 text-sm">
+            <div className="text-xs text-slate-500">Open Qty / بقایا مقدار</div>
+            <div className="mt-1 font-bold">{target.openQty.toLocaleString()}</div>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <label className="text-sm font-medium text-slate-700">New Rate / نیا ریٹ
+            <input className="input mt-1 w-full" type="number" step="0.01" value={newRate} onChange={(e) => setNewRate(e.target.value)} />
+          </label>
+          <label className="text-sm font-medium text-slate-700">Effective Date / مؤثر تاریخ
+            <input className="input mt-1 w-full" type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} />
+          </label>
+        </div>
+        <label className="mt-3 block text-sm font-medium text-slate-700">Reason / وجہ
+          <input className="input mt-1 w-full" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Customer revised agreed rate / نیا طے شدہ ریٹ" />
+        </label>
+
+        {error && <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" className="btn" disabled={saving} onClick={() => setTarget(null)}>Cancel / منسوخ</button>
+          <button type="button" className="btn btn-primary" disabled={saving} onClick={() => void save()}>{saving ? "Saving…" : "Save Revision / تبدیلی محفوظ کریں"}</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}

@@ -7,6 +7,10 @@ export interface PrintPartyInfo {
   address?: string | null;
   phone?: string | null;
   email?: string | null;
+  ntn?: string | null;
+  strn?: string | null;
+  cnic?: string | null;
+  taxRegistrationStatus?: string | null;
 }
 
 export interface PrintItemRow {
@@ -19,6 +23,8 @@ export interface PrintItemRow {
   lineTotal: number;
   taxPercent?: number;
   taxAmount?: number;
+  hsCode?: string | null;
+  unit?: string | null;
 }
 
 export interface PrintLayoutProps {
@@ -136,6 +142,7 @@ export default function PrintLayout({
   const itemGridClass = showTaxSummary
     ? "invoice-items-grid invoice-items-grid-tax"
     : "invoice-items-grid invoice-items-grid-no-tax";
+  const partyLabel = voucherTitle.toLowerCase().includes("purchase") ? "Supplier / سپلائر" : "Bill To / گاہک";
 
   const qrPayload = JSON.stringify({
     company: company.name || "",
@@ -179,7 +186,7 @@ export default function PrintLayout({
                 {voucherTitle}{bilingual ? ` / ${urduTitle(voucherTitle)}` : ""}
               </h2>
               <div style={{ marginTop: "4px", textAlign: "right", fontSize: "10px", color: "#64748b" }}>
-                Scan to verify / اسکین کریں
+                Internal Document QR / دستاویزی QR
               </div>
             </div>
             <div style={{ background: "#fff", padding: "3px", lineHeight: 0, breakInside: "avoid" }}>
@@ -221,11 +228,19 @@ export default function PrintLayout({
           </div>
           <div className="print-meta-col">
             <div className="print-party-box">
-              <div className="print-party-label">Bill To / گاہک</div>
+              <div className="print-party-label">{partyLabel}</div>
               <div className="print-party-name">{party.name}</div>
               {party.address && <div className="print-party-addr">{party.address}</div>}
               {party.phone && <div className="print-party-phone">Phone / فون: {party.phone}</div>}
               {party.email && <div className="print-party-email">{party.email}</div>}
+              {showTaxDetails && (party.strn || party.ntn || party.cnic) && (
+                <div className="print-party-tax" style={{ marginTop: "4px", fontSize: "11px", color: "#475569" }}>
+                  {[party.strn ? `STRN: ${party.strn}` : "", party.ntn ? `NTN: ${party.ntn}` : "", party.cnic ? `CNIC: ${party.cnic}` : ""].filter(Boolean).join(" · ")}
+                </div>
+              )}
+              {showTaxDetails && party.taxRegistrationStatus && (
+                <div style={{ marginTop: "2px", fontSize: "10px", color: "#64748b", textTransform: "capitalize" }}>Tax Status: {party.taxRegistrationStatus}</div>
+              )}
             </div>
           </div>
         </div>
@@ -248,6 +263,7 @@ export default function PrintLayout({
               <div className="invoice-item-name">
                 <div>{item.name}</div>
                 {item.description && <div className="invoice-item-description">{item.description}</div>}
+                {(item.hsCode || item.unit) && <div className="invoice-item-description">{[item.hsCode ? `HS: ${item.hsCode}` : "", item.unit ? `UOM: ${item.unit}` : ""].filter(Boolean).join(" · ")}</div>}
               </div>
               <div>{item.grade ?? "—"}</div>
               <div>{item.size ?? "—"}</div>

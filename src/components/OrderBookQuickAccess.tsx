@@ -3,15 +3,14 @@ import { Link, useLocation } from "react-router-dom";
 
 export default function OrderBookQuickAccess(){
  const {pathname}=useLocation();
- const sales=pathname==="/sales"||pathname.startsWith("/sales/");
- const purchase=pathname==="/purchase"||pathname.startsWith("/purchase/");
- const orderBook=pathname.includes("order-book");
- if(!sales&&!purchase)return null;
+ const salesHome=pathname==="/sales";
+ const purchaseHome=pathname==="/purchase";
+ if(!salesHome&&!purchaseHome)return null;
 
- // The Order Book page owns its report/export toolbar. Keeping the old floating
- // report control here caused a visible flash during refresh before ActionHub
- // moved/hid it, so render nothing on Order Book routes.
- if(orderBook)return null;
+ // Quick access belongs on the Sales/Purchase landing pages only.
+ // Transaction, invoice, consolidated and Order Book screens already have their
+ // own native actions; a fixed floating control can cover row/action buttons.
+ const sales=salesHome;
 
  return <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-2 print:hidden">
   <Link to="/settings/order-book" title="Order Book Settings" className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-lg hover:bg-slate-50"><Settings2 className="h-4 w-4"/></Link>

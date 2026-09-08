@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { ErrorBanner, PageHeader, StatusBadge, formatCurrency, formatDate } from "@/components/ui";
@@ -42,6 +42,7 @@ const emptyRow = (tax = "0", godown = ""): Row => ({ item_id: "", description: "
 const n = (value: unknown) => Number(value) || 0;
 
 export default function ConsolidatedPurchaseInvoices() {
+  const formRef = useRef<HTMLFormElement | null>(null);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [godowns, setGodowns] = useState<Godown[]>([]);
@@ -126,7 +127,7 @@ export default function ConsolidatedPurchaseInvoices() {
   };
 
   const editInvoice = async (invoice: Invoice) => {
-    setError(null);
+    setError(null); setSuccess(null);
     const { data: lineData, error: lineError } = await supabase.from("consolidated_purchase_invoice_lines").select("*").eq("invoice_id", invoice.id).order("created_at");
     if (lineError) { setError(lineError.message); return; }
     setEditingId(invoice.id); setInvoiceNo(invoice.invoice_no); setInvoiceDate(invoice.invoice_date); setSupplierId(invoice.supplier_id ?? "");
@@ -134,6 +135,7 @@ export default function ConsolidatedPurchaseInvoices() {
     setInvoiceType(invoice.invoice_type); setTaxPercent(String(invoice.tax_percent ?? taxPercent));
     setRows((lineData ?? []).length ? (lineData ?? []).map((line: any) => ({ item_id: line.item_id, description: line.description ?? "", godown_id: line.godown_id, qty: String(line.qty), unit_cost: String(line.unit_cost), tax_percent: String(line.tax_percent) })) : [emptyRow(taxPercent, godowns[0]?.id ?? "")]);
     setShowForm(true);
+    requestAnimationFrame(() => requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })));
   };
 
   const save = async (event: React.FormEvent) => {
@@ -166,17 +168,16 @@ export default function ConsolidatedPurchaseInvoices() {
     if (postError) { setError(postError.message); return; }
     setSuccess(`${invoice.invoice_no} posted: stock received. Supplier accounting will be created only when it is added to a Main Purchase Invoice and that Main Invoice is posted.`); await load();
   };
-  const printInvoice = () => requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
 
   return <div>
     <div className="print:hidden">
       <Link to="/purchase" className="mb-4 inline-block text-sm text-primary-600">← Back to Purchase</Link>
-      <PageHeader title="Consolidated Purchase Invoices / کنسولیڈیٹڈ خریداری" subtitle="Separate receiving documents; add them later to a Main Purchase Invoice" action={<button className="btn-primary" onClick={() => { reset(); setShowForm(true); }}>+ New Consolidated Purchase</button>} />
+      <PageHeader title="Consolidated Purchase Invoices / کنسولیڈیٹڈ خریداری" subtitle="Separate receiving documents; add them later to a Main Purchase Invoice" action={<button className="btn-primary" onClick={() => { reset(); setShowForm(true); requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })); }}>+ New Consolidated Purchase</button>} />
       {error && <ErrorBanner message={error} />}
       {success && <div className="mb-4 rounded-lg border border-success-200 bg-success-50 px-4 py-3 text-sm text-success-700">{success}</div>}
 
-      {showForm && <form onSubmit={save} className="card mb-6 space-y-5 p-4 md:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">{editingId ? "Open" : "New"} Consolidated Purchase Invoice</h3><div className="flex gap-2">{editingId && <button type="button" className="btn-secondary" onClick={printInvoice}>Print / PDF</button>}<button type="button" className="btn-secondary" onClick={reset}>Close</button></div></div>
+      {showForm && <form ref={formRef} onSubmit={save} className="card mb-6 space-y-5 p-4 md:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">{editingId ? "Open" : "New"} Consolidated Purchase Invoice</h3><div className="flex gap-2">{editingId && <button type="button" className="btn-secondary" data-print-selector="#consolidated-purchase-print-root">Print / PDF</button>}<button type="button" className="btn-secondary" onClick={reset}>Close</button></div></div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
           <div><label className="label">Invoice No.</label><input className="input cursor-not-allowed bg-slate-50" value={invoiceNo} readOnly tabIndex={-1} /></div>
           <div><label className="label">Supplier / سپلائر</label><select className="input" value={supplierId} disabled={locked} onChange={(e) => setSupplierId(e.target.value)}><option value="">— Select —</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}{supplier.name_urdu ? ` / ${supplier.name_urdu}` : ""}</option>)}</select></div>
@@ -212,14 +213,13 @@ export default function ConsolidatedPurchaseInvoices() {
           </div>
         </div>
 
-        <div data-navilo-commercial-slot="purchase_consolidated" />
         {!locked && <div className="flex justify-end border-t border-slate-200 pt-4"><button className="btn-primary" disabled={saving}>{saving ? "Saving..." : "Save Consolidated Purchase"}</button></div>}
       </form>}
 
-      <div className="card overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b bg-slate-50"><th className="p-3 text-left">Invoice</th><th className="p-3 text-left">Supplier</th><th className="p-3 text-left">Date</th><th className="p-3 text-left">Type</th><th className="p-3 text-left">Status</th><th className="p-3 text-right">VAT</th><th className="p-3 text-right">Total</th><th className="p-3 text-right">Actions</th></tr></thead><tbody>{loading ? <tr><td colSpan={8} className="p-8 text-center text-slate-400">Loading…</td></tr> : invoices.length === 0 ? <tr><td colSpan={8} className="p-8 text-center text-slate-400">No Consolidated Purchase Invoices yet.</td></tr> : invoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="p-3 font-medium">{invoice.invoice_no}</td><td className="p-3">{invoice.supplier?.name ?? "—"}</td><td className="p-3">{formatDate(invoice.invoice_date)}</td><td className="p-3">{invoice.invoice_type === "Tax Invoice" ? "With Tax" : "Without Tax"}</td><td className="p-3"><StatusBadge status={invoice.status} /></td><td className="p-3 text-right">{invoice.invoice_type === "Tax Invoice" ? formatCurrency(n(invoice.item_tax) + n(invoice.charge_tax)) : "—"}</td><td className="p-3 text-right font-semibold">{formatCurrency(n(invoice.total))}</td><td className="p-3 text-right"><div className="flex justify-end gap-2"><button className="btn-secondary text-xs" onClick={() => void editInvoice(invoice)}>Open</button>{invoice.status === "draft" && <button className="btn-primary text-xs" disabled={postingId === invoice.id} onClick={() => void post(invoice)}>{postingId === invoice.id ? "Posting..." : "Post / Receive Stock"}</button>}</div></td></tr>)}</tbody></table></div>
+      <div className="card overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b bg-slate-50"><th className="p-3 text-left">Invoice</th><th className="p-3 text-left">Supplier</th><th className="p-3 text-left">Date</th><th className="p-3 text-left">Type</th><th className="p-3 text-left">Status</th><th className="p-3 text-right">VAT</th><th className="p-3 text-right">Total</th><th className="p-3 text-right">Actions</th></tr></thead><tbody>{loading ? <tr><td colSpan={8} className="p-8 text-center text-slate-400">Loading…</td></tr> : invoices.length === 0 ? <tr><td colSpan={8} className="p-8 text-center text-slate-400">No Consolidated Purchase Invoices yet.</td></tr> : invoices.map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="p-3 font-medium">{invoice.invoice_no}</td><td className="p-3">{invoice.supplier?.name ?? "—"}</td><td className="p-3">{formatDate(invoice.invoice_date)}</td><td className="p-3">{invoice.invoice_type === "Tax Invoice" ? "With Tax" : "Without Tax"}</td><td className="p-3"><StatusBadge status={invoice.status} /></td><td className="p-3 text-right">{invoice.invoice_type === "Tax Invoice" ? formatCurrency(n(invoice.item_tax) + n(invoice.charge_tax)) : "—"}</td><td className="p-3 text-right font-semibold">{formatCurrency(n(invoice.total))}</td><td className="p-3 text-right"><div className="flex justify-end gap-2"><button type="button" className="btn-secondary text-xs" onClick={() => void editInvoice(invoice)}>{editingId === invoice.id && showForm ? "Editing" : "Open / Edit"}</button>{invoice.status === "draft" && <button type="button" className="btn-primary text-xs" disabled={postingId === invoice.id} onClick={() => void post(invoice)}>{postingId === invoice.id ? "Posting..." : "Post / Receive Stock"}</button>}</div></td></tr>)}</tbody></table></div>
     </div>
 
-    {showForm && editingId && <div className="hidden print:block"><PrintLayout
+    {showForm && editingId && <div id="consolidated-purchase-print-root" className="hidden print:block" data-print-root><PrintLayout
       voucherTitle={invoiceType === "Tax Invoice" ? "Purchase Tax Invoice" : "Purchase Invoice"}
       voucherNo={invoiceNo} voucherDate={invoiceDate}
       company={{ name: companyPrint.company_name || undefined, address: companyPrint.address || undefined, phone: companyPrint.phone || undefined, email: companyPrint.email || undefined, taxId: [companyPrint.ntn, companyPrint.strn].filter(Boolean).join(" / ") || undefined, logoUrl: companyPrint.logo_url || undefined }}

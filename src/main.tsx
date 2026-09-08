@@ -11,6 +11,7 @@ import "./contrast.css";
 import "./reportPrint.css";
 import "./invoicePrintFix.css";
 import "./accountingStatements.css";
+import "./purchaseConsolidatedFix.css";
 
 installUnifiedDocumentOutput();
 

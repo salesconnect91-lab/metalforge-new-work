@@ -25,5 +25,6 @@ begin
 end
 $function$;
 
-grant execute on function public.post_sales_invoice(uuid) to authenticated;
+revoke all on function public.post_sales_invoice(uuid) from public, anon;
+grant execute on function public.post_sales_invoice(uuid) to authenticated, service_role;
 revoke all on function public.post_sales_invoice_core(uuid) from public, anon, authenticated;

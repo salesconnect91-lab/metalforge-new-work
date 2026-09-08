@@ -1,5 +1,7 @@
+import PurchaseDraftAddControls from "@/components/PurchaseDraftAddControls";
+
 export default function OrderBookActionHub(){
-  // Legacy DOM action consolidation is intentionally disabled.
-  // Order Book actions now render themselves directly and must never be hidden.
-  return null;
+  // Legacy DOM action consolidation stays disabled. This hub only mounts
+  // native React purchase-draft actions that are tenant and draft scoped.
+  return <PurchaseDraftAddControls/>;
 }

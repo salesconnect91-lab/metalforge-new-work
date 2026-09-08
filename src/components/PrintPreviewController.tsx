@@ -172,11 +172,11 @@ export default function PrintPreviewController() {
       if (!(button instanceof HTMLButtonElement)) return;
       const text = (button.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
       if (!/\bprint\b|پرنٹ/.test(text)) return;
-      const invoiceTarget = document.querySelector<HTMLElement>("#printable-invoice-area");
-      if (!invoiceTarget) return;
+      const printableTarget = getPrintableTarget();
+      if (!printableTarget) return;
       event.preventDefault();
       event.stopPropagation();
-      showTargetPreview(invoiceTarget);
+      showTargetPreview(printableTarget);
     };
 
     window.addEventListener("navilo:print-preview", onPreviewEvent as EventListener);

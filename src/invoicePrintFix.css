@@ -20,7 +20,6 @@
   .print-meta-value, .print-party-name { font-size: 7.5pt !important; font-weight: 700 !important; overflow-wrap: anywhere !important; }
   .print-party-addr, .print-party-phone, .print-party-email { font-size: 7pt !important; line-height: 1.25 !important; overflow-wrap: anywhere !important; }
 
-  /* Item list is real div/grid markup, not a table converted by CSS. */
   .invoice-items-wrap { width: 100% !important; margin: 0 0 3mm !important; border-top: 1px solid #cbd5e1 !important; border-left: 1px solid #cbd5e1 !important; break-inside: auto !important; }
   .invoice-items-grid { display: grid !important; width: 100% !important; box-sizing: border-box !important; }
   .invoice-items-grid-tax { grid-template-columns: 5% 27% 9% 8% 9% 13% 12% 17% !important; }
@@ -53,3 +52,50 @@
   .print-document .mt-6, .print-document .mt-5, .print-document .mt-4 { margin-top: 3mm !important; }
   .print-document .p-5 { padding: 2mm !important; }
 }
+
+/* The A4 modal clones the invoice into normal screen media, and the print
+   controller then clones that markup into an iframe. Mirror the invoice
+   geometry in both scoped containers so preview and physical/PDF output are
+   identical instead of collapsing div/grid markup into one text line. */
+.mf-live-preview .print-page,
+.mf-print-output .print-page { width:100%!important;max-width:194mm!important;margin:0 auto!important;padding:0!important;color:#111827!important;font-family:Arial,Helvetica,sans-serif!important;font-size:8.5pt!important;line-height:1.25!important; }
+.mf-live-preview .print-header,
+.mf-print-output .print-header { display:flex!important;justify-content:space-between!important;align-items:flex-start!important;gap:8mm!important;margin:0 0 3mm!important;padding:0 0 3mm!important;border-bottom:1.2px solid #111827!important; }
+.mf-live-preview .print-company,
+.mf-print-output .print-company { display:flex!important;align-items:flex-start!important;gap:3mm!important;min-width:0!important; }
+.mf-live-preview .print-logo,
+.mf-print-output .print-logo { width:auto!important;height:16mm!important;max-width:60mm!important;max-height:16mm!important;object-fit:contain!important;object-position:left top!important; }
+.mf-live-preview .print-company-name,.mf-print-output .print-company-name { margin:0!important;font-size:15pt!important;line-height:1.05!important; }
+.mf-live-preview .print-company-addr,.mf-live-preview .print-company-tax,.mf-print-output .print-company-addr,.mf-print-output .print-company-tax { margin:1mm 0 0!important;font-size:7pt!important;line-height:1.25!important; }
+.mf-live-preview .print-voucher-title-box,.mf-print-output .print-voucher-title-box { flex:0 0 50mm!important;text-align:right!important; }
+.mf-live-preview .print-voucher-title,.mf-print-output .print-voucher-title { margin:0!important;font-size:13pt!important;line-height:1.15!important; }
+.mf-live-preview .print-meta,.mf-print-output .print-meta { display:grid!important;grid-template-columns:1fr 1fr!important;gap:3mm!important;margin:0 0 3mm!important; }
+.mf-live-preview .print-meta-col,.mf-live-preview .print-party-box,.mf-print-output .print-meta-col,.mf-print-output .print-party-box { min-width:0!important;border:1px solid #cbd5e1!important;padding:2mm!important; }
+.mf-live-preview .print-meta-row,.mf-print-output .print-meta-row { display:grid!important;grid-template-columns:38mm minmax(0,1fr)!important;gap:2mm!important;padding:.6mm 0!important; }
+.mf-live-preview .print-meta-label,.mf-live-preview .print-party-label,.mf-print-output .print-meta-label,.mf-print-output .print-party-label { font-size:7pt!important;font-weight:700!important;color:#475569!important; }
+.mf-live-preview .print-meta-value,.mf-live-preview .print-party-name,.mf-print-output .print-meta-value,.mf-print-output .print-party-name { font-size:7.5pt!important;font-weight:700!important;overflow-wrap:anywhere!important; }
+.mf-live-preview .print-party-addr,.mf-live-preview .print-party-phone,.mf-live-preview .print-party-email,.mf-print-output .print-party-addr,.mf-print-output .print-party-phone,.mf-print-output .print-party-email { font-size:7pt!important;line-height:1.25!important;overflow-wrap:anywhere!important; }
+.mf-live-preview .invoice-items-wrap,.mf-print-output .invoice-items-wrap { width:100%!important;margin:0 0 3mm!important;border-top:1px solid #cbd5e1!important;border-left:1px solid #cbd5e1!important; }
+.mf-live-preview .invoice-items-grid,.mf-print-output .invoice-items-grid { display:grid!important;width:100%!important;box-sizing:border-box!important; }
+.mf-live-preview .invoice-items-grid-tax,.mf-print-output .invoice-items-grid-tax { grid-template-columns:5% 27% 9% 8% 9% 13% 12% 17%!important; }
+.mf-live-preview .invoice-items-grid-no-tax,.mf-print-output .invoice-items-grid-no-tax { grid-template-columns:5% 31% 11% 10% 10% 14% 19%!important; }
+.mf-live-preview .invoice-items-head,.mf-print-output .invoice-items-head { background:#eef2f7!important;font-weight:800!important; }
+.mf-live-preview .invoice-items-grid>div,.mf-print-output .invoice-items-grid>div { min-width:0!important;box-sizing:border-box!important;padding:1.7mm 1.2mm!important;border-right:1px solid #cbd5e1!important;border-bottom:1px solid #cbd5e1!important;font-size:7pt!important;line-height:1.2!important;overflow:hidden!important; }
+.mf-live-preview .invoice-num,.mf-print-output .invoice-num { text-align:right!important;white-space:nowrap!important;word-break:keep-all!important;font-variant-numeric:tabular-nums!important; }
+.mf-live-preview .invoice-center,.mf-print-output .invoice-center { text-align:center!important; }
+.mf-live-preview .invoice-item-name,.mf-print-output .invoice-item-name { font-weight:600!important; }
+.mf-live-preview .invoice-item-description,.mf-print-output .invoice-item-description { margin-top:.7mm!important;font-size:6.5pt!important;font-weight:400!important;color:#64748b!important;white-space:normal!important;overflow-wrap:anywhere!important; }
+.mf-live-preview .invoice-amount-col,.mf-print-output .invoice-amount-col { font-weight:700!important;white-space:nowrap!important; }
+.mf-live-preview .invoice-tax-rate,.mf-print-output .invoice-tax-rate { margin-top:.5mm!important;font-size:6.3pt!important;color:#64748b!important; }
+.mf-live-preview .print-totals-section,.mf-print-output .print-totals-section { display:grid!important;grid-template-columns:minmax(0,1fr) 70mm!important;gap:4mm!important;align-items:start!important;margin-top:3mm!important; }
+.mf-live-preview .print-charges-box,.mf-live-preview .print-totals-side,.mf-print-output .print-charges-box,.mf-print-output .print-totals-side { min-width:0!important;border:1px solid #cbd5e1!important;padding:2mm!important; }
+.mf-live-preview .print-charges-title,.mf-print-output .print-charges-title { margin:0 0 1mm!important;font-size:7.5pt!important;font-weight:800!important; }
+.mf-live-preview .print-charge-row,.mf-live-preview .print-total-row,.mf-print-output .print-charge-row,.mf-print-output .print-total-row { display:flex!important;justify-content:space-between!important;gap:3mm!important;padding:.8mm 0!important;border-bottom:1px solid #edf0f4!important;font-size:7.2pt!important; }
+.mf-live-preview .print-grand-total,.mf-print-output .print-grand-total { margin-top:1mm!important;padding-top:1.5mm!important;border-top:1.2px solid #111827!important;border-bottom:0!important;font-size:9pt!important;font-weight:900!important; }
+.mf-live-preview .print-payment-summary,.mf-print-output .print-payment-summary { margin-top:3mm!important;padding:2mm!important; }
+.mf-live-preview .print-signatures,.mf-print-output .print-signatures { display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:8mm!important;margin-top:8mm!important; }
+.mf-live-preview .print-signature-block,.mf-print-output .print-signature-block { text-align:center!important; }
+.mf-live-preview .print-signature-line,.mf-print-output .print-signature-line { border-top:1px solid #64748b!important;margin-bottom:1mm!important; }
+.mf-live-preview .print-signature-label,.mf-print-output .print-signature-label { font-size:7pt!important; }
+.mf-live-preview .print-footer,.mf-print-output .print-footer { margin-top:4mm!important;padding-top:2mm!important;border-top:1px solid #e2e8f0!important;text-align:center!important; }
+.mf-live-preview .print-footer p,.mf-print-output .print-footer p { margin:.5mm 0!important;font-size:6.8pt!important; }

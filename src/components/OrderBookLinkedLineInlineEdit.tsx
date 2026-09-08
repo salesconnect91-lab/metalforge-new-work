@@ -57,7 +57,6 @@ export default function OrderBookLinkedLineInlineEdit() {
   const linkedRef = useRef<LinkedLine[]>([]);
   const documentIdRef = useRef<string>("");
   const kindRef = useRef<"sales_main" | "sales_consolidated">("sales_main");
-  const debounceRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     const mainMatch = pathname.match(/^\/sales\/([0-9a-f-]{36})\/edit$/i);
@@ -149,7 +148,6 @@ export default function OrderBookLinkedLineInlineEdit() {
             (candidate) =>
               !used.has(candidate.id) &&
               String(candidate.item_id || "") === controls.item?.value &&
-              String(candidate.godown_id || "") === controls.godown?.value &&
               sameNum(candidate.unit_price, controls.rate?.value)
           );
         }
@@ -162,93 +160,55 @@ export default function OrderBookLinkedLineInlineEdit() {
         controls.item.title = "Item is locked by the Order Book commitment";
         controls.rate.disabled = true;
         controls.rate.title = "Agreed rate is locked by the Order Book commitment";
-        controls.qty.title = "Order Book Qty — edit here; it saves automatically";
-        controls.godown.title = "Order Book Godown — change here; it saves automatically";
+        controls.qty.title = "Order Book Qty — editable until the draft is saved";
+        controls.godown.title = "Order Book Godown — editable until the draft is saved";
       }
     };
 
-    const saveLinked = async (row: HTMLTableRowElement, qtyValue: string) => {
-      const lineId = row.dataset.naviloObLineId || "";
-      if (!lineId) return;
-      const controls = rowControls(row);
-      const qty = Number(qtyValue);
-      const godownId = controls.godown?.value || "";
-      if (!qty || qty <= 0 || !godownId) return;
-
-      const { error } = await supabase.rpc("update_order_book_linked_line", {
-        p_line_id: lineId,
-        p_qty: qty,
-        p_godown_id: godownId,
-        p_kind: kindRef.current,
-      });
-      if (error) {
-        window.alert(error.message || "Could not update Order Book quantity.");
-        window.location.reload();
-        return;
+    const currentBindings = (): Binding[] => {
+      const table = invoiceItemsTable();
+      if (!table) return [];
+      const result: Binding[] = [];
+      const rows = Array.from(table.querySelectorAll<HTMLTableRowElement>("tbody tr"));
+      for (const row of rows) {
+        const commitmentId = row.dataset.naviloObCommitmentId || "";
+        if (!commitmentId) continue;
+        const controls = rowControls(row);
+        if (!controls.item || !controls.godown || !controls.qty || !controls.rate) continue;
+        const qty = Number(controls.qty.value || 0);
+        const rate = Number(controls.rate.value || 0);
+        if (!qty || qty <= 0 || !controls.godown.value) continue;
+        result.push({
+          commitment_id: commitmentId,
+          item_id: controls.item.value,
+          godown_id: controls.godown.value,
+          qty,
+          rate,
+        });
       }
-
-      linkedRef.current = linkedRef.current.map((line) =>
-        line.id === lineId ? { ...line, qty, godown_id: godownId } : line
-      );
-      window.setTimeout(() => window.location.reload(), 180);
-    };
-
-    const onInput = (event: Event) => {
-      const input = event.target;
-      if (!(input instanceof HTMLInputElement) || input.type !== "number") return;
-      const row = input.closest("tr");
-      if (!(row instanceof HTMLTableRowElement) || !row.dataset.naviloObLineId) return;
-      const controls = rowControls(row);
-      if (controls.qty !== input) return;
-
-      const lineId = row.dataset.naviloObLineId;
-      const oldTimer = debounceRef.current.get(lineId);
-      if (oldTimer) window.clearTimeout(oldTimer);
-      const captured = input.value;
-      const timer = window.setTimeout(() => {
-        debounceRef.current.delete(lineId);
-        void saveLinked(row, captured);
-      }, 550);
-      debounceRef.current.set(lineId, timer);
-    };
-
-    const onChange = (event: Event) => {
-      const select = event.target;
-      if (!(select instanceof HTMLSelectElement)) return;
-      const row = select.closest("tr");
-      if (!(row instanceof HTMLTableRowElement) || !row.dataset.naviloObLineId) return;
-      const controls = rowControls(row);
-      if (controls.godown !== select || !controls.qty) return;
-      void saveLinked(row, controls.qty.value);
+      return result;
     };
 
     const scheduleRestore = () => {
       const documentId = documentIdRef.current;
-      const bindings: Binding[] = linkedRef.current
-        .filter((line) => line.order_book_commitment_id)
-        .map((line) => ({
-          commitment_id: String(line.order_book_commitment_id),
-          item_id: String(line.item_id || ""),
-          godown_id: String(line.godown_id || ""),
-          qty: Number(line.qty || 0),
-          rate: Number(line.unit_price || 0),
-        }));
+      const bindings = currentBindings();
       if (!documentId || bindings.length === 0) return;
 
       const restore = async () => {
         try {
-          await supabase.rpc("restore_order_book_draft_links", {
+          const { error } = await supabase.rpc("restore_order_book_draft_links", {
             p_kind: kindRef.current,
             p_document_id: documentId,
             p_bindings: bindings,
           });
-        } catch {
-          // Native save may still be in progress; later retry handles it.
+          if (error) console.error("Order Book link restore failed", error);
+        } catch (error) {
+          console.error("Order Book link restore failed", error);
         }
       };
-      window.setTimeout(() => void restore(), 650);
-      window.setTimeout(() => void restore(), 1300);
-      window.setTimeout(() => void restore(), 2300);
+      window.setTimeout(() => void restore(), 500);
+      window.setTimeout(() => void restore(), 1100);
+      window.setTimeout(() => void restore(), 2000);
     };
 
     const onClick = (event: MouseEvent) => {
@@ -256,26 +216,22 @@ export default function OrderBookLinkedLineInlineEdit() {
       const button = target?.closest("button");
       if (!(button instanceof HTMLButtonElement)) return;
       const text = (button.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
-      if (text.includes("save draft") || text.includes("save & continue")) {
+      if (
+        text.includes("save draft") ||
+        text.includes("save & continue") ||
+        text.includes("post & approve")
+      ) {
         scheduleRestore();
       }
     };
 
     void refreshLinked().then(decorate);
-    const refreshTimer = window.setInterval(() => void refreshLinked(), 1800);
-    const decorateTimer = window.setInterval(decorate, 250);
-    document.addEventListener("input", onInput, true);
-    document.addEventListener("change", onChange, true);
+    const decorateTimer = window.setInterval(decorate, 300);
     document.addEventListener("click", onClick, true);
 
     return () => {
       alive = false;
-      window.clearInterval(refreshTimer);
       window.clearInterval(decorateTimer);
-      debounceRef.current.forEach((timer) => window.clearTimeout(timer));
-      debounceRef.current.clear();
-      document.removeEventListener("input", onInput, true);
-      document.removeEventListener("change", onChange, true);
       document.removeEventListener("click", onClick, true);
     };
   }, [pathname]);

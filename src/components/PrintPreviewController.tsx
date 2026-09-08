@@ -170,9 +170,11 @@ export default function PrintPreviewController() {
     const onPrintClick = (event: MouseEvent) => {
       const button = (event.target as Element | null)?.closest("button");
       if (!(button instanceof HTMLButtonElement)) return;
+      if (button.closest("[data-navilo-print-preview]")) return;
       const text = (button.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
       if (!/\bprint\b|پرنٹ/.test(text)) return;
-      const printableTarget = getPrintableTarget();
+      const selector = button.dataset.printSelector;
+      const printableTarget = getPrintableTarget(selector);
       if (!printableTarget) return;
       event.preventDefault();
       event.stopPropagation();
@@ -249,7 +251,7 @@ export default function PrintPreviewController() {
   if (!preview) return null;
 
   return (
-    <div className="fixed inset-0 z-[100000] flex flex-col bg-slate-950/80 p-3 backdrop-blur-sm md:p-5" data-no-bilingual>
+    <div className="fixed inset-0 z-[100000] flex flex-col bg-slate-950/80 p-3 backdrop-blur-sm md:p-5" data-no-bilingual data-navilo-print-preview>
       <div className="mx-auto mb-2 flex w-full max-w-6xl items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 shadow-xl">
         <div>
           <div className="text-sm font-extrabold text-slate-900">A4 Print Preview / اے فور پرنٹ پیش منظر</div>

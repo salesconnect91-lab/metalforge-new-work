@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Printer, X } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
@@ -13,21 +14,25 @@ const shortOrderNo=(v:string)=>{const m=v.match(/^(SO|PO)-(?:\d{8}-)?(\d+)$/i);r
 
 export default function OrderBookCustomerReport(){
  const {pathname}=useLocation();
+ const active=pathname==="/sales/order-book";
  const [open,setOpen]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState<string|null>(null),[customerId,setCustomerId]=useState("");
+ const [slot,setSlot]=useState<HTMLElement|null>(null);
  const [customers,setCustomers]=useState<{id:string;name:string;phone?:string|null;address?:string|null}[]>([]),[orders,setOrders]=useState<Header[]>([]),[history,setHistory]=useState<History[]>([]),[fulfillments,setFulfillments]=useState<Fulfillment[]>([]);
  const loadCustomers=useCallback(async()=>{const {data,error}=await supabase.from("customers").select("id,name,phone,address").order("name");if(!error)setCustomers(data||[])},[]);
- useEffect(()=>{if(pathname==="/sales/order-book")void loadCustomers()},[loadCustomers,pathname]);
+ useEffect(()=>{if(active)void loadCustomers()},[active,loadCustomers]);
+ useEffect(()=>{if(!active){setSlot(null);return}const sync=()=>setSlot(document.getElementById("order-book-action-slot"));sync();const mo=new MutationObserver(sync);mo.observe(document.body,{childList:true,subtree:true});return()=>mo.disconnect()},[active]);
  const loadReport=async(id:string)=>{setCustomerId(id);setError(null);if(!id){setOrders([]);setHistory([]);setFulfillments([]);return}setLoading(true);try{const {data:o,error:e}=await supabase.from("order_book_headers").select("id,order_no,order_date,party_id,party_name,salesperson_name,status,remarks,order_book_commitments(id,item_name,ordered_qty,fulfilled_qty,cancelled_qty,uom,rate_status,agreed_rate,effective_at,status,remarks)").eq("order_type","sales").eq("party_id",id).order("order_date",{ascending:false});if(e)throw e;const os=((o||[]) as Header[]).filter(x=>(x.order_book_commitments||[]).length>0);setOrders(os);const ids=os.flatMap(x=>(x.order_book_commitments||[]).map(c=>c.id));if(ids.length){const [hr,fr]=await Promise.all([supabase.from("order_book_rate_history").select("id,commitment_id,old_rate,new_rate,effective_at,reason,created_at").in("commitment_id",ids).order("effective_at",{ascending:true}),supabase.from("order_book_fulfillments").select("id,commitment_id,document_type,document_id,document_no,document_date,qty,rate,created_at").in("commitment_id",ids).order("document_date",{ascending:true})]);if(hr.error)throw hr.error;if(fr.error)throw fr.error;setHistory((hr.data||[]) as History[]);setFulfillments((fr.data||[]) as Fulfillment[])}else{setHistory([]);setFulfillments([])}}catch(e:any){setError(e?.message||"Could not load customer order report.")}finally{setLoading(false)}};
  const customer=customers.find(c=>c.id===customerId);
  const totals=useMemo(()=>orders.flatMap(o=>o.order_book_commitments||[]).reduce((a,c)=>{const ordered=n(c.ordered_qty),fulfilled=n(c.fulfilled_qty),cancelled=n(c.cancelled_qty),balance=Math.max(0,ordered-fulfilled-cancelled);a.ordered+=ordered;a.fulfilled+=fulfilled;a.cancelled+=cancelled;a.balance+=balance;if(c.rate_status==="agreed")a.openValue+=balance*n(c.agreed_rate);return a},{ordered:0,fulfilled:0,cancelled:0,balance:0,openValue:0}),[orders]);
  const orderCount=orders.length, invoiceCount=new Set(fulfillments.map(f=>f.document_id)).size;
  const historyFor=(id:string)=>history.filter(h=>h.commitment_id===id);
  const fulfillmentFor=(id:string)=>fulfillments.filter(f=>f.commitment_id===id);
- if(pathname!=="/sales/order-book"&&!open)return null;
+ if(!active&&!open)return null;
+ const actionButton=!open&&slot?createPortal(<button type="button" className="btn" onClick={()=>setOpen(true)} title="Customer Order Report"><Printer size={15}/> Customer Report / کسٹمر رپورٹ</button>,slot):null;
  return <>
-  {!open&&<button type="button" className="fixed bottom-20 right-5 z-[70] flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-black text-white shadow-xl hover:bg-emerald-700 print:hidden" onClick={()=>setOpen(true)} title="Customer Order Report"><Printer size={15}/> Customer Order Report / کسٹمر آرڈر رپورٹ</button>}
+  {actionButton}
   {open&&<div className="fixed inset-0 z-[140] overflow-auto bg-slate-950/50 p-4"><div className="mx-auto max-w-7xl rounded-2xl bg-white p-5 shadow-xl">
-   <div className="no-print mb-4 flex flex-wrap items-center gap-2"><h2 className="mr-auto text-lg font-black">Customer Order Book Report / کسٹمر آرڈر بک رپورٹ</h2><select className="input min-w-64" value={customerId} onChange={e=>void loadReport(e.target.value)}><option value="">Select customer...</option>{customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><button className="btn btn-primary" disabled={!customerId||loading} onClick={()=>window.print()}><Printer size={15}/> Print</button><button className="btn" onClick={()=>setOpen(false)}><X size={16}/></button></div>
+   <div className="no-print mb-4 flex flex-wrap items-center gap-2"><h2 className="mr-auto text-lg font-black">Customer Order Book Report / کسٹمر آرڈر بک رپورٹ</h2><select className="input min-w-64" value={customerId} onChange={e=>void loadReport(e.target.value)}><option value="">Select customer...</option>{customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><button className="btn btn-primary" disabled={!customerId||loading} onClick={()=>window.print()}><Printer size={15}/> Print / PDF</button><button className="btn" onClick={()=>setOpen(false)}><X size={16}/></button></div>
    {error&&<div className="mb-3 rounded-lg bg-red-50 p-3 text-red-700">{error}</div>}{loading&&<div className="py-10 text-center">Loading...</div>}
    {!loading&&customerId&&<div id="customer-order-book-report" className="print-report text-xs text-slate-900"><div className="mb-4 border-b pb-3 text-center"><h1 className="text-xl font-black">Customer Order Book Statement</h1><div className="text-base font-black">{customer?.name}</div><div>{customer?.phone||""}{customer?.address?` · ${customer.address}`:""}</div><div className="mt-1 text-slate-500">Complete order, delivery/invoice and rate revision history</div></div>
     <div className="mb-4 grid grid-cols-4 gap-2">{[["Total Orders",orderCount],["Total Ordered Qty",totals.ordered],["Delivered / Invoiced Qty",totals.fulfilled],["Outstanding Qty",totals.balance],["Cancelled Qty",totals.cancelled],["Invoices",invoiceCount],["Outstanding Value",money(totals.openValue)],["Customer",customer?.name||"—"]].map(([k,v])=><div key={String(k)} className="rounded-lg border bg-slate-50 p-2.5"><div className="font-bold text-slate-500">{k}</div><div className="mt-0.5 text-base font-black">{String(v)}</div></div>)}</div>

@@ -113,6 +113,53 @@ function wrapCompanyScopedBuilder<T extends object>(builder: T, table: string): 
   });
 }
 
+let chargeMasterCacheSignature = "";
+let chargeMasterCacheData: unknown[] | null = null;
+
+function stabilizeChargeMasterResult(result: any) {
+  if (!result || !Array.isArray(result.data)) return result;
+
+  const signature = JSON.stringify(result.data);
+  if (signature === chargeMasterCacheSignature && chargeMasterCacheData) {
+    return { ...result, data: chargeMasterCacheData };
+  }
+
+  chargeMasterCacheSignature = signature;
+  chargeMasterCacheData = result.data;
+  return result;
+}
+
+function wrapStableChargeMasterBuilder<T extends object>(builder: T): T {
+  return new Proxy(builder, {
+    get(target, property, receiver) {
+      const member = Reflect.get(target, property, receiver);
+
+      if (property === "then" && typeof member === "function") {
+        return (onFulfilled?: (value: any) => any, onRejected?: (reason: any) => any) =>
+          member.call(
+            target,
+            (result: any) => {
+              const stable = stabilizeChargeMasterResult(result);
+              return onFulfilled ? onFulfilled(stable) : stable;
+            },
+            onRejected
+          );
+      }
+
+      if (typeof member === "function") {
+        return (...args: unknown[]) => {
+          const next = member.apply(target, args);
+          return next && typeof next === "object"
+            ? wrapStableChargeMasterBuilder(next)
+            : next;
+        };
+      }
+
+      return member;
+    },
+  });
+}
+
 export const supabase = new Proxy(rawSupabase, {
   get(target, property, receiver) {
     if (property !== "from") {
@@ -122,6 +169,11 @@ export const supabase = new Proxy(rawSupabase, {
 
     return (table: string) => {
       const builder = rawSupabase.from(table);
+
+      if (table === "charge_master") {
+        return wrapStableChargeMasterBuilder(builder);
+      }
+
       return COMPANY_SCOPED_TABLES.has(table)
         ? wrapCompanyScopedBuilder(builder, table)
         : builder;

@@ -1,1 +1,1 @@
-2026-09-09 journal searchable/template standardization retry 2
+2026-09-09 remove journal template buttons and verify searchable accounts

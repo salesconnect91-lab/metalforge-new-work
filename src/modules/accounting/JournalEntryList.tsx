@@ -2559,14 +2559,6 @@ export default function JournalEntryList() {
 
           <button
             type="button"
-            onClick={downloadExcelTemplate}
-            className="px-4 py-2.5 text-sm font-semibold flex items-center gap-2 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 rounded-lg"
-          >
-            ↓ Template (.xlsx)
-          </button>
-
-          <button
-            type="button"
             onClick={() => {
               setError(null);
               setSuccess(null);

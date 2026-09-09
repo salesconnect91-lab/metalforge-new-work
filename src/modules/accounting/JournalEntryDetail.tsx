@@ -2374,21 +2374,6 @@ export default function JournalEntryDetail() {
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      onClick={
-                        handleDownloadTemplate
-                      }
-                      disabled={
-                        importing ||
-                        saving ||
-                        posting
-                      }
-                      className="px-4 py-2 bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-100 text-sm font-semibold rounded-lg"
-                    >
-                      ↓ Download Excel Template
-                    </button>
-
-                    <button
-                      type="button"
                       onClick={() =>
                         fileInputRef.current?.click()
                       }

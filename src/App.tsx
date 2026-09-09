@@ -8,21 +8,14 @@ import ProtectedRoute from "@/auth/ProtectedRoute";
 import Layout from "@/components/Layout";
 import CompanySwitcher from "@/components/CompanySwitcher";
 import BusinessUnitSwitcher from "@/components/BusinessUnitSwitcher";
-import ErpExperienceBridge from "@/components/ErpExperienceBridge";
-import GlobalFormStandards from "@/components/GlobalFormStandards";
 import PrintPreviewController from "@/components/PrintPreviewController";
-import InvoiceCommercialControls from "@/components/InvoiceCommercialControls";
 import DashboardGlobalSearch from "@/components/DashboardGlobalSearch";
 import OrderBookQuickAccess from "@/components/OrderBookQuickAccess";
 import OrderBookExportToolbar from "@/components/OrderBookExportToolbar";
 import SalesOrderBookDraftBridge from "@/components/SalesOrderBookDraftBridge";
 import UnifiedOrderBookInvoicePicker from "@/components/UnifiedOrderBookInvoicePicker";
-import SalesInvoiceEmployeeSalespersonBridge from "@/components/SalesInvoiceEmployeeSalespersonBridge";
-import ReliableInvoiceRowDelete from "@/components/ReliableInvoiceRowDelete";
-import DraftSalesOperationalBridge from "@/components/DraftSalesOperationalBridge";
 import OrderBookRateRevisionBridge from "@/components/OrderBookRateRevisionBridge";
 import OrderBookCustomerReport from "@/components/OrderBookCustomerReport";
-import SalesInvoicePrintStatusBridge from "@/components/SalesInvoicePrintStatusBridge";
 import OrderBookCancelControl from "@/components/OrderBookCancelControl";
 import OrderBookQtyAdjustControl from "@/components/OrderBookQtyAdjustControl";
 import OrderBookActionHub from "@/components/OrderBookActionHub";
@@ -82,20 +75,13 @@ function WorkspaceSwitchers() {
 
 function GlobalExperience() {
   return <>
-    <ErpExperienceBridge />
-    <GlobalFormStandards />
     <PrintPreviewController />
-    <InvoiceCommercialControls />
     <OrderBookQuickAccess />
     <OrderBookExportToolbar />
     <SalesOrderBookDraftBridge />
     <UnifiedOrderBookInvoicePicker />
-    <SalesInvoiceEmployeeSalespersonBridge />
-    <ReliableInvoiceRowDelete />
-    <DraftSalesOperationalBridge />
     <OrderBookRateRevisionBridge />
     <OrderBookCustomerReport />
-    <SalesInvoicePrintStatusBridge />
     <OrderBookCancelControl />
     <OrderBookQtyAdjustControl />
     <OrderBookActionHub />

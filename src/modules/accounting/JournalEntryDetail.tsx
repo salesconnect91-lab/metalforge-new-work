@@ -2504,6 +2504,8 @@ export default function JournalEntryDetail() {
                             <td className="px-3 py-2">
                               <SearchableSelect
                                 className="input bg-white w-full"
+                                searchPlaceholder="Search account by code or name..."
+                                emptyText="No posting account found"
                                 value={
                                   line.accountId
                                 }
@@ -2543,6 +2545,8 @@ export default function JournalEntryDetail() {
                             <td className="px-3 py-2">
                               <SearchableSelect
                                 className="input bg-white w-full"
+                                searchPlaceholder="Search customer or supplier..."
+                                emptyText="No matching customer / supplier"
                                 value={
                                   line.partyType &&
                                   line.partyId

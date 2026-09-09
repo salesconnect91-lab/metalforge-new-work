@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, CheckCircle2, FileCheck2, Plus, Printer, RefreshCw, Save, Search, Trash2, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import PrintLayout from "@/components/PrintLayout";
+import UnifiedOrderBookInvoicePicker from "@/components/UnifiedOrderBookInvoicePicker";
 import { calculateConfiguredChargeAmount, chargeQuantityForUnit } from "@/lib/chargeCalculation";
 import { triggerPrint } from "@/lib/exportUtils";
 import { supabase } from "@/lib/supabase";

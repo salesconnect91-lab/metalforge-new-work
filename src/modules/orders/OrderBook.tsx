@@ -4,6 +4,10 @@ import { Link } from "react-router-dom";
 import { Loader2, Plus, RefreshCw, Save, Search } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { ErrorBanner, PageHeader, formatCurrency } from "@/components/ui";
+import OrderBookExportToolbar from "@/components/OrderBookExportToolbar";
+import OrderBookCustomerReport from "@/components/OrderBookCustomerReport";
+import OrderBookCancelControl from "@/components/OrderBookCancelControl";
+import OrderBookQtyAdjustControl from "@/components/OrderBookQtyAdjustControl";
 
 type OrderType = "sales" | "purchase";
 type Party = { id: string; name: string; name_urdu?: string | null };
@@ -223,11 +227,11 @@ export default function OrderBook({ type }: { type: OrderType }) {
   if (loading) return <div className="flex min-h-[320px] items-center justify-center text-sm text-slate-500"><Loader2 className="mr-2 h-5 w-5 animate-spin" />Loading Order Book…</div>;
 
   return (
-    <div className="space-y-4">
+    <div id="order-book-report" className="professional-report space-y-4">
       <PageHeader
         title={isSales ? "Sales Order Book / سیلز آرڈر بک" : "Purchase Order Book / پرچیز آرڈر بک"}
         subtitle="Commitments only — no stock or accounting entry is posted from Order Book."
-        action={<div className="flex gap-2"><button type="button" className="btn-secondary" onClick={() => void load()}><RefreshCw className="h-4 w-4" />Refresh</button><button type="button" className="btn-primary" onClick={() => setCreateOpen(true)} disabled={!enabled}><Plus className="h-4 w-4" />New Order</button></div>}
+        action={<div className="flex flex-wrap gap-2"><OrderBookExportToolbar tableId="order-book-table" fileBase={isSales ? "sales-order-book" : "purchase-order-book"} /><OrderBookCustomerReport type={type} /><OrderBookQtyAdjustControl type={type} onChanged={() => void load()} /><OrderBookCancelControl type={type} onChanged={() => void load()} /><button type="button" className="btn-secondary" onClick={() => void load()}><RefreshCw className="h-4 w-4" />Refresh</button><button type="button" className="btn-primary" onClick={() => setCreateOpen(true)} disabled={!enabled}><Plus className="h-4 w-4" />New Order</button></div>}
       />
 
       {error && <ErrorBanner message={error} />}
@@ -249,7 +253,7 @@ export default function OrderBook({ type }: { type: OrderType }) {
 
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1050px] text-sm">
+          <table id="order-book-table" className="w-full min-w-[1050px] text-sm">
             <thead className="bg-slate-50"><tr className="border-b border-slate-200"><th className="p-3 text-left">Order</th><th className="p-3 text-left">Date</th><th className="p-3 text-left">Party</th>{isSales && <th className="p-3 text-left">Salesperson</th>}<th className="p-3 text-left">Item</th><th className="p-3 text-right">Ordered</th><th className="p-3 text-right">Fulfilled</th><th className="p-3 text-right">Balance</th><th className="p-3 text-right">Rate</th><th className="p-3 text-left">Status</th><th className="p-3 text-right">Action</th></tr></thead>
             <tbody>
               {visibleOrders.flatMap((order) => order.order_book_commitments.map((commitment, index) => {

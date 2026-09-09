@@ -6,6 +6,7 @@ import { ErrorBanner, StatusBadge, formatCurrency, formatDate } from "@/componen
 import { exportToCSV, exportToExcel } from "@/lib/exportUtils";
 import { chargesFromRecord, getChargeBreakdown } from "@/lib/chargeTypes";
 import PrintLayout from "@/components/PrintLayout";
+import PurchaseDraftAddControls from "@/components/PurchaseDraftAddControls";
 
 type PurchaseOrder = {
   id: string;
@@ -301,6 +302,7 @@ export default function PurchaseInvoiceDetail() {
     <div className="print:hidden flex flex-wrap items-center justify-between gap-3">
       <div><Link to="/purchase" className="text-sm text-primary-600">← Back to Purchase</Link><h1 className="mt-2 text-2xl font-bold text-slate-900">{isTax ? "Purchase Tax Invoice" : "Purchase Invoice"} / خریداری انوائس</h1><div className="mt-1 text-sm text-slate-500">{order.order_no} · Supplier: {order.supplier?.name ?? "—"}</div></div>
       <div className="flex flex-wrap gap-2">
+        {order.status !== "posted" && <PurchaseDraftAddControls orderId={order.id} onChanged={() => void load()} />}
         {order.status !== "posted" && <button className="btn-primary" disabled={posting} onClick={() => void post()}>{posting ? "Posting…" : "Post Purchase Invoice"}</button>}
         <button className="btn-secondary" onClick={() => exportToCSV(`${order.order_no}-purchase.csv`, exportColumns, rowsForExport)}>CSV</button>
         <button className="btn-secondary" onClick={() => exportToExcel(`${order.order_no}-purchase.xls`, exportColumns, rowsForExport)}>Excel</button>

@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/auth/AuthContext";
 
-type PreviewPayload = { html: string; title: string };
-type PreviewEventDetail = { html?: string; title?: string; selector?: string };
+type PrintOrientation = "portrait" | "landscape";
+type PreviewPayload = { html: string; title: string; orientation: PrintOrientation };
+type PreviewEventDetail = { html?: string; title?: string; selector?: string; orientation?: PrintOrientation };
+
+type PrintContext = {
+  companyName: string;
+  businessUnitName: string;
+};
 
 function getPrintableTarget(selector?: string) {
   if (selector) {
@@ -18,7 +25,121 @@ function getPrintableTarget(selector?: string) {
   );
 }
 
-function cleanClone(target: HTMLElement) {
+function getButtonPrintableTarget(button: HTMLButtonElement) {
+  if (button.dataset.printSelector) {
+    const selected = document.querySelector<HTMLElement>(button.dataset.printSelector);
+    if (selected) return selected;
+  }
+
+  let node: HTMLElement | null = button.parentElement;
+  while (node && node.tagName !== "MAIN") {
+    const hasReportContent = Boolean(
+      node.querySelector("table,.data-table,.print-report,.professional-report,[data-print-root]"),
+    );
+    const hasHeading = Boolean(node.querySelector(".page-header,.page-title,h1,h2"));
+    if (hasReportContent && hasHeading) return node;
+    node = node.parentElement;
+  }
+
+  return getPrintableTarget();
+}
+
+function textOf(root: HTMLElement, selector: string) {
+  return root.querySelector<HTMLElement>(selector)?.textContent?.replace(/\s+/g, " ").trim() || "";
+}
+
+function createTextElement(tag: string, className: string, text: string) {
+  const el = document.createElement(tag);
+  el.className = className;
+  el.textContent = text;
+  return el;
+}
+
+function detectOrientation(root: HTMLElement): PrintOrientation {
+  const tables = Array.from(root.querySelectorAll("table"));
+  const widest = tables.reduce((max, table) => {
+    const count = table.querySelectorAll("thead tr:first-child th").length || table.querySelectorAll("tr:first-child > *").length;
+    return Math.max(max, count);
+  }, 0);
+  return widest >= 8 ? "landscape" : "portrait";
+}
+
+function decorateGenericReport(clone: HTMLElement, context: PrintContext) {
+  clone.classList.add("professional-report", "navilo-generic-report");
+  clone.setAttribute("data-navilo-generic-print", "true");
+
+  const reportTitle =
+    textOf(clone, ".page-title") ||
+    textOf(clone, "h1") ||
+    textOf(clone, "h2") ||
+    "ERP Report / ای آر پی رپورٹ";
+
+  const subtitle = textOf(clone, ".page-subtitle");
+  const printedAt = new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date());
+
+  const header = document.createElement("section");
+  header.className = "navilo-report-brand-header";
+
+  const brand = document.createElement("div");
+  brand.className = "navilo-report-brand";
+  const logo = document.createElement("img");
+  logo.src = "/navilo-logo.svg";
+  logo.alt = "NAVILO";
+  logo.className = "navilo-report-logo";
+  brand.appendChild(logo);
+  brand.appendChild(createTextElement("div", "navilo-report-tagline", "Run Your Business as One."));
+
+  const company = document.createElement("div");
+  company.className = "navilo-report-company";
+  company.appendChild(createTextElement("div", "navilo-report-company-name", context.companyName || "NAVILO ERP"));
+  if (context.businessUnitName) {
+    company.appendChild(createTextElement("div", "navilo-report-company-unit", context.businessUnitName));
+  }
+  company.appendChild(createTextElement("div", "navilo-report-company-note", "Professional ERP Report / پیشہ ورانہ ای آر پی رپورٹ"));
+
+  const meta = document.createElement("div");
+  meta.className = "navilo-report-meta";
+  meta.appendChild(createTextElement("div", "navilo-report-meta-title", reportTitle));
+  if (subtitle && subtitle !== reportTitle) meta.appendChild(createTextElement("div", "navilo-report-meta-subtitle", subtitle));
+  meta.appendChild(createTextElement("div", "navilo-report-meta-date", `Report Date: ${printedAt}`));
+
+  header.append(brand, company, meta);
+  clone.prepend(header);
+
+  const footer = document.createElement("footer");
+  footer.className = "navilo-report-footer";
+
+  const signatures = document.createElement("div");
+  signatures.className = "navilo-report-signatures";
+  const prepared = document.createElement("div");
+  prepared.className = "navilo-report-signature";
+  prepared.appendChild(document.createElement("span"));
+  prepared.appendChild(createTextElement("strong", "", "Prepared By / تیار کردہ"));
+  const center = document.createElement("div");
+  center.className = "navilo-report-footer-brand";
+  center.appendChild(createTextElement("strong", "", "NAVILO"));
+  center.appendChild(createTextElement("small", "", "Run Your Business as One."));
+  const authorized = document.createElement("div");
+  authorized.className = "navilo-report-signature";
+  authorized.appendChild(document.createElement("span"));
+  authorized.appendChild(createTextElement("strong", "", "Authorized By / مجاز دستخط"));
+  signatures.append(prepared, center, authorized);
+
+  const bottom = document.createElement("div");
+  bottom.className = "navilo-report-footer-bottom";
+  bottom.appendChild(createTextElement("span", "", "Accurate Data  |  Better Decisions  |  Stronger Business"));
+  bottom.appendChild(createTextElement("span", "navilo-page-number", "NAVILO ERP"));
+  footer.append(signatures, bottom);
+  clone.appendChild(footer);
+}
+
+function cleanClone(target: HTMLElement, context: PrintContext) {
   const clone = target.cloneNode(true) as HTMLElement;
 
   clone
@@ -29,9 +150,12 @@ function cleanClone(target: HTMLElement) {
     const field = node as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
     const value = document.createElement("span");
     value.textContent = field.value || "—";
-    value.style.whiteSpace = "pre-wrap";
+    value.className = "navilo-print-field-value";
     node.replaceWith(value);
   });
+
+  const isDocument = clone.classList.contains("print-document") || Boolean(clone.querySelector(".print-document"));
+  if (!isDocument) decorateGenericReport(clone, context);
 
   Object.assign(clone.style, {
     display: "block",
@@ -40,7 +164,10 @@ function cleanClone(target: HTMLElement) {
     maxWidth: "100%",
   });
 
-  return clone.outerHTML;
+  return {
+    html: clone.outerHTML,
+    orientation: isDocument ? ("portrait" as const) : detectOrientation(clone),
+  };
 }
 
 function collectStyles() {
@@ -57,16 +184,24 @@ img,svg{max-width:100%!important}
 `;
 
 export default function PrintPreviewController() {
+  const { activeCompany, activeBusinessUnit } = useAuth();
   const [preview, setPreview] = useState<PreviewPayload | null>(null);
   const styleMarkup = useMemo(() => collectStyles(), [preview]);
+
+  const context: PrintContext = {
+    companyName: activeCompany?.company_name || "NAVILO ERP",
+    businessUnitName: activeBusinessUnit?.business_unit_name || "",
+  };
 
   useEffect(() => {
     const nativePrint = window.print;
 
-    const showTargetPreview = (target: HTMLElement, title?: string) => {
+    const showTargetPreview = (target: HTMLElement, title?: string, forcedOrientation?: PrintOrientation) => {
+      const cleaned = cleanClone(target, context);
       setPreview({
-        html: cleanClone(target),
+        html: cleaned.html,
         title: title || document.title || "NAVILO",
+        orientation: forcedOrientation || cleaned.orientation,
       });
     };
 
@@ -85,12 +220,13 @@ export default function PrintPreviewController() {
         setPreview({
           html: detail.html,
           title: detail.title || document.title || "NAVILO",
+          orientation: detail.orientation || "portrait",
         });
         return;
       }
 
       const target = getPrintableTarget(detail.selector);
-      if (target) showTargetPreview(target, detail.title);
+      if (target) showTargetPreview(target, detail.title, detail.orientation);
     };
 
     const onPrintClick = (event: MouseEvent) => {
@@ -106,7 +242,7 @@ export default function PrintPreviewController() {
 
       if (!/\bprint\b|پرنٹ/.test(label)) return;
 
-      const target = getPrintableTarget(button.dataset.printSelector);
+      const target = getButtonPrintableTarget(button);
       if (!target) return;
 
       event.preventDefault();
@@ -126,7 +262,7 @@ export default function PrintPreviewController() {
       document.removeEventListener("click", onPrintClick, true);
       if (window.print === openPreview) window.print = nativePrint;
     };
-  }, []);
+  }, [context.companyName, context.businessUnitName]);
 
   const printNow = () => {
     if (!preview) return;
@@ -149,9 +285,13 @@ export default function PrintPreviewController() {
       return;
     }
 
+    const pageRule = preview.orientation === "landscape"
+      ? "@page{size:A4 landscape;margin:10mm}"
+      : "@page{size:A4 portrait;margin:10mm}";
+
     doc.open();
     doc.write(
-      `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="${document.baseURI}"><title>${preview.title}</title>${styleMarkup}<style>${FRAME_CSS}</style></head><body><div class="navilo-print-output">${preview.html}</div></body></html>`,
+      `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="${document.baseURI}"><title>${preview.title}</title>${styleMarkup}<style>${FRAME_CSS}${pageRule}</style></head><body><div class="navilo-print-output navilo-${preview.orientation}">${preview.html}</div></body></html>`,
     );
     doc.close();
 
@@ -185,19 +325,22 @@ export default function PrintPreviewController() {
 
   if (!preview) return null;
 
+  const previewWidth = preview.orientation === "landscape" ? "297mm" : "210mm";
+  const previewMinHeight = preview.orientation === "landscape" ? "210mm" : "297mm";
+
   return (
     <div
       className="fixed inset-0 z-[100000] flex flex-col bg-slate-950/80 p-3 backdrop-blur-sm md:p-5"
       data-no-bilingual
       data-navilo-print-preview
     >
-      <div className="mx-auto mb-2 flex w-full max-w-6xl items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 shadow-xl">
+      <div className="mx-auto mb-2 flex w-full max-w-7xl items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-xl">
         <div>
           <div className="text-sm font-extrabold text-slate-900">
-            A4 Print Preview / اے فور پرنٹ پیش منظر
+            Professional Print Preview / پروفیشنل پرنٹ پیش منظر
           </div>
           <div className="mt-0.5 text-[11px] text-slate-500">
-            NAVILO document standard · A4 · 10mm margins · same layout for preview, print and PDF
+            NAVILO standard · A4 {preview.orientation} · same layout for preview, printer and Save as PDF
           </div>
         </div>
         <div className="flex gap-2">
@@ -210,18 +353,18 @@ export default function PrintPreviewController() {
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-6xl flex-1 overflow-auto rounded-lg bg-slate-300 p-3 shadow-xl md:p-5">
+      <div className="mx-auto w-full max-w-7xl flex-1 overflow-auto rounded-xl bg-slate-300 p-3 shadow-xl md:p-5">
         <div
           className="mx-auto bg-white shadow-lg"
           style={{
-            width: "210mm",
-            minHeight: "297mm",
+            width: previewWidth,
+            minHeight: previewMinHeight,
             padding: "10mm",
             display: "block",
             visibility: "visible",
           }}
         >
-          <div className="navilo-live-preview" dangerouslySetInnerHTML={{ __html: preview.html }} />
+          <div className={`navilo-live-preview navilo-${preview.orientation}`} dangerouslySetInnerHTML={{ __html: preview.html }} />
         </div>
       </div>
     </div>

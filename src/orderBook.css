@@ -8,7 +8,7 @@
 
 .professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table {
   width: 100% !important;
-  min-width: 1120px !important;
+  min-width: 1050px !important;
   table-layout: fixed !important;
 }
 
@@ -19,11 +19,11 @@
 }
 
 .professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table th:nth-child(1),
-.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:nth-child(1) { width: 25%; }
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:nth-child(1) { width: 27%; }
 .professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table th:nth-child(2),
 .professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:nth-child(2) { width: 10%; }
 .professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table th:nth-child(3),
-.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:nth-child(3) { width: 8%; }
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:nth-child(3) { width: 9%; }
 .professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table th:nth-child(4),
 .professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:nth-child(4) { width: 12%; }
 .professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table th:nth-child(5),
@@ -31,24 +31,45 @@
 .professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table th:nth-child(6),
 .professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:nth-child(6) { width: 13%; }
 .professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table th:nth-child(7),
-.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:nth-child(7) { width: 16%; }
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:nth-child(7) { width: 14%; }
 .professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table th:nth-child(8),
-.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:nth-child(8) { width: 6%; }
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:nth-child(8) { width: 5%; }
 
-.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:first-child .input {
-  min-width: 220px !important;
-  white-space: nowrap !important;
+/* SearchableSelect wraps its button in a div. Make that wrapper fill the whole Item cell.
+   This is the part that was still leaving the Item selector visually narrow. */
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:first-child > div {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
 }
 
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:first-child .input,
 .professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:first-child button,
 .professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:first-child select {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
 }
 
+/* Prevent Qty/UOM/Rate/Date inputs from forcing a horizontal overflow on desktop. */
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:not(:first-child) .input,
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:not(:first-child) input,
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:not(:first-child) select,
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:not(:first-child) button {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
 @media (max-width: 1180px) {
   .professional-report > .fixed.inset-0.z-50 > div.max-w-5xl {
     width: calc(100vw - 20px) !important;
+  }
+
+  .professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table {
+    min-width: 1050px !important;
   }
 }

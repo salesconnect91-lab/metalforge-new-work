@@ -12,7 +12,6 @@ import "./reportPrint.css";
 import "./naviloDocumentPrint.css";
 import "./accountingStatements.css";
 import "./purchaseConsolidatedFix.css";
-import "./consolidatedPurchasePrintPreview.css";
 
 installUnifiedDocumentOutput();
 

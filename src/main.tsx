@@ -8,6 +8,7 @@ import "./index.css";
 import "./contrast.css";
 import "./reportPrint.css";
 import "./naviloDocumentPrint.css";
+import "./naviloEnterprisePrint.css";
 import "./accountingStatements.css";
 
 createRoot(document.getElementById("root")!).render(

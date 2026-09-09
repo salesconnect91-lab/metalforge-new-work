@@ -18,7 +18,7 @@ export function exportToExcel(filename: string, columns: ExportColumn[], rows: R
   ];
 
   const worksheet = XLSX.utils.aoa_to_sheet(data);
-  worksheet["!cols"] = columns.map((column, index) => {
+  worksheet["!cols"] = columns.map((_column, index) => {
     const values = data.map((row) => String(row[index] ?? ""));
     const width = Math.min(40, Math.max(12, ...values.map((value) => value.length + 2)));
     return { wch: width };

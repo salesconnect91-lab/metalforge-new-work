@@ -45,6 +45,7 @@ Deno.serve(async (request) => {
       const email = String(body.email || "").trim().toLowerCase();
       const companyId = String(body.company_id || "");
       const businessUnitId = body.business_unit_id ? String(body.business_unit_id) : null;
+      const operatingLocationId = body.operating_location_id ? String(body.operating_location_id) : null;
       const role = String(body.role || "viewer");
       const password = String(body.password || "");
       const fullName = String(body.full_name || "").trim();
@@ -61,6 +62,19 @@ Deno.serve(async (request) => {
           .eq("is_active", true)
           .maybeSingle();
         if (!businessUnit) return json({ error: "Invalid business workspace" }, 400);
+      }
+
+      if (operatingLocationId) {
+        if (!businessUnitId) return json({ error: "A branch login requires a business workspace" }, 400);
+        const { data: location } = await admin
+          .from("operating_locations")
+          .select("id,business_unit_id")
+          .eq("id", operatingLocationId)
+          .eq("company_id", companyId)
+          .eq("business_unit_id", businessUnitId)
+          .eq("is_active", true)
+          .maybeSingle();
+        if (!location) return json({ error: "Invalid or inactive branch for this business workspace" }, 400);
       }
 
       const [{ data: company }, { count }] = await Promise.all([
@@ -108,6 +122,8 @@ Deno.serve(async (request) => {
           platform_role: "user",
           last_company_id: companyId,
           last_business_unit_id: businessUnitId,
+          locked_business_unit_id: businessUnitId,
+          locked_operating_location_id: operatingLocationId,
           updated_at: new Date().toISOString(),
         }, { onConflict: "id" });
         if (result.error) throw new Error(`Profile: ${result.error.message}`);
@@ -133,7 +149,19 @@ Deno.serve(async (request) => {
           if (result.error) throw new Error(`Business access: ${result.error.message}`);
         }
 
-        return json({ user: { id: userId, email, company_id: companyId, business_unit_id: businessUnitId } });
+        if (operatingLocationId && businessUnitId) {
+          result = await admin.from("operating_location_memberships").upsert({
+            company_id: companyId,
+            business_unit_id: businessUnitId,
+            operating_location_id: operatingLocationId,
+            user_id: userId,
+            role,
+            is_active: true,
+          }, { onConflict: "operating_location_id,user_id" });
+          if (result.error) throw new Error(`Branch access: ${result.error.message}`);
+        }
+
+        return json({ user: { id: userId, email, company_id: companyId, business_unit_id: businessUnitId, operating_location_id: operatingLocationId } });
       } catch (error) {
         await admin.auth.admin.deleteUser(userId);
         return json({ error: error instanceof Error ? error.message : "User setup failed" }, 500);
@@ -206,11 +234,7 @@ Deno.serve(async (request) => {
     if (action === "set_user_role") {
       const { error } = await admin
         .from("company_memberships")
-        .update({
-          role: String(body.role),
-          permissions: body.permissions || {},
-          updated_at: new Date().toISOString(),
-        })
+        .update({ role: String(body.role), permissions: body.permissions || {}, updated_at: new Date().toISOString() })
         .eq("company_id", String(body.company_id))
         .eq("user_id", String(body.user_id));
       if (error) throw error;
@@ -224,10 +248,7 @@ Deno.serve(async (request) => {
       if (String(body.confirmation) !== `DELETE ${company.code}` || body.acknowledge !== true) {
         return json({ error: `Type DELETE ${company.code} exactly and acknowledge` }, 400);
       }
-      const { data, error } = await admin.rpc("platform_delete_company", {
-        p_company_id: companyId,
-        p_actor_id: actor.id,
-      });
+      const { data, error } = await admin.rpc("platform_delete_company", { p_company_id: companyId, p_actor_id: actor.id });
       if (error) throw error;
       return json(data);
     }

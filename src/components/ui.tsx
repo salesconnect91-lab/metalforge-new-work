@@ -89,19 +89,21 @@ export function Modal({
   title,
   onClose,
   children,
+  panelClassName = "",
 }: {
   open: boolean;
   title: string;
   onClose: () => void;
   children: React.ReactNode;
+  panelClassName?: string;
 }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="card p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3" onClick={onClose}>
+      <div className={`card p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto ${panelClassName}`} onClick={(e) => e.stopPropagation()}>
+        <div className="sticky top-0 z-10 -mx-1 mb-4 flex items-center justify-between bg-white/95 px-1 pb-2 backdrop-blur">
           <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600" aria-label="Close modal">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />

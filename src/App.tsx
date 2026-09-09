@@ -10,15 +10,6 @@ import CompanySwitcher from "@/components/CompanySwitcher";
 import BusinessUnitSwitcher from "@/components/BusinessUnitSwitcher";
 import PrintPreviewController from "@/components/PrintPreviewController";
 import DashboardGlobalSearch from "@/components/DashboardGlobalSearch";
-import OrderBookQuickAccess from "@/components/OrderBookQuickAccess";
-import OrderBookExportToolbar from "@/components/OrderBookExportToolbar";
-import SalesOrderBookDraftBridge from "@/components/SalesOrderBookDraftBridge";
-import UnifiedOrderBookInvoicePicker from "@/components/UnifiedOrderBookInvoicePicker";
-import OrderBookRateRevisionBridge from "@/components/OrderBookRateRevisionBridge";
-import OrderBookCustomerReport from "@/components/OrderBookCustomerReport";
-import OrderBookCancelControl from "@/components/OrderBookCancelControl";
-import OrderBookQtyAdjustControl from "@/components/OrderBookQtyAdjustControl";
-import OrderBookActionHub from "@/components/OrderBookActionHub";
 import Dashboard from "@/modules/Dashboard";
 import MasterData from "@/modules/master-data/MasterData";
 import SalesInvoiceList from "@/modules/sales/SalesInvoiceList";
@@ -74,18 +65,7 @@ function WorkspaceSwitchers() {
 }
 
 function GlobalExperience() {
-  return <>
-    <PrintPreviewController />
-    <OrderBookQuickAccess />
-    <OrderBookExportToolbar />
-    <SalesOrderBookDraftBridge />
-    <UnifiedOrderBookInvoicePicker />
-    <OrderBookRateRevisionBridge />
-    <OrderBookCustomerReport />
-    <OrderBookCancelControl />
-    <OrderBookQtyAdjustControl />
-    <OrderBookActionHub />
-  </>;
+  return <PrintPreviewController />;
 }
 
 function DashboardHome() {

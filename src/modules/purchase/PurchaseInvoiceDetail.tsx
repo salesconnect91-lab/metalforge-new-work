@@ -3,9 +3,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { ErrorBanner, StatusBadge, formatCurrency, formatDate } from "@/components/ui";
-import { exportToCSV, exportToExcel } from "@/lib/exportUtils";
-import { chargesFromRecord, getChargeBreakdown } from "@/lib/chargeTypes";
+import { exportToCSV, exportToExcel, triggerPrint } from "@/lib/exportUtils";
 import PrintLayout from "@/components/PrintLayout";
+import PurchaseDraftAddControls from "@/components/PurchaseDraftAddControls";
 
 type PurchaseOrder = {
   id: string;
@@ -70,6 +70,7 @@ type Consolidated = {
   invoice_type?: "Purchase Invoice" | "Tax Invoice" | null;
 };
 type PaymentAccount = { account_id: string; mapping_key: "cash" | "bank"; label: string };
+type PurchaseChargeRow = { charge_key:string; charge_name:string; amount:number|string; tax_percent?:number|string|null; quantity?:number|string|null; rate?:number|string|null };
 type CompanyPrintSettings = {
   company_name?: string | null;
   address?: string | null;
@@ -121,6 +122,7 @@ export default function PurchaseInvoiceDetail() {
   const [items, setItems] = useState<Option[]>([]);
   const [godowns, setGodowns] = useState<Godown[]>([]);
   const [consolidated, setConsolidated] = useState<Consolidated[]>([]);
+  const [purchaseCharges, setPurchaseCharges] = useState<PurchaseChargeRow[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [newLine, setNewLine] = useState({ item_id: "", description: "", godown_id: "", qty: "1", unit_cost: "0" });
   const [sourceDocument, setSourceDocument] = useState({ supplier_invoice_no: "", supplier_invoice_date: "", reference_no: "", reference_notes: "" });
@@ -163,18 +165,20 @@ export default function PurchaseInvoiceDetail() {
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true); setError(null);
-    const [orderRes, linesRes, itemsRes, godownRes] = await Promise.all([
+    const [orderRes, linesRes, itemsRes, godownRes, chargesRes] = await Promise.all([
       supabase.from("purchase_orders").select("*, supplier:suppliers(id,name,name_urdu,phone,address,ntn,strn,cnic,tax_registration_status)").eq("id", id).maybeSingle(),
       supabase.from("purchase_order_lines").select("*, item:items(id,name,name_urdu,sku,hs_code,unit), godown:godowns(id,name,name_urdu)").eq("order_id", id).order("created_at"),
       supabase.from("items").select("id,name,name_urdu,sku,cost,hs_code,unit").order("name"),
       supabase.from("godowns").select("id,name,name_urdu").order("name"),
+      supabase.from("purchase_order_charges").select("charge_key,charge_name,amount,tax_percent,quantity,rate").eq("order_id", id).order("created_at"),
     ]);
-    const firstError = orderRes.error || linesRes.error || itemsRes.error || godownRes.error;
+    const firstError = orderRes.error || linesRes.error || itemsRes.error || godownRes.error || chargesRes.error;
     if (firstError) { setError(firstError.message); setLoading(false); return; }
     const loadedOrder = orderRes.data as PurchaseOrder | null;
     setOrder(loadedOrder);
     if (loadedOrder) setSourceDocument({ supplier_invoice_no: loadedOrder.supplier_invoice_no ?? "", supplier_invoice_date: loadedOrder.supplier_invoice_date ?? "", reference_no: loadedOrder.reference_no ?? "", reference_notes: loadedOrder.reference_notes ?? "" });
     setLines((linesRes.data ?? []) as Line[]);
+    setPurchaseCharges((chargesRes.data ?? []) as PurchaseChargeRow[]);
     setItems((itemsRes.data ?? []) as Option[]);
     const loadedGodowns = (godownRes.data ?? []) as Godown[];
     setGodowns(loadedGodowns);
@@ -198,13 +202,13 @@ export default function PurchaseInvoiceDetail() {
   const isTax = invoiceType === "Tax Invoice";
   const directLines = lines.filter((line) => !line.source_consolidated_purchase_invoice_id);
   const linkedLines = lines.filter((line) => Boolean(line.source_consolidated_purchase_invoice_id));
-  const charges = order ? getChargeBreakdown(chargesFromRecord(order as unknown as Record<string, unknown>), "purchase") : [];
+  const charges = purchaseCharges;
   const chargeTotal = charges.reduce((sum, charge) => sum + n(charge.amount), 0);
   const directBase = directLines.reduce((sum, line) => sum + n(line.line_total), 0);
   const linkedBase = linkedLines.reduce((sum, line) => sum + n(line.line_total), 0);
   const directVat = isTax ? directLines.reduce((sum, line) => sum + n(line.line_total) * n(line.tax_percent) / 100, 0) : 0;
   const linkedVat = isTax ? linkedLines.reduce((sum, line) => sum + n(line.line_total) * n(line.tax_percent) / 100, 0) : 0;
-  const chargeVat = isTax ? chargeTotal * n(order?.tax_percent) / 100 : 0;
+  const chargeVat = isTax ? charges.reduce((sum, charge) => sum + n(charge.amount) * n(charge.tax_percent ?? order?.tax_percent) / 100, 0) : 0;
   const totalVat = directVat + linkedVat + chargeVat;
   const computedTotal = directBase + linkedBase + totalVat + chargeTotal;
   const outstanding = n(order?.outstanding_amount ?? (order?.status === "posted" ? order?.total : 0));
@@ -292,7 +296,7 @@ export default function PurchaseInvoiceDetail() {
     { key: "base_amount", label: "Base Amount" }, { key: "amount_incl_vat", label: "Amount Incl VAT" },
   ];
 
-  const printInvoice = async () => { await loadPrintSettings(); requestAnimationFrame(() => requestAnimationFrame(() => window.print())); };
+  const printInvoice = async () => { await loadPrintSettings(); triggerPrint(".print-document"); };
 
   if (loading) return <div className="card p-12 text-center text-slate-400">Loading Purchase Invoice…</div>;
   if (!order) return <ErrorBanner message="Purchase Invoice not found." />;
@@ -301,9 +305,10 @@ export default function PurchaseInvoiceDetail() {
     <div className="print:hidden flex flex-wrap items-center justify-between gap-3">
       <div><Link to="/purchase" className="text-sm text-primary-600">← Back to Purchase</Link><h1 className="mt-2 text-2xl font-bold text-slate-900">{isTax ? "Purchase Tax Invoice" : "Purchase Invoice"} / خریداری انوائس</h1><div className="mt-1 text-sm text-slate-500">{order.order_no} · Supplier: {order.supplier?.name ?? "—"}</div></div>
       <div className="flex flex-wrap gap-2">
+        {order.status !== "posted" && <PurchaseDraftAddControls orderId={order.id} onChanged={() => void load()} />}
         {order.status !== "posted" && <button className="btn-primary" disabled={posting} onClick={() => void post()}>{posting ? "Posting…" : "Post Purchase Invoice"}</button>}
         <button className="btn-secondary" onClick={() => exportToCSV(`${order.order_no}-purchase.csv`, exportColumns, rowsForExport)}>CSV</button>
-        <button className="btn-secondary" onClick={() => exportToExcel(`${order.order_no}-purchase.xls`, exportColumns, rowsForExport)}>Excel</button>
+        <button className="btn-secondary" onClick={() => exportToExcel(`${order.order_no}-purchase.xlsx`, exportColumns, rowsForExport)}>Excel</button>
         <button className="btn-secondary" onClick={() => void printInvoice()}>Print / PDF</button>
         {order.status !== "posted" && <button className="btn-danger" onClick={async () => { if (!window.confirm("Delete this draft Purchase Invoice?")) return; const { error: delError } = await supabase.from("purchase_orders").delete().eq("id", order.id); if (delError) setError(delError.message); else navigate("/purchase"); }}>Delete</button>}
       </div>
@@ -351,7 +356,7 @@ export default function PurchaseInvoiceDetail() {
         {linkedLines.length > 0 && <div className="mt-5 rounded-lg bg-slate-50 p-4 text-sm"><div className="font-semibold text-slate-700">Linked consolidated item lines: {linkedLines.length}</div><div className="mt-1 text-xs text-slate-500">Ye accounting total mein included hain, lekin Main posting par inka stock movement repeat nahi hota.</div></div>}
       </div>
 
-      <div className="card mt-5 p-6"><h2 className="mb-4 font-bold text-slate-900">Invoice Summary</h2><div className="ml-auto max-w-md space-y-2 text-sm"><div className="flex justify-between"><span>Direct Items</span><span>{formatCurrency(directBase)}</span></div><div className="flex justify-between"><span>Linked Consolidated Items</span><span>{formatCurrency(linkedBase)}</span></div>{charges.map((charge) => <div key={charge.label} className="flex justify-between text-slate-600"><span>{charge.label}</span><span>{formatCurrency(charge.amount)}</span></div>)}<div className="flex justify-between"><span>Charges Total</span><span>{formatCurrency(chargeTotal)}</span></div>{isTax && <><div className="flex justify-between"><span>Items VAT</span><span>{formatCurrency(directVat + linkedVat)}</span></div><div className="flex justify-between"><span>Charges VAT</span><span>{formatCurrency(chargeVat)}</span></div><div className="flex justify-between font-semibold"><span>Total VAT</span><span>{formatCurrency(totalVat)}</span></div></>}<div className="flex justify-between border-t pt-3 text-lg font-bold"><span>Grand Total</span><span>{formatCurrency(n(order.total) || computedTotal)}</span></div><div className="flex justify-between text-slate-600"><span>Paid</span><span>{formatCurrency(n(order.paid_amount))}</span></div><div className="flex justify-between font-semibold"><span>Outstanding</span><span>{formatCurrency(outstanding)}</span></div></div></div>
+      <div className="card mt-5 p-6"><h2 className="mb-4 font-bold text-slate-900">Invoice Summary</h2><div className="ml-auto max-w-md space-y-2 text-sm"><div className="flex justify-between"><span>Direct Items</span><span>{formatCurrency(directBase)}</span></div><div className="flex justify-between"><span>Linked Consolidated Items</span><span>{formatCurrency(linkedBase)}</span></div>{charges.map((charge) => <div key={charge.charge_key} className="flex justify-between text-slate-600"><span>{charge.charge_name}</span><span>{formatCurrency(n(charge.amount))}</span></div>)}<div className="flex justify-between"><span>Charges Total</span><span>{formatCurrency(chargeTotal)}</span></div>{isTax && <><div className="flex justify-between"><span>Items VAT</span><span>{formatCurrency(directVat + linkedVat)}</span></div><div className="flex justify-between"><span>Charges VAT</span><span>{formatCurrency(chargeVat)}</span></div><div className="flex justify-between font-semibold"><span>Total VAT</span><span>{formatCurrency(totalVat)}</span></div></>}<div className="flex justify-between border-t pt-3 text-lg font-bold"><span>Grand Total</span><span>{formatCurrency(n(order.total) || computedTotal)}</span></div><div className="flex justify-between text-slate-600"><span>Paid</span><span>{formatCurrency(n(order.paid_amount))}</span></div><div className="flex justify-between font-semibold"><span>Outstanding</span><span>{formatCurrency(outstanding)}</span></div></div></div>
     </div>
 
     <div className="hidden print:block">
@@ -362,7 +367,7 @@ export default function PurchaseInvoiceDetail() {
         company={{ name: companyPrint.company_name || undefined, address: companyPrint.address || undefined, phone: companyPrint.phone || undefined, email: companyPrint.email || undefined, taxId: [companyPrint.ntn, companyPrint.strn].filter(Boolean).join(" / ") || undefined, logoUrl: companyPrint.logo_url || undefined }}
         party={{ name: order.supplier?.name || "—", address: order.supplier?.address, phone: order.supplier?.phone, ntn: order.supplier?.ntn, strn: order.supplier?.strn, cnic: order.supplier?.cnic, taxRegistrationStatus: order.supplier?.tax_registration_status }}
         items={lines.map((line) => ({ name: line.item?.name || "—", description: line.source_consolidated_purchase_invoice_id ? "Consolidated Purchase" : line.description || "Main Purchase", qty: n(line.qty), unitPrice: n(line.unit_cost), lineTotal: n(line.line_total) + (isTax ? n(line.line_total) * n(line.tax_percent) / 100 : 0), taxPercent: isTax ? n(line.tax_percent) : 0, taxAmount: isTax ? n(line.line_total) * n(line.tax_percent) / 100 : 0, hsCode: line.item?.hs_code, unit: line.item?.unit }))}
-        chargeBreakdown={charges}
+        chargeBreakdown={charges.map((charge) => ({ label: charge.charge_name, amount: n(charge.amount) }))}
         itemsTotal={directBase + linkedBase}
         chargesTotal={chargeTotal}
         taxAmount={totalVat}

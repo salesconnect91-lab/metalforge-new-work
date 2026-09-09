@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { ErrorBanner, PageHeader, StatusBadge, formatCurrency, formatDate } from "@/components/ui";
 import PrintLayout from "@/components/PrintLayout";
+import UnifiedOrderBookInvoicePicker from "@/components/UnifiedOrderBookInvoicePicker";
 import { calculateConfiguredChargeAmount, type ConfiguredChargeUnit } from "@/lib/chargeCalculation";
 
 type Supplier = { id: string; name: string; name_urdu?: string | null; phone?: string | null; address?: string | null };

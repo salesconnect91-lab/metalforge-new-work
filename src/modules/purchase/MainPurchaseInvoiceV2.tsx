@@ -4,6 +4,7 @@ import { ArrowLeft, Eye, Plus, Printer, Save, Trash2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { ErrorBanner, Modal, PageHeader, formatCurrency } from "@/components/ui";
 import PrintLayout from "@/components/PrintLayout";
+import UnifiedOrderBookInvoicePicker from "@/components/UnifiedOrderBookInvoicePicker";
 import { calculateConfiguredChargeAmount, chargeQuantityForUnit, type ConfiguredChargeUnit } from "@/lib/chargeCalculation";
 import { triggerPrint } from "@/lib/exportUtils";
 import { supabase } from "@/lib/supabase";

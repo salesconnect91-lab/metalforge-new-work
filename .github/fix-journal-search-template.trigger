@@ -1,1 +1,0 @@
-2026-09-09 remove journal template buttons and verify searchable accounts

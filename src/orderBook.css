@@ -1,0 +1,54 @@
+/* Order Book create-modal sizing.
+   Keep commercial fields readable on normal desktop widths without changing order logic. */
+
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl {
+  width: calc(100vw - 32px) !important;
+  max-width: 1400px !important;
+}
+
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table {
+  width: 100% !important;
+  min-width: 1120px !important;
+  table-layout: fixed !important;
+}
+
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table th,
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td {
+  min-width: 0 !important;
+  vertical-align: middle !important;
+}
+
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table th:nth-child(1),
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:nth-child(1) { width: 25%; }
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table th:nth-child(2),
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:nth-child(2) { width: 10%; }
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table th:nth-child(3),
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:nth-child(3) { width: 8%; }
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table th:nth-child(4),
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:nth-child(4) { width: 12%; }
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table th:nth-child(5),
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:nth-child(5) { width: 10%; }
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table th:nth-child(6),
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:nth-child(6) { width: 13%; }
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table th:nth-child(7),
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:nth-child(7) { width: 16%; }
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table th:nth-child(8),
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:nth-child(8) { width: 6%; }
+
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:first-child .input {
+  min-width: 220px !important;
+  white-space: nowrap !important;
+}
+
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:first-child button,
+.professional-report > .fixed.inset-0.z-50 > div.max-w-5xl .overflow-x-auto > table td:first-child select {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+@media (max-width: 1180px) {
+  .professional-report > .fixed.inset-0.z-50 > div.max-w-5xl {
+    width: calc(100vw - 20px) !important;
+  }
+}

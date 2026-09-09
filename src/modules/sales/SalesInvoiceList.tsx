@@ -1,3 +1,4 @@
+import SearchableSelect from "@/components/SearchableSelect";
 import {
   useCallback,
   useEffect,
@@ -823,7 +824,7 @@ export default function SalesInvoiceList() {
 
               <div>
                 <label className="label">Payment Method / ادائیگی طریقہ</label>
-                <select
+                <SearchableSelect
                   className="input"
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value)}
@@ -834,12 +835,12 @@ export default function SalesInvoiceList() {
                   <option value="Cheque">Cheque / چیک</option>
                   <option value="Card">Card / کارڈ</option>
                   <option value="Other">Other / دیگر</option>
-                </select>
+                </SearchableSelect>
               </div>
 
               <div>
                 <label className="label">Cash / Bank Account / نقد یا بینک اکاؤنٹ</label>
-                <select
+                <SearchableSelect
                   className="input"
                   value={paymentAccountId}
                   onChange={(e) => setPaymentAccountId(e.target.value)}
@@ -852,7 +853,7 @@ export default function SalesInvoiceList() {
                       {account.code} — {account.name}
                     </option>
                   ))}
-                </select>
+                </SearchableSelect>
               </div>
 
               <div>

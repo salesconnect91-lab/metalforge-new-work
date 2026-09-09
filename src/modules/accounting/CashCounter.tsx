@@ -1,3 +1,4 @@
+import SearchableSelect from "@/components/SearchableSelect";
 import {
   useCallback,
   useEffect,
@@ -1732,7 +1733,7 @@ export default function CashCounter() {
 
               <div>
                 <label className="mb-1.5 block text-xs font-semibold text-slate-600">Payment Method / ادائیگی طریقہ</label>
-                <select
+                <SearchableSelect
                   value={paymentMethod}
                   onChange={(e) =>
                     setPaymentMethod(
@@ -1746,12 +1747,12 @@ export default function CashCounter() {
                   <option>Cheque / چیک</option>
                   <option>Online / آن لائن</option>
                   <option>Other / دیگر</option>
-                </select>
+                </SearchableSelect>
               </div>
 
               <div>
                 <label className="mb-1.5 block text-xs font-semibold text-slate-600">Cash / Bank Account / نقد یا بینک اکاؤنٹ</label>
-                <select
+                <SearchableSelect
                   value={paymentAccountId}
                   onChange={(e) =>
                     setPaymentAccountId(
@@ -1774,7 +1775,7 @@ export default function CashCounter() {
                       </option>
                     )
                   )}
-                </select>
+                </SearchableSelect>
               </div>
             </div>
 
@@ -1939,7 +1940,7 @@ export default function CashCounter() {
                   Open Invoice
                 </label>
 
-                <select
+                <SearchableSelect
                   value={
                     selectedInvoiceId
                   }
@@ -1975,7 +1976,7 @@ export default function CashCounter() {
                       </option>
                     )
                   )}
-                </select>
+                </SearchableSelect>
 
                 {selectedInvoice && (
                   <div className="mt-2 grid grid-cols-3 gap-2">

@@ -1,3 +1,4 @@
+import SearchableSelect from "@/components/SearchableSelect";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Download,
@@ -526,7 +527,7 @@ export default function Employees() {
               />
             </div>
 
-            <select
+            <SearchableSelect
               className="input sm:w-44"
               value={statusFilter}
               onChange={(e) =>
@@ -536,7 +537,7 @@ export default function Employees() {
               <option value="all">All Status / تمام</option>
               <option value="active">Active / فعال</option>
               <option value="inactive">Inactive / غیر فعال</option>
-            </select>
+            </SearchableSelect>
           </div>
 
           <div className="flex flex-wrap gap-2">

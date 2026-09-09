@@ -1,3 +1,4 @@
+import SearchableSelect from "@/components/SearchableSelect";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Loader2, RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -1150,21 +1151,21 @@ export default function SupplierPaymentPanel() {
             <label className="mb-1.5 block text-xs font-semibold">
               Payment Method / ادائیگی طریقہ
             </label>
-            <select
+            <SearchableSelect
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
               className="h-10 w-full rounded-lg border border-slate-200 px-3"
             >
               <option value="Cash">Cash / نقد</option>
               <option value="Bank">Bank / بینک</option>
-            </select>
+            </SearchableSelect>
           </div>
 
           <div>
             <label className="mb-1.5 block text-xs font-semibold">
               Cash / Bank Account
             </label>
-            <select
+            <SearchableSelect
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
               className="h-10 w-full rounded-lg border border-slate-200 px-3"
@@ -1175,7 +1176,7 @@ export default function SupplierPaymentPanel() {
                   {account.code} — {account.name}
                 </option>
               ))}
-            </select>
+            </SearchableSelect>
           </div>
         </div>
 
@@ -1184,7 +1185,7 @@ export default function SupplierPaymentPanel() {
             <label className="mb-1.5 block text-xs font-semibold">
               Supplier / سپلائر
             </label>
-            <select
+            <SearchableSelect
               value={supplierId}
               onChange={(e) => {
                 setSupplierId(e.target.value);
@@ -1200,14 +1201,14 @@ export default function SupplierPaymentPanel() {
                   {supplier.name}
                 </option>
               ))}
-            </select>
+            </SearchableSelect>
           </div>
 
           <div>
             <label className="mb-1.5 block text-xs font-semibold">
               Open Purchase Invoice / اوپن خریداری انوائس
             </label>
-            <select
+            <SearchableSelect
               value={orderId}
               disabled={!supplierId}
               onChange={(e) => selectOrder(e.target.value)}
@@ -1220,7 +1221,7 @@ export default function SupplierPaymentPanel() {
                   {money(order.outstanding_amount)}
                 </option>
               ))}
-            </select>
+            </SearchableSelect>
           </div>
         </div>
 

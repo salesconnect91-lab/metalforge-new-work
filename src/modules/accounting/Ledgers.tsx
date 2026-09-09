@@ -1,3 +1,4 @@
+import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -468,14 +469,14 @@ export default function Ledgers() {
               Statement Type
             </label>
 
-            <select
+            <SearchableSelect
               className="input text-sm"
               value={viewMode}
               onChange={(e) => setViewMode(e.target.value as ViewMode)}
             >
               <option value="general">General Ledger / جنرل لیجر</option>
               <option value="party">Party Statement / پارٹی اسٹیٹمنٹ</option>
-            </select>
+            </SearchableSelect>
           </div>
 
           {viewMode === "general" ? (
@@ -484,7 +485,7 @@ export default function Ledgers() {
                 Filter by Account
               </label>
 
-              <select
+              <SearchableSelect
                 className="input text-sm"
                 value={selectedAccount}
                 onChange={(e) => setSelectedAccount(e.target.value)}
@@ -496,7 +497,7 @@ export default function Ledgers() {
                     {account.code} — {account.name} ({account.type})
                   </option>
                 ))}
-              </select>
+              </SearchableSelect>
             </div>
           ) : (
             <>
@@ -505,7 +506,7 @@ export default function Ledgers() {
                   Party Type
                 </label>
 
-                <select
+                <SearchableSelect
                   className="input text-sm"
                   value={partyFilterType}
                   onChange={(e) =>
@@ -515,7 +516,7 @@ export default function Ledgers() {
                   <option value="all">All Customers & Suppliers / تمام گاہک اور سپلائرز</option>
                   <option value="customer">Customers / گاہک</option>
                   <option value="supplier">Suppliers / سپلائرز</option>
-                </select>
+                </SearchableSelect>
               </div>
 
               <div className="min-w-[340px] max-w-xl flex-1 relative">

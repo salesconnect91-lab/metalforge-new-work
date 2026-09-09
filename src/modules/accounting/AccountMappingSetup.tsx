@@ -1,3 +1,4 @@
+import SearchableSelect from "@/components/SearchableSelect";
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Link2, RotateCcw, Save } from "lucide-react";
 import { ErrorBanner, LoadingState, PageHeader } from "@/components/ui";
@@ -207,7 +208,7 @@ export default function AccountMappingSetup() {
 
                     <div>
                       <label className="label" htmlFor={`mapping-${key}`}>Posting account</label>
-                      <select
+                      <SearchableSelect
                         className="input"
                         id={`mapping-${key}`}
                         value={selectedId}
@@ -224,7 +225,7 @@ export default function AccountMappingSetup() {
                         {options.map((account) => (
                           <option value={account.id} key={account.id}>{account.code} — {account.name}</option>
                         ))}
-                      </select>
+                      </SearchableSelect>
                       {options.length === 0 && (
                         <p className="mt-1 flex items-center gap-1 text-xs text-amber-700">
                           <AlertTriangle size={13} /> Create an active {ACCOUNT_MAPPING_TYPES[key]} posting account first.

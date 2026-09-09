@@ -1,3 +1,4 @@
+import SearchableSelect from "@/components/SearchableSelect";
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Printer, FileDown, LockKeyhole } from "lucide-react";
@@ -1475,7 +1476,7 @@ export default function WorkOrderDetail() {
                 Add Component / جز شامل کریں
               </label>
 
-              <select
+              <SearchableSelect
                 className="input"
                 required
                 value={newLine.item_id}
@@ -1495,7 +1496,7 @@ export default function WorkOrderDetail() {
                     {item.name} ({item.sku})
                   </option>
                 ))}
-              </select>
+              </SearchableSelect>
             </div>
 
             <div>

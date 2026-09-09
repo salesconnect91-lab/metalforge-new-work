@@ -1,3 +1,4 @@
+import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, FileText, Loader2, Save, X } from "lucide-react";
 import { ErrorBanner, PageHeader } from "@/components/ui";
@@ -274,8 +275,8 @@ export default function DocumentPrintSettings() {
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-4 font-bold">Page Setup / صفحہ سیٹنگ</h2>
           <div className="grid gap-4 md:grid-cols-2">
-            <label className="text-sm font-medium">Page Size / صفحہ سائز<select className="input mt-1 w-full" value={pageSize} onChange={(e) => setPageSize(e.target.value)}><option value="A4">A4</option><option value="Letter">Letter</option></select></label>
-            <label className="text-sm font-medium">Orientation / رخ<select className="input mt-1 w-full" value={orientation} onChange={(e) => setOrientation(e.target.value)}><option value="portrait">Portrait / عمودی</option><option value="landscape">Landscape / افقی</option></select></label>
+            <label className="text-sm font-medium">Page Size / صفحہ سائز<SearchableSelect className="input mt-1 w-full" value={pageSize} onChange={(e) => setPageSize(e.target.value)}><option value="A4">A4</option><option value="Letter">Letter</option></SearchableSelect></label>
+            <label className="text-sm font-medium">Orientation / رخ<SearchableSelect className="input mt-1 w-full" value={orientation} onChange={(e) => setOrientation(e.target.value)}><option value="portrait">Portrait / عمودی</option><option value="landscape">Landscape / افقی</option></SearchableSelect></label>
           </div>
         </section>
 

@@ -1,3 +1,4 @@
+import SearchableSelect from "@/components/SearchableSelect";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
@@ -200,10 +201,10 @@ export default function CreatePurchaseInvoice() {
             </div>
             <div>
               <label className="label">Supplier / سپلائر</label>
-              <select className="input" required value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
+              <SearchableSelect className="input" required value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
                 <option value="">— Select supplier —</option>
                 {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+              </SearchableSelect>
             </div>
             <div>
               <label className="label">Order Date / آرڈر کی تاریخ</label>
@@ -211,14 +212,14 @@ export default function CreatePurchaseInvoice() {
             </div>
             <div>
               <label className="label">Purchase Type / خریداری کی قسم</label>
-              <select
+              <SearchableSelect
                 className="input"
                 value={invoiceType}
                 onChange={(e) => setInvoiceType(e.target.value as "Purchase Invoice" | "Tax Invoice")}
               >
                 <option value="Purchase Invoice">Without Tax (Purchase Invoice) / بغیر ٹیکس</option>
                 <option value="Tax Invoice">With Tax (Purchase Tax Invoice) / ٹیکس کے ساتھ</option>
-              </select>
+              </SearchableSelect>
             </div>
             <div>
               <label className="label">Global VAT % / ویٹ فیصد</label>
@@ -269,10 +270,10 @@ export default function CreatePurchaseInvoice() {
                   return (
                     <tr key={i} className="border-b border-slate-100">
                       <td className="py-2 pr-3">
-                        <select className="input" value={row.item_id} onChange={(e) => updateRow(i, "item_id", e.target.value)}>
+                        <SearchableSelect className="input" value={row.item_id} onChange={(e) => updateRow(i, "item_id", e.target.value)}>
                           <option value="">— Select —</option>
                           {items.map((it) => <option key={it.id} value={it.id}>{it.name} ({it.sku})</option>)}
-                        </select>
+                        </SearchableSelect>
                       </td>
                       <td className="py-2 px-3">
                         <input className="input w-24 text-right" type="number" step="0.01" value={row.qty} onChange={(e) => updateRow(i, "qty", e.target.value)} />

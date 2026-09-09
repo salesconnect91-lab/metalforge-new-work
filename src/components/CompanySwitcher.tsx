@@ -1,3 +1,4 @@
+import SearchableSelect from "@/components/SearchableSelect";
 import { useState } from "react";
 import { Building2, ChevronDown, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -18,7 +19,7 @@ export default function CompanySwitcher() {
           <span>Active Company / فعال کمپنی</span>
         </div>
         <div className="relative">
-          <select
+          <SearchableSelect
             aria-label="Active company / فعال کمپنی"
             title="Active company / فعال کمپنی"
             className="h-7 w-full appearance-none rounded-md border-0 bg-transparent pl-1 pr-8 text-[12px] font-bold text-slate-800 outline-none focus:ring-0 disabled:cursor-wait disabled:opacity-60"
@@ -42,7 +43,7 @@ export default function CompanySwitcher() {
                 {company.company_name} ({company.company_code})
               </option>
             ))}
-          </select>
+          </SearchableSelect>
           <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400">
             {switchingCompany ? <Loader2 size={13} className="animate-spin" /> : <ChevronDown size={13} />}
           </span>

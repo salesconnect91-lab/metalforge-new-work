@@ -1,3 +1,4 @@
+import SearchableSelect from "@/components/SearchableSelect";
 import {
   useEffect,
   useState,
@@ -2501,7 +2502,7 @@ export default function JournalEntryDetail() {
                             className="border-b border-slate-100"
                           >
                             <td className="px-3 py-2">
-                              <select
+                              <SearchableSelect
                                 className="input bg-white w-full"
                                 value={
                                   line.accountId
@@ -2536,11 +2537,11 @@ export default function JournalEntryDetail() {
                                     </option>
                                   )
                                 )}
-                              </select>
+                              </SearchableSelect>
                             </td>
 
                             <td className="px-3 py-2">
-                              <select
+                              <SearchableSelect
                                 className="input bg-white w-full"
                                 value={
                                   line.partyType &&
@@ -2580,7 +2581,7 @@ export default function JournalEntryDetail() {
                                     </option>
                                   )
                                 )}
-                              </select>
+                              </SearchableSelect>
 
                               {partyRequired && (
                                 <div className="text-[12px] text-amber-600 mt-1">

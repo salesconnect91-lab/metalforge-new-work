@@ -1,3 +1,4 @@
+import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
@@ -313,7 +314,7 @@ export default function WorkOrderList() {
 
           <div>
             <label className="label">Product (Finished Good) / تیار شدہ مصنوعات</label>
-            <select
+            <SearchableSelect
               className="input"
               required
               value={form.item_id}
@@ -327,7 +328,7 @@ export default function WorkOrderList() {
                   {item.name} ({item.sku})
                 </option>
               ))}
-            </select>
+            </SearchableSelect>
           </div>
 
           <div>
@@ -346,7 +347,7 @@ export default function WorkOrderList() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Warehouse / ویئرہاؤس</label>
-              <select
+              <SearchableSelect
                 className="input"
                 required
                 value={form.warehouse_id}
@@ -370,12 +371,12 @@ export default function WorkOrderList() {
                     {warehouse.name}
                   </option>
                 ))}
-              </select>
+              </SearchableSelect>
             </div>
 
             <div>
               <label className="label">Godown / گودام</label>
-              <select
+              <SearchableSelect
                 className="input"
                 required
                 value={form.godown_id}
@@ -389,7 +390,7 @@ export default function WorkOrderList() {
                     {godown.name}
                   </option>
                 ))}
-              </select>
+              </SearchableSelect>
             </div>
           </div>
 

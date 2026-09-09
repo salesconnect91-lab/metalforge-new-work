@@ -1,3 +1,4 @@
+import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Download, Printer, Search, Users } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -287,8 +288,8 @@ export default function SalespersonReport() {
     <div className="card print:hidden p-3">
       <div className="flex flex-wrap gap-2">
         <div className="relative min-w-[240px] flex-1"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400"/><input className="input pl-8" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search employee, salesperson or party..."/></div>
-        <select className="input w-52" value={selected} onChange={(e) => setSelected(e.target.value)}><option value="ALL">All Salespersons</option>{rows.map((r) => <option key={r.id || r.name} value={r.id || r.name}>{r.code ? `${r.code} - ${r.name}` : r.name}</option>)}</select>
-        <select className="input w-32" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)}><option value="active">Active</option><option value="all">All Status</option><option value="inactive">Inactive</option></select>
+        <SearchableSelect className="input w-52" value={selected} onChange={(e) => setSelected(e.target.value)}><option value="ALL">All Salespersons</option>{rows.map((r) => <option key={r.id || r.name} value={r.id || r.name}>{r.code ? `${r.code} - ${r.name}` : r.name}</option>)}</SearchableSelect>
+        <SearchableSelect className="input w-32" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)}><option value="active">Active</option><option value="all">All Status</option><option value="inactive">Inactive</option></SearchableSelect>
         <button className={`btn-secondary ${balanceFilter==='all'?'ring-2 ring-slate-300':''}`} onClick={() => setBalanceFilter('all')}>All</button>
         <button className={`btn-secondary ${balanceFilter==='debit'?'ring-2 ring-blue-300':''}`} onClick={() => setBalanceFilter('debit')}>Show Debit Balance Only</button>
         <button className={`btn-secondary ${balanceFilter==='credit'?'ring-2 ring-rose-300':''}`} onClick={() => setBalanceFilter('credit')}>Show Credit Balance Only</button>

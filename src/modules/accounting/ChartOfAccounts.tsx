@@ -1,3 +1,4 @@
+import SearchableSelect from "@/components/SearchableSelect";
   import {
     useEffect,
     useMemo,
@@ -1411,7 +1412,7 @@
                     />
                   </div>
 
-                  <select
+                  <SearchableSelect
                     value={typeFilter}
                     onChange={(event) =>
                       setTypeFilter(
@@ -1438,9 +1439,9 @@
                         </option>
                       )
                     )}
-                  </select>
+                  </SearchableSelect>
 
-                  <select
+                  <SearchableSelect
                     value={statusFilter}
                     onChange={(event) => {
                       setStatusFilter(
@@ -1461,7 +1462,7 @@
                     <option value="all">
                       All statuses
                     </option>
-                  </select>
+                  </SearchableSelect>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -1688,7 +1689,7 @@
                         label="Account type / اکاؤنٹ قسم"
                         required
                       >
-                        <select
+                        <SearchableSelect
                           value={
                             form.type
                           }
@@ -1719,7 +1720,7 @@
                               </option>
                             )
                           )}
-                        </select>
+                        </SearchableSelect>
                       </FormField>
 
                       <FormField label="Financial statement / مالیاتی بیان">
@@ -1789,7 +1790,7 @@
                         label="Detail type / تفصیلی قسم"
                         hint="This classification determines how the account is presented in reporting. / یہ درجہ بندی طے کرتی ہے کہ اکاؤنٹ رپورٹس میں کیسے دکھایا جائے گا۔"
                       >
-                        <select
+                        <SearchableSelect
                           value={
                             form.detail_type
                           }
@@ -1826,7 +1827,7 @@
                               </option>
                             )
                           )}
-                        </select>
+                        </SearchableSelect>
                       </FormField>
                     </div>
                   </section>
@@ -1876,7 +1877,7 @@
                         label="Parent account / بنیادی اکاؤنٹ"
                         hint="Root account means this account has no parent. / روٹ اکاؤنٹ کا کوئی بنیادی اکاؤنٹ نہیں ہوتا۔"
                       >
-                        <select
+                        <SearchableSelect
                           value={
                             form.parent_id ??
                             ""
@@ -1919,7 +1920,7 @@
                               </option>
                             )
                           )}
-                        </select>
+                        </SearchableSelect>
                       </FormField>
                     </div>
 
@@ -2075,7 +2076,7 @@
                         label="Account role / اکاؤنٹ کردار"
                         hint="Only database-supported account roles are available. / صرف ڈیٹابیس میں دستیاب اکاؤنٹ کردار استعمال کیے جا سکتے ہیں۔"
                       >
-                        <select
+                        <SearchableSelect
                           value={
                             form.account_role
                           }
@@ -2114,7 +2115,7 @@
                               </option>
                             )
                           )}
-                        </select>
+                        </SearchableSelect>
                       </FormField>
 
                       <FormField

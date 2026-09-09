@@ -1,3 +1,4 @@
+import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
@@ -648,7 +649,7 @@ ${voucher.notes ? `<div class="notes"><strong>Notes:</strong> ${voucher.notes}</
             <label className="mb-1.5 block text-xs font-semibold">
               Transaction Type / لین دین قسم
             </label>
-            <select
+            <SearchableSelect
               value={transactionType}
               onChange={(e) =>
                 setTransactionType(e.target.value as TransactionType)
@@ -660,7 +661,7 @@ ${voucher.notes ? `<div class="notes"><strong>Notes:</strong> ${voucher.notes}</
                   {item.label}
                 </option>
               ))}
-            </select>
+            </SearchableSelect>
           </div>
 
           <div>
@@ -795,7 +796,7 @@ ${voucher.notes ? `<div class="notes"><strong>Notes:</strong> ${voucher.notes}</
                 ? "Salary Expense Account / تنخواہ خرچ اکاؤنٹ"
                 : "Transaction Account / لین دین اکاؤنٹ"}
             </label>
-            <select
+            <SearchableSelect
               value={counterAccountId}
               onChange={(e) => setCounterAccountId(e.target.value)}
               className="input w-full"
@@ -806,14 +807,14 @@ ${voucher.notes ? `<div class="notes"><strong>Notes:</strong> ${voucher.notes}</
                   {account.code} - {account.name}
                 </option>
               ))}
-            </select>
+            </SearchableSelect>
           </div>
 
           <div>
             <label className="mb-1.5 block text-xs font-semibold">
               Cash / Bank Account / کیش بینک اکاؤنٹ
             </label>
-            <select
+            <SearchableSelect
               value={cashBankAccountId}
               onChange={(e) => setCashBankAccountId(e.target.value)}
               className="input w-full"
@@ -824,7 +825,7 @@ ${voucher.notes ? `<div class="notes"><strong>Notes:</strong> ${voucher.notes}</
                   {account.code} - {account.name}
                 </option>
               ))}
-            </select>
+            </SearchableSelect>
           </div>
 
           <div>

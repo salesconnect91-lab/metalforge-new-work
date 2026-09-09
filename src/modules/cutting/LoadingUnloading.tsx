@@ -1,3 +1,4 @@
+import SearchableSelect from "@/components/SearchableSelect";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { GatePass, GatePassType, GatePassStatus, SalesOrder, Customer } from "@/types";
@@ -382,20 +383,20 @@ export default function LoadingUnloading() {
             <div><label className="label">Pass Number / پاس نمبر</label><input className="input" required value={form.pass_no} onChange={(e) => setForm({ ...form, pass_no: e.target.value })} /></div>
             <div>
               <label className="label">Type / قسم</label>
-              <select className="input" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as GatePassType })}>
+              <SearchableSelect className="input" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as GatePassType })}>
                 <option value="loading">Loading / لوڈنگ</option>
                 <option value="unloading">Unloading / ان لوڈنگ</option>
-              </select>
+              </SearchableSelect>
             </div>
           </div>
           <div>
             <label className="label">Link to Sales Order / فروخت آرڈر سے منسلک کریں</label>
-            <select className="input" value={form.sales_order_id} onChange={(e) => setForm({ ...form, sales_order_id: e.target.value })}>
+            <SearchableSelect className="input" value={form.sales_order_id} onChange={(e) => setForm({ ...form, sales_order_id: e.target.value })}>
               <option value="">— Select sales order —</option>
               {salesOrders.map((so) => (
                 <option key={so.id} value={so.id}>{so.order_no} — {so.customer?.name ?? "No customer"}</option>
               ))}
-            </select>
+            </SearchableSelect>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div><label className="label">Godown / Warehouse / گودام یا ویئرہاؤس</label><input className="input" required value={form.godown} onChange={(e) => setForm({ ...form, godown: e.target.value })} /></div>

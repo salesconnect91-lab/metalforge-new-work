@@ -1,3 +1,4 @@
+import SearchableSelect from "@/components/SearchableSelect";
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
@@ -93,17 +94,17 @@ export default function CuttingOrderList() {
           <div><label className="label">Order Number / آرڈر نمبر</label><input className="input bg-slate-50 cursor-not-allowed" required readOnly tabIndex={-1} value={form.order_no} title="Order number is generated automatically" /></div>
           <div>
             <label className="label">Customer / گاہک</label>
-            <select className="input" value={form.customer_id} onChange={(e) => setForm({ ...form, customer_id: e.target.value })}>
+            <SearchableSelect className="input" value={form.customer_id} onChange={(e) => setForm({ ...form, customer_id: e.target.value })}>
               <option value="">— Select customer —</option>
               {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            </SearchableSelect>
           </div>
           <div>
             <label className="label">Item / آئٹم</label>
-            <select className="input" value={form.item_id} onChange={(e) => setForm({ ...form, item_id: e.target.value })}>
+            <SearchableSelect className="input" value={form.item_id} onChange={(e) => setForm({ ...form, item_id: e.target.value })}>
               <option value="">— Select item —</option>
               {items.map((i) => <option key={i.id} value={i.id}>{i.name} ({i.sku})</option>)}
-            </select>
+            </SearchableSelect>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div><label className="label">Cut Length / کٹ لمبائی</label><input className="input" value={form.cut_length} onChange={(e) => setForm({ ...form, cut_length: e.target.value })} placeholder="e.g. 12ft / مثال" /></div>

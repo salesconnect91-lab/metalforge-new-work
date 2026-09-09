@@ -1,3 +1,4 @@
+import SearchableSelect from "@/components/SearchableSelect";
 import {
   useCallback,
   useEffect,
@@ -487,7 +488,7 @@ export default function CustomerInvoiceStatement() {
 
           <div>
             <label className="label">Payment Status / ادائیگی حالت</label>
-            <select
+            <SearchableSelect
               className="input"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -497,12 +498,12 @@ export default function CustomerInvoiceStatement() {
               <option value="unpaid">Unpaid / غیر ادا شدہ</option>
               <option value="partial">Partial / جزوی</option>
               <option value="paid">Paid / ادا شدہ</option>
-            </select>
+            </SearchableSelect>
           </div>
 
           <div>
             <label className="label">Aging Bucket / بقایا مدت</label>
-            <select
+            <SearchableSelect
               className="input"
               value={agingFilter}
               onChange={(e) => setAgingFilter(e.target.value)}
@@ -516,27 +517,27 @@ export default function CustomerInvoiceStatement() {
               <option value="90+ Days">90+ Days</option>
               <option value="Paid">Paid / ادا شدہ</option>
               <option value="No Due Date">No Due Date / مقررہ تاریخ نہیں</option>
-            </select>
+            </SearchableSelect>
           </div>
 
           <div>
             <label className="label">Document Type / دستاویز</label>
-            <select className="input" value={documentFilter} onChange={(e) => setDocumentFilter(e.target.value)} disabled={!selectedCustomerId}>
+            <SearchableSelect className="input" value={documentFilter} onChange={(e) => setDocumentFilter(e.target.value)} disabled={!selectedCustomerId}>
               <option value="all">All Documents</option>
               <option value="Sale Invoice">Sale Invoice</option>
               <option value="Cash Bill">Cash Bill</option>
               <option value="Tax Invoice">Tax Invoice</option>
-            </select>
+            </SearchableSelect>
           </div>
 
           <div>
             <label className="label">Payment Mode / ادائیگی طریقہ</label>
-            <select className="input" value={paymentModeFilter} onChange={(e) => setPaymentModeFilter(e.target.value)} disabled={!selectedCustomerId}>
+            <SearchableSelect className="input" value={paymentModeFilter} onChange={(e) => setPaymentModeFilter(e.target.value)} disabled={!selectedCustomerId}>
               <option value="all">All Payment Modes</option>
               <option value="Credit">Credit</option>
               <option value="Cash">Cash</option>
               <option value="Bank">Bank</option>
-            </select>
+            </SearchableSelect>
           </div>
         </div>
 

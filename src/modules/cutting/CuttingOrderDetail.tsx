@@ -1,3 +1,4 @@
+import SearchableSelect from "@/components/SearchableSelect";
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
@@ -57,9 +58,9 @@ export default function CuttingOrderDetail() {
         subtitle={order.customer ? `Customer: ${order.customer.name}` : "No customer"}
         action={
           <div className="flex items-center gap-3">
-            <select className="input w-auto" value={order.status} onChange={(e) => handleStatusChange(e.target.value as CuttingStatus)}>
+            <SearchableSelect className="input w-auto" value={order.status} onChange={(e) => handleStatusChange(e.target.value as CuttingStatus)}>
               {statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
+            </SearchableSelect>
             <button onClick={() => setConfirmDelete(true)} className="btn-danger">Delete / حذف کریں</button>
           </div>
         }

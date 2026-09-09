@@ -1,5 +1,5 @@
 import SearchableSelect from "@/components/SearchableSelect";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { GatePass, GatePassType, GatePassStatus, SalesOrder, Customer } from "@/types";
 import DataTable, { Column } from "@/components/DataTable";
@@ -15,18 +15,34 @@ import {
   documentOrientation,
 } from "@/lib/documentPrintSettings";
 
+type OrderBookHeader = {
+  id: string;
+  order_no: string;
+  order_date: string;
+  party_id: string;
+  party_name: string;
+  status: string;
+  remarks?: string | null;
+};
+
+type GatePassRow = GatePass & {
+  order_book_header_id?: string | null;
+  order_book_header?: OrderBookHeader | null;
+  sales_order?: (SalesOrder & { customer?: Customer | null }) | null;
+};
+
 export default function LoadingUnloading() {
-  const [rows, setRows] = useState<GatePass[]>([]);
-  const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
+  const [rows, setRows] = useState<GatePassRow[]>([]);
+  const [orderBookOrders, setOrderBookOrders] = useState<OrderBookHeader[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [printPass, setPrintPass] = useState<GatePass | null>(null);
+  const [printPass, setPrintPass] = useState<GatePassRow | null>(null);
   const [gatePrintSettings, setGatePrintSettings] = useState<any>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState({
     pass_no: "",
-    sales_order_id: "",
+    order_book_header_id: "",
     type: "loading" as GatePassType,
     godown: "Main",
     vehicle_no: "",
@@ -41,34 +57,54 @@ export default function LoadingUnloading() {
     setLoading(true);
     const { data, error } = await supabase
       .from("gate_passes")
-      .select("*, sales_order:sales_orders(*, customer:customers(*))")
+      .select("*, sales_order:sales_orders(*, customer:customers(*)), order_book_header:order_book_headers(id,order_no,order_date,party_id,party_name,status,remarks)")
       .order("created_at", { ascending: false });
     if (error) setError(error.message);
-    else setRows(data ?? []);
+    else setRows((data ?? []) as GatePassRow[]);
     setLoading(false);
   }, []);
 
-  const fetchSalesOrders = useCallback(async () => {
-    const { data } = await supabase
-      .from("sales_orders")
-      .select("*, customer:customers(*)")
-      .in("status", ["draft", "confirmed", "shipped"])
+  const fetchOrderBookOrders = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("order_book_headers")
+      .select("id,order_no,order_date,party_id,party_name,status,remarks")
+      .eq("order_type", "sales")
+      .neq("status", "cancelled")
+      .neq("status", "completed")
       .order("created_at", { ascending: false });
-    setSalesOrders(data ?? []);
+    if (error) {
+      setError(error.message);
+      setOrderBookOrders([]);
+      return;
+    }
+    setOrderBookOrders((data ?? []) as OrderBookHeader[]);
   }, []);
 
   useEffect(() => {
-    fetchRows();
-    fetchSalesOrders();
-  }, [fetchRows, fetchSalesOrders]);
+    void fetchRows();
+    void fetchOrderBookOrders();
+  }, [fetchRows, fetchOrderBookOrders]);
 
   const netWeight =
     (parseFloat(form.gross_weight) || 0) - (parseFloat(form.tare_weight) || 0);
 
+  const selectedOrder = useMemo(
+    () => orderBookOrders.find((order) => order.id === form.order_book_header_id) ?? null,
+    [orderBookOrders, form.order_book_header_id],
+  );
+
+  const nextPreviewPassNo = useMemo(() => {
+    const max = rows.reduce((current, row) => {
+      const match = String(row.pass_no || "").match(/^GP-(\d+)$/i);
+      return Math.max(current, match ? Number(match[1]) || 0 : 0);
+    }, 0);
+    return `GP-${String(max + 1).padStart(4, "0")}`;
+  }, [rows]);
+
   const openCreate = () => {
     setForm({
-      pass_no: `GP-${String(rows.length + 1).padStart(4, "0")}`,
-      sales_order_id: "",
+      pass_no: nextPreviewPassNo,
+      order_book_header_id: "",
       type: "loading",
       godown: "Main",
       vehicle_no: "",
@@ -78,30 +114,46 @@ export default function LoadingUnloading() {
       labour_contractor: "",
       pass_date: new Date().toISOString().slice(0, 10),
     });
+    setError(null);
     setModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
+    if (form.type === "loading" && !form.order_book_header_id) {
+      setError("Sales Order is required for a Loading gate pass.");
+      return;
+    }
+    if ((parseFloat(form.tare_weight) || 0) < 0 || (parseFloat(form.gross_weight) || 0) < 0 || netWeight < 0) {
+      setError("Gross weight must be equal to or greater than tare weight.");
+      return;
+    }
+
     const payload = {
       pass_no: form.pass_no,
-      sales_order_id: form.sales_order_id || null,
+      sales_order_id: null,
+      order_book_header_id: form.order_book_header_id || null,
       type: form.type,
       godown: form.godown,
-      vehicle_no: form.vehicle_no || null,
-      driver_name: form.driver_name || null,
+      vehicle_no: form.vehicle_no.trim() || null,
+      driver_name: form.driver_name.trim() || null,
       tare_weight: parseFloat(form.tare_weight) || 0,
       gross_weight: parseFloat(form.gross_weight) || 0,
       net_weight: netWeight,
-      labour_contractor: form.labour_contractor || null,
+      labour_contractor: form.labour_contractor.trim() || null,
       status: "completed" as GatePassStatus,
       pass_date: form.pass_date,
     };
     const { error } = await supabase.from("gate_passes").insert(payload);
-    if (error) { setError(error.message); return; }
+    if (error) {
+      setError(error.message);
+      return;
+    }
     setModalOpen(false);
     setError(null);
-    fetchRows();
+    await Promise.all([fetchRows(), fetchOrderBookOrders()]);
   };
 
   const handleDelete = async () => {
@@ -109,7 +161,7 @@ export default function LoadingUnloading() {
     const { error } = await supabase.from("gate_passes").delete().eq("id", deleteId);
     if (error) setError(error.message);
     setDeleteId(null);
-    fetchRows();
+    void fetchRows();
   };
 
   const handleExportCSV = () => {
@@ -152,12 +204,11 @@ export default function LoadingUnloading() {
     );
   };
 
-  const handlePrint = async (pass: GatePass) => {
+  const handlePrint = async (pass: GatePassRow) => {
     try {
       const settings = await loadDocumentPrintSettings("gate_pass");
       setGatePrintSettings(settings);
       setPrintPass(pass);
-
       setTimeout(() => {
         triggerPrint();
         setPrintPass(null);
@@ -167,12 +218,11 @@ export default function LoadingUnloading() {
     }
   };
 
-  const handlePdf = async (pass: GatePass) => {
+  const handlePdf = async (pass: GatePassRow) => {
     try {
       const settings = await loadDocumentPrintSettings("gate_pass");
       const company = settings.company;
       const visibility = settings.visibility;
-
       const doc = new jsPDF({
         orientation: documentOrientation(company.page_orientation),
         unit: "mm",
@@ -195,7 +245,6 @@ export default function LoadingUnloading() {
             reader.onerror = reject;
             reader.readAsDataURL(blob);
           });
-
           const format = blob.type.includes("jpeg") ? "JPEG" : "PNG";
           doc.addImage(dataUrl, format, left, y, 24, 18);
         } catch {
@@ -206,19 +255,15 @@ export default function LoadingUnloading() {
       if (visibility.show_company_name) {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(16);
-        doc.text(company.company_name || "Company", pageWidth / 2, y + 5, {
-          align: "center",
-        });
+        doc.text(company.company_name || "Company", pageWidth / 2, y + 5, { align: "center" });
       }
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
-
       if (visibility.show_address && company.address) {
         y += 11;
         doc.text(company.address, pageWidth / 2, y, { align: "center" });
       }
-
       if (visibility.show_phone_email) {
         const contact = documentContactText(company);
         if (contact) {
@@ -226,7 +271,6 @@ export default function LoadingUnloading() {
           doc.text(contact, pageWidth / 2, y, { align: "center" });
         }
       }
-
       if (visibility.show_tax_details) {
         const tax = documentTaxText(company);
         if (tax) {
@@ -234,7 +278,6 @@ export default function LoadingUnloading() {
           doc.text(tax, pageWidth / 2, y, { align: "center" });
         }
       }
-
       if (visibility.show_header && company.document_header) {
         y += 7;
         doc.setFont("helvetica", "bold");
@@ -245,23 +288,22 @@ export default function LoadingUnloading() {
       doc.setDrawColor(180);
       doc.line(left, y, right, y);
       y += 9;
-
       doc.setFont("helvetica", "bold");
       doc.setFontSize(15);
-      doc.text("GATE PASS / WEIGHBRIDGE TICKET", pageWidth / 2, y, {
-        align: "center",
-      });
-
+      doc.text("GATE PASS / WEIGHBRIDGE TICKET", pageWidth / 2, y, { align: "center" });
       y += 11;
       doc.setFontSize(10);
 
-      const party = pass.sales_order?.customer;
+      const legacyParty = pass.sales_order?.customer;
+      const partyName = pass.order_book_header?.party_name || legacyParty?.name || "—";
+      const orderNo = pass.order_book_header?.order_no || pass.sales_order?.order_no || "—";
       const details: Array<[string, string]> = [
         ["Gate Pass No", pass.pass_no],
+        ["Sales Order", orderNo],
         ["Date", pass.pass_date],
         ["Type", String(pass.type || "").toUpperCase()],
         ["Status", String(pass.status || "").toUpperCase()],
-        ["Customer", party?.name || "—"],
+        ["Customer", partyName],
         ["Godown / Warehouse", pass.godown || "—"],
         ["Vehicle No", pass.vehicle_no || "—"],
         ["Driver Name", pass.driver_name || "—"],
@@ -288,7 +330,6 @@ export default function LoadingUnloading() {
         ["Gross Weight", `${Number(pass.gross_weight || 0).toLocaleString()} kg`],
         ["Net Weight", `${Number(pass.net_weight || 0).toLocaleString()} kg`],
       ];
-
       for (const [label, value] of weights) {
         doc.setFont("helvetica", "bold");
         doc.text(`${label}:`, left, y);
@@ -301,7 +342,6 @@ export default function LoadingUnloading() {
         y += 20;
         const prepared = company.prepared_by_label || "Weighbridge Operator";
         const approved = company.approved_by_label || "Driver Signature";
-
         doc.line(left, y, left + 55, y);
         doc.line(right - 55, y, right, y);
         y += 5;
@@ -309,42 +349,33 @@ export default function LoadingUnloading() {
         doc.text(prepared, left + 27.5, y, { align: "center" });
         doc.text(approved, right - 27.5, y, { align: "center" });
       }
-
       if (visibility.show_footer && company.document_footer) {
         doc.setFontSize(8);
-        doc.text(company.document_footer, pageWidth / 2, pageHeight - 14, {
-          align: "center",
-        });
+        doc.text(company.document_footer, pageWidth / 2, pageHeight - 14, { align: "center" });
       }
-
       if (visibility.show_print_datetime) {
         doc.setFontSize(7);
-        doc.text(
-          `Printed: ${new Date().toLocaleString("en-PK")}`,
-          left,
-          pageHeight - 8,
-        );
+        doc.text(`Printed: ${new Date().toLocaleString("en-PK")}`, left, pageHeight - 8);
       }
-
       if (visibility.show_page_numbers) {
         doc.setFontSize(7);
         doc.text("Page 1 of 1", right, pageHeight - 8, { align: "right" });
       }
-
       doc.save(`${pass.pass_no}-Gate-Pass.pdf`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to create Gate Pass PDF.");
     }
   };
 
-  const columns: Column<GatePass>[] = [
+  const columns: Column<GatePassRow>[] = [
     { key: "pass_no", label: "Pass No", render: (r) => <span className="font-medium text-primary-600">{r.pass_no}</span> },
+    { key: "order", label: "Sales Order", render: (r) => r.order_book_header?.order_no || r.sales_order?.order_no || "—" },
     { key: "type", label: "Type / قسم", render: (r) => <span className="capitalize">{r.type}</span> },
     { key: "godown", label: "Godown / گودام" },
     { key: "vehicle_no", label: "Vehicle", render: (r) => r.vehicle_no ?? "—" },
-    { key: "tare_weight", label: "Tare (kg)", render: (r) => r.tare_weight.toLocaleString() },
-    { key: "gross_weight", label: "Gross (kg)", render: (r) => r.gross_weight.toLocaleString() },
-    { key: "net_weight", label: "Net (kg)", render: (r) => <span className="font-medium">{r.net_weight.toLocaleString()}</span> },
+    { key: "tare_weight", label: "Tare (kg)", render: (r) => Number(r.tare_weight || 0).toLocaleString() },
+    { key: "gross_weight", label: "Gross (kg)", render: (r) => Number(r.gross_weight || 0).toLocaleString() },
+    { key: "net_weight", label: "Net (kg)", render: (r) => <span className="font-medium">{Number(r.net_weight || 0).toLocaleString()}</span> },
     { key: "status", label: "Status / حالت", render: (r) => <StatusBadge status={r.status} /> },
     { key: "pass_date", label: "Date / تاریخ", render: (r) => formatDate(r.pass_date) },
     {
@@ -359,7 +390,9 @@ export default function LoadingUnloading() {
     },
   ];
 
-  const printParty: Customer | null = printPass?.sales_order?.customer ?? null;
+  const legacyPrintParty: Customer | null = printPass?.sales_order?.customer ?? null;
+  const printPartyName = printPass?.order_book_header?.party_name || legacyPrintParty?.name || "—";
+  const printOrderNo = printPass?.order_book_header?.order_no || printPass?.sales_order?.order_no || "—";
 
   return (
     <div>
@@ -377,48 +410,92 @@ export default function LoadingUnloading() {
       {error && <ErrorBanner message={error} />}
       <DataTable columns={columns} rows={rows} loading={loading} emptyMessage="No gate passes yet." />
 
-      <Modal open={modalOpen} title="New Gate Pass / Weighbridge Ticket / نیا گیٹ پاس یا وزن ٹکٹ" onClose={() => setModalOpen(false)}>
+      <Modal
+        open={modalOpen}
+        title="New Gate Pass / Weighbridge Ticket / نیا گیٹ پاس یا وزن ٹکٹ"
+        onClose={() => setModalOpen(false)}
+        panelClassName="!max-w-4xl !w-[min(96vw,980px)] !p-5"
+      >
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div><label className="label">Pass Number / پاس نمبر</label><input className="input" required value={form.pass_no} onChange={(e) => setForm({ ...form, pass_no: e.target.value })} /></div>
-            <div>
-              <label className="label">Type / قسم</label>
-              <SearchableSelect className="input" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as GatePassType })}>
-                <option value="loading">Loading / لوڈنگ</option>
-                <option value="unloading">Unloading / ان لوڈنگ</option>
-              </SearchableSelect>
-            </div>
-          </div>
-          <div>
-            <label className="label">Link to Sales Order / فروخت آرڈر سے منسلک کریں</label>
-            <SearchableSelect className="input" value={form.sales_order_id} onChange={(e) => setForm({ ...form, sales_order_id: e.target.value })}>
-              <option value="">— Select sales order —</option>
-              {salesOrders.map((so) => (
-                <option key={so.id} value={so.id}>{so.order_no} — {so.customer?.name ?? "No customer"}</option>
-              ))}
-            </SearchableSelect>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div><label className="label">Godown / Warehouse / گودام یا ویئرہاؤس</label><input className="input" required value={form.godown} onChange={(e) => setForm({ ...form, godown: e.target.value })} /></div>
-            <div><label className="label">Labour / Contractor / مزدور یا ٹھیکیدار</label><input className="input" value={form.labour_contractor} onChange={(e) => setForm({ ...form, labour_contractor: e.target.value })} /></div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div><label className="label">Vehicle Number / گاڑی نمبر</label><input className="input" value={form.vehicle_no} onChange={(e) => setForm({ ...form, vehicle_no: e.target.value })} placeholder="e.g. DL-01-AB-1234 / مثال" /></div>
-            <div><label className="label">Driver Name / ڈرائیور نام</label><input className="input" value={form.driver_name} onChange={(e) => setForm({ ...form, driver_name: e.target.value })} /></div>
-          </div>
-          <div><label className="label">Date / تاریخ</label><input className="input" type="date" required value={form.pass_date} onChange={(e) => setForm({ ...form, pass_date: e.target.value })} /></div>
-          <div className="bg-slate-50 rounded-lg p-4 space-y-3">
-            <h4 className="text-sm font-semibold text-slate-700">Weighbridge Details / وزن کانٹا تفصیل</h4>
-            <div className="grid grid-cols-3 gap-4">
-              <div><label className="label">Tare Weight (kg) / خالی وزن</label><input className="input text-right" type="number" step="0.01" required value={form.tare_weight} onChange={(e) => setForm({ ...form, tare_weight: e.target.value })} /></div>
-              <div><label className="label">Gross Weight (kg) / مجموعی وزن</label><input className="input text-right" type="number" step="0.01" required value={form.gross_weight} onChange={(e) => setForm({ ...form, gross_weight: e.target.value })} /></div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div>
-                <label className="label">Net Weight (auto) / خالص وزن (خودکار)</label>
-                <div className="input text-right font-bold text-primary-600 bg-primary-50 border-primary-200">{netWeight.toLocaleString()} kg</div>
+                <label className="label">Pass Number / پاس نمبر</label>
+                <input className="input cursor-not-allowed bg-slate-100 font-bold text-slate-700" readOnly value={form.pass_no} />
+                <div className="mt-1 text-[11px] text-slate-500">Auto generated & locked / خودکار اور لاک</div>
+              </div>
+              <div>
+                <label className="label">Type / قسم</label>
+                <SearchableSelect className="input" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as GatePassType, order_book_header_id: e.target.value === "loading" ? form.order_book_header_id : "" })}>
+                  <option value="loading">Loading / لوڈنگ</option>
+                  <option value="unloading">Unloading / ان لوڈنگ</option>
+                </SearchableSelect>
+              </div>
+              <div>
+                <label className="label">Date / تاریخ</label>
+                <input className="input" type="date" required value={form.pass_date} onChange={(e) => setForm({ ...form, pass_date: e.target.value })} />
               </div>
             </div>
           </div>
-          <div className="flex gap-3 justify-end pt-2">
+
+          {form.type === "loading" && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-4">
+              <label className="label">Link to Sales Order Book / سیلز آرڈر بک سے منسلک کریں</label>
+              <SearchableSelect className="input" value={form.order_book_header_id} onChange={(e) => setForm({ ...form, order_book_header_id: e.target.value })}>
+                <option value="">— Select sales order —</option>
+                {orderBookOrders.map((order) => (
+                  <option key={order.id} value={order.id}>
+                    {order.order_no} — {order.party_name} — {order.status}
+                  </option>
+                ))}
+              </SearchableSelect>
+              {selectedOrder && (
+                <div className="mt-3 grid grid-cols-1 gap-2 rounded-lg border border-blue-100 bg-white p-3 text-sm md:grid-cols-4">
+                  <div><span className="text-slate-500">Order</span><div className="font-bold">{selectedOrder.order_no}</div></div>
+                  <div><span className="text-slate-500">Customer</span><div className="font-bold">{selectedOrder.party_name}</div></div>
+                  <div><span className="text-slate-500">Order Date</span><div className="font-bold">{formatDate(selectedOrder.order_date)}</div></div>
+                  <div><span className="text-slate-500">Status</span><div className="font-bold uppercase">{selectedOrder.status}</div></div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label className="label">Godown / Warehouse / گودام یا ویئرہاؤس</label>
+              <input className="input cursor-not-allowed bg-slate-100 font-semibold" required readOnly value={form.godown} />
+              <div className="mt-1 text-[11px] text-slate-500">Locked to operational godown / آپریشنل گودام لاک</div>
+            </div>
+            <div>
+              <label className="label">Labour / Contractor / مزدور یا ٹھیکیدار</label>
+              <input className="input" value={form.labour_contractor} onChange={(e) => setForm({ ...form, labour_contractor: e.target.value })} />
+            </div>
+            <div>
+              <label className="label">Vehicle Number / گاڑی نمبر</label>
+              <input className="input" value={form.vehicle_no} onChange={(e) => setForm({ ...form, vehicle_no: e.target.value })} placeholder="e.g. DL-01-AB-1234 / مثال" />
+            </div>
+            <div>
+              <label className="label">Driver Name / ڈرائیور نام</label>
+              <input className="input" value={form.driver_name} onChange={(e) => setForm({ ...form, driver_name: e.target.value })} />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h4 className="text-sm font-bold text-slate-800">Weighbridge Details / وزن کانٹا تفصیل</h4>
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-500">Net = Gross − Tare</span>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div><label className="label">Tare Weight (kg) / خالی وزن</label><input className="input text-right" type="number" min="0" step="0.01" required value={form.tare_weight} onChange={(e) => setForm({ ...form, tare_weight: e.target.value })} /></div>
+              <div><label className="label">Gross Weight (kg) / مجموعی وزن</label><input className="input text-right" type="number" min="0" step="0.01" required value={form.gross_weight} onChange={(e) => setForm({ ...form, gross_weight: e.target.value })} /></div>
+              <div>
+                <label className="label">Net Weight (auto) / خالص وزن (خودکار)</label>
+                <div className={`input flex items-center justify-end bg-white text-right font-black ${netWeight < 0 ? "border-rose-300 text-rose-600" : "border-blue-200 text-blue-700"}`}>{netWeight.toLocaleString()} kg</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="sticky bottom-0 -mx-1 flex justify-end gap-3 border-t border-slate-200 bg-white/95 px-1 pt-4 backdrop-blur">
             <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">Cancel / منسوخ کریں</button>
             <button type="submit" className="btn-primary">Create Gate Pass / گیٹ پاس بنائیں</button>
           </div>
@@ -457,10 +534,10 @@ export default function LoadingUnloading() {
           documentFooter={gatePrintSettings?.company?.document_footer || undefined}
           documentFooterUrdu={gatePrintSettings?.company?.document_footer_urdu || undefined}
           party={{
-            name: printParty?.name ?? "—",
-            address: printParty?.address,
-            phone: printParty?.phone,
-            email: printParty?.email,
+            name: printPartyName,
+            address: legacyPrintParty?.address,
+            phone: legacyPrintParty?.phone,
+            email: legacyPrintParty?.email,
           }}
           items={[]}
           chargeBreakdown={[]}
@@ -468,6 +545,7 @@ export default function LoadingUnloading() {
           chargesTotal={0}
           grandTotal={0}
           extraFields={[
+            { label: "Sales Order", value: printOrderNo },
             { label: "Type / قسم", value: printPass.type },
             { label: "Godown / گودام", value: printPass.godown },
             { label: "Vehicle No", value: printPass.vehicle_no ?? "—" },

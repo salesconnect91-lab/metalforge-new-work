@@ -8,8 +8,6 @@ import ProtectedRoute from "@/auth/ProtectedRoute";
 import Layout from "@/components/Layout";
 import CompanySwitcher from "@/components/CompanySwitcher";
 import BusinessUnitSwitcher from "@/components/BusinessUnitSwitcher";
-import ErpExperienceBridge from "@/components/ErpExperienceBridge";
-import GlobalFormStandards from "@/components/GlobalFormStandards";
 import PrintPreviewController from "@/components/PrintPreviewController";
 import DashboardGlobalSearch from "@/components/DashboardGlobalSearch";
 import OrderBookQuickAccess from "@/components/OrderBookQuickAccess";
@@ -77,8 +75,6 @@ function WorkspaceSwitchers() {
 
 function GlobalExperience() {
   return <>
-    <ErpExperienceBridge />
-    <GlobalFormStandards />
     <PrintPreviewController />
     <OrderBookQuickAccess />
     <OrderBookExportToolbar />

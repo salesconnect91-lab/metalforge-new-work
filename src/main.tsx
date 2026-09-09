@@ -9,7 +9,7 @@ import { installUnifiedDocumentOutput } from "./lib/unifiedDocumentOutput";
 import "./index.css";
 import "./contrast.css";
 import "./reportPrint.css";
-import "./invoicePrintFix.css";
+import "./naviloDocumentPrint.css";
 import "./accountingStatements.css";
 import "./purchaseConsolidatedFix.css";
 import "./consolidatedPurchasePrintPreview.css";

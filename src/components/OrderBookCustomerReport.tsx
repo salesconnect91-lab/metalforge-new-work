@@ -1,10 +1,9 @@
 import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Printer, X } from "lucide-react";
-import { createPortal } from "react-dom";
-import { useLocation } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 
+type OrderType = "sales" | "purchase";
 type Commitment={id:string;item_name:string;ordered_qty:number|string;fulfilled_qty:number|string;cancelled_qty:number|string;uom:string|null;rate_status:string;agreed_rate:number|string|null;effective_at:string|null;status:string;remarks:string|null};
 type Header={id:string;order_no:string;order_date:string;party_id:string;party_name:string;salesperson_name:string|null;status:string;remarks:string|null;order_book_commitments?:Commitment[]};
 type History={id:string;commitment_id:string;old_rate:number|string|null;new_rate:number|string|null;effective_at:string;reason:string;created_at?:string};
@@ -14,30 +13,25 @@ const n=(v:unknown)=>Number(v)||0;
 const money=(v:unknown)=>`Rs ${n(v).toLocaleString(undefined,{maximumFractionDigits:2})}`;
 const shortOrderNo=(v:string)=>{const m=v.match(/^(SO|PO|POB)-(?:\d{8}-)?(\d+)$/i);return m?`${m[1].toUpperCase()}-${String(Number(m[2])).padStart(4,"0")}`:v};
 
-export default function OrderBookCustomerReport(){
- const {pathname}=useLocation();
- const kind=pathname==="/purchase/order-book"?"purchase":pathname==="/sales/order-book"?"sales":null;
- const sales=kind==="sales";
+export default function OrderBookCustomerReport({ type }: { type: OrderType }){
+ const sales=type==="sales";
  const partyLabel=sales?"Customer":"Supplier";
  const partyLabelUrdu=sales?"کسٹمر":"سپلائر";
  const [open,setOpen]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState<string|null>(null),[partyId,setPartyId]=useState("");
  const [parties,setParties]=useState<Party[]>([]),[orders,setOrders]=useState<Header[]>([]),[history,setHistory]=useState<History[]>([]),[fulfillments,setFulfillments]=useState<Fulfillment[]>([]);
- const loadParties=useCallback(async()=>{if(!kind)return;const table=sales?"customers":"suppliers";const {data,error}=await supabase.from(table).select("id,name,phone,address").order("name");if(!error)setParties((data||[]) as Party[])},[kind,sales]);
- useEffect(()=>{if(kind)void loadParties()},[kind,loadParties]);
- const loadReport=async(id:string)=>{if(!kind)return;setPartyId(id);setError(null);if(!id){setOrders([]);setHistory([]);setFulfillments([]);return}setLoading(true);try{const {data:o,error:e}=await supabase.from("order_book_headers").select("id,order_no,order_date,party_id,party_name,salesperson_name,status,remarks,order_book_commitments(id,item_name,ordered_qty,fulfilled_qty,cancelled_qty,uom,rate_status,agreed_rate,effective_at,status,remarks)").eq("order_type",kind).eq("party_id",id).order("order_date",{ascending:false});if(e)throw e;const os=((o||[]) as Header[]).filter(x=>(x.order_book_commitments||[]).length>0);setOrders(os);const ids=os.flatMap(x=>(x.order_book_commitments||[]).map(c=>c.id));if(ids.length){const [hr,fr]=await Promise.all([supabase.from("order_book_rate_history").select("id,commitment_id,old_rate,new_rate,effective_at,reason,created_at").in("commitment_id",ids).order("effective_at",{ascending:true}),supabase.from("order_book_fulfillments").select("id,commitment_id,document_type,document_id,document_no,document_date,qty,rate,created_at").in("commitment_id",ids).order("document_date",{ascending:true})]);if(hr.error)throw hr.error;if(fr.error)throw fr.error;setHistory((hr.data||[]) as History[]);setFulfillments((fr.data||[]) as Fulfillment[])}else{setHistory([]);setFulfillments([])}}catch(e:any){setError(e?.message||`Could not load ${partyLabel.toLowerCase()} order report.`)}finally{setLoading(false)}};
+ const loadParties=useCallback(async()=>{const table=sales?"customers":"suppliers";const {data,error}=await supabase.from(table).select("id,name,phone,address").order("name");if(!error)setParties((data||[]) as Party[])},[sales]);
+ useEffect(()=>{void loadParties()},[loadParties]);
+ const loadReport=async(id:string)=>{setPartyId(id);setError(null);if(!id){setOrders([]);setHistory([]);setFulfillments([]);return}setLoading(true);try{const {data:o,error:e}=await supabase.from("order_book_headers").select("id,order_no,order_date,party_id,party_name,salesperson_name,status,remarks,order_book_commitments(id,item_name,ordered_qty,fulfilled_qty,cancelled_qty,uom,rate_status,agreed_rate,effective_at,status,remarks)").eq("order_type",type).eq("party_id",id).order("order_date",{ascending:false});if(e)throw e;const os=((o||[]) as Header[]).filter(x=>(x.order_book_commitments||[]).length>0);setOrders(os);const ids=os.flatMap(x=>(x.order_book_commitments||[]).map(c=>c.id));if(ids.length){const [hr,fr]=await Promise.all([supabase.from("order_book_rate_history").select("id,commitment_id,old_rate,new_rate,effective_at,reason,created_at").in("commitment_id",ids).order("effective_at",{ascending:true}),supabase.from("order_book_fulfillments").select("id,commitment_id,document_type,document_id,document_no,document_date,qty,rate,created_at").in("commitment_id",ids).order("document_date",{ascending:true})]);if(hr.error)throw hr.error;if(fr.error)throw fr.error;setHistory((hr.data||[]) as History[]);setFulfillments((fr.data||[]) as Fulfillment[])}else{setHistory([]);setFulfillments([])}}catch(e:any){setError(e?.message||`Could not load ${partyLabel.toLowerCase()} order report.`)}finally{setLoading(false)}};
  const party=parties.find(c=>c.id===partyId);
  const totals=useMemo(()=>orders.flatMap(o=>o.order_book_commitments||[]).reduce((a,c)=>{const ordered=n(c.ordered_qty),fulfilled=n(c.fulfilled_qty),cancelled=n(c.cancelled_qty),balance=Math.max(0,ordered-fulfilled-cancelled);a.ordered+=ordered;a.fulfilled+=fulfilled;a.cancelled+=cancelled;a.balance+=balance;if(c.rate_status==="agreed")a.openValue+=balance*n(c.agreed_rate);return a},{ordered:0,fulfilled:0,cancelled:0,balance:0,openValue:0}),[orders]);
  const orderCount=orders.length, invoiceCount=new Set(fulfillments.map(f=>f.document_id)).size;
  const historyFor=(id:string)=>history.filter(h=>h.commitment_id===id);
  const fulfillmentFor=(id:string)=>fulfillments.filter(f=>f.commitment_id===id);
- const [slot,setSlot]=useState<HTMLElement|null>(null);
- useEffect(()=>{if(!kind){setSlot(null);return}const sync=()=>setSlot(document.getElementById("order-book-action-slot"));sync();const mo=new MutationObserver(sync);mo.observe(document.body,{childList:true,subtree:true});return()=>mo.disconnect()},[kind]);
- if(!kind&&!open)return null;
- const trigger=<button type="button" className="btn" onClick={()=>setOpen(true)} title={`${partyLabel} Order Report`}><Printer size={14}/> {partyLabel} Report / {partyLabelUrdu} رپورٹ</button>;
+ const triggerPrint=()=>{const beforeTitle=document.title;document.title=`${partyLabel} Order Book - ${party?.name||"Report"}`;window.print();document.title=beforeTitle};
  return <>
-  {!open&&slot&&createPortal(trigger,slot)}
+  <button type="button" className="btn" onClick={()=>setOpen(true)} title={`${partyLabel} Order Report`}><Printer size={14}/> {partyLabel} Report / {partyLabelUrdu} رپورٹ</button>
   {open&&<div className="fixed inset-0 z-[140] overflow-auto bg-slate-950/50 p-4"><div className="mx-auto max-w-7xl rounded-2xl bg-white p-5 shadow-xl">
-   <div className="no-print mb-4 flex flex-wrap items-center gap-2"><h2 className="mr-auto text-lg font-black">{partyLabel} Order Book Report / {partyLabelUrdu} آرڈر بک رپورٹ</h2><SearchableSelect className="input min-w-64" value={partyId} onChange={e=>void loadReport(e.target.value)}><option value="">Select {partyLabel.toLowerCase()}...</option>{parties.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</SearchableSelect><button className="btn btn-primary" disabled={!partyId||loading} onClick={()=>window.print()}><Printer size={15}/> Print</button><button className="btn" onClick={()=>setOpen(false)}><X size={16}/></button></div>
+   <div className="no-print mb-4 flex flex-wrap items-center gap-2"><h2 className="mr-auto text-lg font-black">{partyLabel} Order Book Report / {partyLabelUrdu} آرڈر بک رپورٹ</h2><SearchableSelect className="input min-w-64" value={partyId} onChange={e=>void loadReport(e.target.value)}><option value="">Select {partyLabel.toLowerCase()}...</option>{parties.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</SearchableSelect><button className="btn btn-primary" disabled={!partyId||loading} onClick={triggerPrint}><Printer size={15}/> Print</button><button className="btn" onClick={()=>setOpen(false)}><X size={16}/></button></div>
    {error&&<div className="mb-3 rounded-lg bg-red-50 p-3 text-red-700">{error}</div>}{loading&&<div className="py-10 text-center">Loading...</div>}
    {!loading&&partyId&&<div id="customer-order-book-report" className="print-report text-xs text-slate-900"><div className="mb-4 border-b pb-3 text-center"><h1 className="text-xl font-black">{partyLabel} Order Book Statement</h1><div className="text-base font-black">{party?.name}</div><div>{party?.phone||""}{party?.address?` · ${party.address}`:""}</div><div className="mt-1 text-slate-500">Complete order, delivery/invoice and rate revision history</div></div>
     <div className="mb-4 grid grid-cols-4 gap-2">{[["Total Orders",orderCount],["Total Ordered Qty",totals.ordered],["Delivered / Invoiced Qty",totals.fulfilled],["Outstanding Qty",totals.balance],["Cancelled Qty",totals.cancelled],["Invoices",invoiceCount],["Outstanding Value",money(totals.openValue)],[partyLabel,party?.name||"—"]].map(([k,v])=><div key={String(k)} className="rounded-lg border bg-slate-50 p-2.5"><div className="font-bold text-slate-500">{k}</div><div className="mt-0.5 text-base font-black">{String(v)}</div></div>)}</div>

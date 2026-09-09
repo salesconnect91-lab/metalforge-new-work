@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Database, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 
 type Preview = {
   total_rows: number;
@@ -9,13 +9,6 @@ type Preview = {
 };
 
 type Props = { companyId: string; companyName: string; companyCode: string };
-
-const invoke = async (action: string, payload: Record<string, unknown>) => {
-  const { data, error } = await supabase.functions.invoke("platform-admin", { body: { action, ...payload } });
-  if (error) throw error;
-  if (data?.error) throw new Error(data.error);
-  return data;
-};
 
 const label = (key: string) => key.replaceAll("_", " ").replace(/\b\w/g, c => c.toUpperCase());
 
@@ -33,12 +26,17 @@ export default function TransactionResetControl({ companyId, companyName, compan
 
   const loadPreview = async () => {
     setLoading(true); setError(""); setMessage("");
-    try { setPreview(await invoke("reset_company_preview", { company_id: companyId }) as Preview); }
-    catch (e) { setError(e instanceof Error ? e.message : "Could not inspect company data."); }
-    finally { setLoading(false); }
+    try {
+      setPreview(await invokeEdgeFunction<Preview>("platform-admin", { action: "reset_company_preview", company_id: companyId }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not inspect company data.");
+    } finally { setLoading(false); }
   };
 
-  useEffect(() => { setPreview(null); setConfirmation(""); setAck(false); setMessage(""); setError(""); void loadPreview(); }, [companyId]);
+  useEffect(() => {
+    setPreview(null); setConfirmation(""); setAck(false); setMessage(""); setError("");
+    void loadPreview();
+  }, [companyId]);
 
   const reset = async () => {
     if (confirmation !== expected || !ack) return;
@@ -46,11 +44,17 @@ export default function TransactionResetControl({ companyId, companyName, compan
     if (!ok) return;
     setResetting(true); setError(""); setMessage("");
     try {
-      const result = await invoke("reset_company_transactions", { company_id: companyId, confirmation, acknowledge: true });
+      const result = await invokeEdgeFunction<{ deleted_rows?: number }>("platform-admin", {
+        action: "reset_company_transactions",
+        company_id: companyId,
+        confirmation,
+        acknowledge: true,
+      });
       setMessage(`Reset completed successfully. ${Number(result?.deleted_rows ?? 0).toLocaleString()} transaction rows removed.`);
       setConfirmation(""); setAck(false); await loadPreview();
-    } catch (e) { setError(e instanceof Error ? e.message : "Reset failed."); }
-    finally { setResetting(false); }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Reset failed.");
+    } finally { setResetting(false); }
   };
 
   return <section className="rounded-xl border border-rose-200 bg-white p-4 shadow-sm">

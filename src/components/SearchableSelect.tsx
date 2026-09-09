@@ -14,6 +14,14 @@ type Props = SelectHTMLAttributes<HTMLSelectElement> & {
   emptyText?: string;
 };
 
+function nodeText(node: ReactNode): string {
+  if (node == null || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(nodeText).join("");
+  if (isValidElement(node)) return nodeText((node as ReactElement<any>).props?.children);
+  return "";
+}
+
 function flattenOptions(children: ReactNode, group?: string): FlatOption[] {
   const out: FlatOption[] = [];
   Children.forEach(children, (child) => {
@@ -28,9 +36,11 @@ function flattenOptions(children: ReactNode, group?: string): FlatOption[] {
       return;
     }
     if (element.type === "option") {
-      const raw = element.props.value ?? element.props.children ?? "";
-      const label = Children.toArray(element.props.children).join("").trim();
-      out.push({ value: String(raw), label, disabled: Boolean(element.props.disabled), group });
+      const rawValue = element.props.value ?? "";
+      const explicitLabel = element.props.label == null ? "" : String(element.props.label);
+      const childLabel = nodeText(element.props.children).trim();
+      const label = explicitLabel.trim() || childLabel || String(rawValue);
+      out.push({ value: String(rawValue), label, disabled: Boolean(element.props.disabled), group });
       return;
     }
     if (element.props?.children) out.push(...flattenOptions(element.props.children, group));
@@ -60,7 +70,6 @@ export default function SearchableSelect({
   const initialValue = controlledValue ?? (defaultValue == null ? "" : String(defaultValue));
   const [internalValue, setInternalValue] = useState(initialValue);
   const selectedValue = controlledValue ?? internalValue;
-  const selected = options.find((option) => option.value === selectedValue) ?? options.find((option) => option.value === "");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
@@ -83,13 +92,17 @@ export default function SearchableSelect({
     return () => document.removeEventListener("mousedown", close);
   }, []);
 
+  const selected = useMemo(
+    () => options.find((option) => option.value === selectedValue) ?? options.find((option) => option.value === "") ?? null,
+    [options, selectedValue],
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase();
-    const visible = options.filter((option) => option.value !== "" || !q).filter((option) => {
-      if (!q) return true;
-      return `${option.label} ${option.group ?? ""}`.toLocaleLowerCase().includes(q);
-    });
-    return visible.slice(0, 300);
+    return options
+      .filter((option) => option.value !== "" || !q)
+      .filter((option) => !q || `${option.label} ${option.group ?? ""}`.toLocaleLowerCase().includes(q))
+      .slice(0, 300);
   }, [options, query]);
 
   const commit = (nextValue: string) => {
@@ -108,7 +121,7 @@ export default function SearchableSelect({
           cancelable: false,
           defaultPrevented: false,
           eventPhase: 3,
-          isTrusted: true,
+          isTrusted: false,
           nativeEvent: new Event("change", { bubbles: true }),
           preventDefault() {},
           isDefaultPrevented: () => false,
@@ -128,8 +141,8 @@ export default function SearchableSelect({
     if (disabled) return;
     setOpen(true);
     setQuery("");
-    const currentIndex = filtered.findIndex((option) => option.value === selectedValue && !option.disabled);
-    setActiveIndex(currentIndex >= 0 ? currentIndex : Math.max(0, filtered.findIndex((option) => !option.disabled)));
+    const currentIndex = options.findIndex((option) => option.value === selectedValue && !option.disabled);
+    setActiveIndex(currentIndex >= 0 ? currentIndex : Math.max(0, options.findIndex((option) => !option.disabled)));
     requestAnimationFrame(() => inputRef.current?.focus());
   };
 
@@ -154,13 +167,12 @@ export default function SearchableSelect({
     }
     if (event.key === "Enter") {
       event.preventDefault();
-      const option = filtered[activeIndex];
+      const option = filtered[activeIndex] ?? filtered.find((candidate) => !candidate.disabled);
       if (option && !option.disabled) commit(option.value);
     }
   };
 
-  const placeholderOption = options.find((option) => option.value === "");
-  const displayLabel = selected?.label || placeholderOption?.label || "Select...";
+  const displayLabel = selected?.label || (selectedValue ? selectedValue : "Select...");
 
   return (
     <div ref={rootRef} className="relative min-w-0 w-full">
@@ -181,7 +193,7 @@ export default function SearchableSelect({
         type="button"
         disabled={disabled}
         onClick={openMenu}
-        className={`${className} flex items-center justify-between gap-2 text-left disabled:cursor-not-allowed disabled:opacity-60`}
+        className={`${className} flex min-h-8 w-full items-center justify-between gap-2 text-left text-slate-900 disabled:cursor-not-allowed disabled:opacity-60`}
         aria-haspopup="listbox"
         aria-expanded={open}
       >
@@ -222,7 +234,7 @@ export default function SearchableSelect({
               >
                 <span className="min-w-0 flex-1">
                   {option.group && <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{option.group} ·</span>}
-                  <span className="break-words">{option.label}</span>
+                  <span className="break-words">{option.label || option.value || "—"}</span>
                 </span>
                 {option.value === selectedValue && <Check className="h-3.5 w-3.5 shrink-0" />}
               </button>

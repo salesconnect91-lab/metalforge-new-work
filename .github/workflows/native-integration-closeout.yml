@@ -1,0 +1,102 @@
+name: Native integration closeout
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [final-standardization-closeout]
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: final-standardization-closeout
+          fetch-depth: 0
+      - name: Integrate native controls
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p=Path(path); s=p.read_text()
+              if new in s: return
+              if old not in s: raise SystemExit(f'Missing target in {path}: {old[:100]}')
+              p.write_text(s.replace(old,new,1))
+
+          # Order Book: render controls natively inside its own PageHeader/table.
+          p=Path('src/modules/orders/OrderBook.tsx'); s=p.read_text()
+          marker='import { ErrorBanner, PageHeader, formatCurrency } from "@/components/ui";\n'
+          adds='import OrderBookExportToolbar from "@/components/OrderBookExportToolbar";\nimport OrderBookCustomerReport from "@/components/OrderBookCustomerReport";\nimport OrderBookCancelControl from "@/components/OrderBookCancelControl";\nimport OrderBookQtyAdjustControl from "@/components/OrderBookQtyAdjustControl";\n'
+          if adds not in s: s=s.replace(marker,marker+adds,1)
+          s=s.replace('<div className="space-y-4">','<div id="order-book-report" className="professional-report space-y-4">',1)
+          old='action={<div className="flex gap-2"><button type="button" className="btn-secondary" onClick={() => void load()}><RefreshCw className="h-4 w-4" />Refresh</button><button type="button" className="btn-primary" onClick={() => setCreateOpen(true)} disabled={!enabled}><Plus className="h-4 w-4" />New Order</button></div>}'
+          new='action={<div className="flex flex-wrap gap-2"><OrderBookExportToolbar tableId="order-book-table" fileBase={isSales ? "sales-order-book" : "purchase-order-book"} /><OrderBookCustomerReport type={type} /><OrderBookQtyAdjustControl type={type} onChanged={() => void load()} /><OrderBookCancelControl type={type} onChanged={() => void load()} /><button type="button" className="btn-secondary" onClick={() => void load()}><RefreshCw className="h-4 w-4" />Refresh</button><button type="button" className="btn-primary" onClick={() => setCreateOpen(true)} disabled={!enabled}><Plus className="h-4 w-4" />New Order</button></div>}'
+          if old in s: s=s.replace(old,new,1)
+          s=s.replace('<table className="w-full min-w-[1050px] text-sm">','<table id="order-book-table" className="w-full min-w-[1050px] text-sm">',1)
+          p.write_text(s)
+
+          # Sales invoice create/edit: explicit Order Book components next to Add Row.
+          p=Path('src/modules/sales/SalesInvoiceCreate.tsx'); s=p.read_text()
+          marker='import PrintLayout from "@/components/PrintLayout";\n'
+          adds='import UnifiedOrderBookInvoicePicker from "@/components/UnifiedOrderBookInvoicePicker";\nimport SalesOrderBookDraftBridge from "@/components/SalesOrderBookDraftBridge";\n'
+          if adds not in s: s=s.replace(marker,marker+adds,1)
+          old='{!isLocked && <button type="button" className="btn-secondary" onClick={() => setRows((current) => [...current, emptyRow(invoiceType === "Tax Invoice" ? configuredTaxRate || "0" : "0", godowns[0]?.id || "")])}><Plus className="h-3.5 w-3.5" />Add Row</button>}'
+          new='{!isLocked && <div className="flex flex-wrap gap-2">{isEditing && id ? <SalesOrderBookDraftBridge invoiceId={id} onChanged={() => void loadEditingInvoice()} /> : <UnifiedOrderBookInvoicePicker kind="sales" />}<button type="button" className="btn-secondary" onClick={() => setRows((current) => [...current, emptyRow(invoiceType === "Tax Invoice" ? configuredTaxRate || "0" : "0", godowns[0]?.id || "")])}><Plus className="h-3.5 w-3.5" />Add Row</button></div>}'
+          if old in s: s=s.replace(old,new,1)
+          p.write_text(s)
+
+          # Consolidated sales: explicit native picker.
+          p=Path('src/modules/sales/ConsolidatedInvoices.tsx'); s=p.read_text()
+          marker='import PrintLayout from "@/components/PrintLayout";\n'
+          add='import UnifiedOrderBookInvoicePicker from "@/components/UnifiedOrderBookInvoicePicker";\n'
+          if add not in s: s=s.replace(marker,marker+add,1)
+          needle='<button type="button" className="btn-primary" onClick={() => setCreateOpen(true)}>'
+          if needle in s and '<UnifiedOrderBookInvoicePicker kind="sales" consolidated />' not in s:
+              s=s.replace(needle,'<UnifiedOrderBookInvoicePicker kind="sales" consolidated />'+needle,1)
+          p.write_text(s)
+
+          # Main purchase create: explicit native picker.
+          p=Path('src/modules/purchase/MainPurchaseInvoiceV2.tsx'); s=p.read_text()
+          marker='import PrintLayout from "@/components/PrintLayout";\n'
+          add='import UnifiedOrderBookInvoicePicker from "@/components/UnifiedOrderBookInvoicePicker";\n'
+          if add not in s: s=s.replace(marker,marker+add,1)
+          # Put picker before first Add Row button in item section.
+          needle='<button type="button" className="btn-secondary" onClick={() => setLines((current) => [...current, emptyLine('
+          if needle in s and '<UnifiedOrderBookInvoicePicker kind="purchase" />' not in s:
+              idx=s.find(needle); s=s[:idx]+'<UnifiedOrderBookInvoicePicker kind="purchase" />'+s[idx:]
+          p.write_text(s)
+
+          # Consolidated purchase: explicit native picker.
+          p=Path('src/modules/purchase/ConsolidatedPurchaseInvoices.tsx'); s=p.read_text()
+          marker='import PrintLayout from "@/components/PrintLayout";\n'
+          add='import UnifiedOrderBookInvoicePicker from "@/components/UnifiedOrderBookInvoicePicker";\n'
+          if add not in s: s=s.replace(marker,marker+add,1)
+          needle='<button type="button" className="btn-primary"'
+          if needle in s and '<UnifiedOrderBookInvoicePicker kind="purchase" consolidated />' not in s:
+              idx=s.find(needle); s=s[:idx]+'<UnifiedOrderBookInvoicePicker kind="purchase" consolidated />'+s[idx:]
+          p.write_text(s)
+
+          # Existing purchase draft: native Add from PO + Charge controls.
+          p=Path('src/modules/purchase/PurchaseInvoiceDetail.tsx'); s=p.read_text()
+          marker='import PrintLayout from "@/components/PrintLayout";\n'
+          add='import PurchaseDraftAddControls from "@/components/PurchaseDraftAddControls";\n'
+          if add not in s: s=s.replace(marker,marker+add,1)
+          needle='<div className="flex flex-wrap gap-2">\n        {order.status !== "posted" && <button className="btn-primary"'
+          if needle in s and '<PurchaseDraftAddControls orderId={order.id}' not in s:
+              s=s.replace(needle,'<div className="flex flex-wrap gap-2">\n        {order.status !== "posted" && <PurchaseDraftAddControls orderId={order.id} onChanged={() => void load()} />}\n        {order.status !== "posted" && <button className="btn-primary"',1)
+          p.write_text(s)
+
+      - name: Commit integration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Integrate Order Book controls natively"
+          git pull --rebase origin final-standardization-closeout
+          git push origin HEAD:final-standardization-closeout

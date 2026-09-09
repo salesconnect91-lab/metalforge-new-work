@@ -1,16 +1,17 @@
 import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 import * as XLSX from "xlsx";
-import { Download, FileSpreadsheet, Plus, Pencil, Power, Trash2, Save, Upload, X } from "lucide-react";
+import { Download, FileSpreadsheet, Pencil, Plus, Power, Save, Trash2, Upload, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toUrduName } from "@/lib/urdu";
-import { PageHeader, ErrorBanner, Modal } from "@/components/ui";
+import { ErrorBanner, Modal, PageHeader } from "@/components/ui";
 import { useAuth } from "@/auth/AuthContext";
 import { canPerformModule } from "@/auth/permissions";
+import type { ConfiguredChargeUnit } from "@/lib/chargeCalculation";
 
 type ChargeType = "recovery" | "cost" | "both";
 type ChargeContext = "sales" | "purchase" | "both";
-type ChargeUnit = "fixed" | "percent" | "per_kg" | "per_ton" | "per_piece";
 type PurchaseTreatment = "landed_cost" | "expense";
+type ChargeUnit = ConfiguredChargeUnit;
 type Charge = {
   id: string;
   charge_key: string;
@@ -30,21 +31,14 @@ type Charge = {
   description: string | null;
 };
 type Account = { id: string; code: string; name: string; type: string };
-type ChargeForm = {
+type ChargeForm = Omit<Charge, "id" | "charge_key" | "default_rate" | "revenue_account_id" | "cost_account_id" | "charge_name_urdu" | "description"> & {
   charge_name: string;
   charge_name_urdu: string;
-  charge_type: ChargeType;
+  default_rate: string;
   revenue_account_id: string;
   cost_account_id: string;
-  tax_applicable: boolean;
-  service_party_required: boolean;
-  default_rate: string;
-  unit: ChargeUnit;
-  applies_to: ChargeContext;
-  purchase_treatment: PurchaseTreatment;
-  is_fixed: boolean;
-  is_active: boolean;
   description: string;
+  purchase_treatment: PurchaseTreatment;
 };
 
 const emptyForm: ChargeForm = {
@@ -68,22 +62,26 @@ const makeKey = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]
 const clean = (value: unknown) => String(value ?? "").trim();
 const yes = (value: unknown, fallback = false) => {
   const text = clean(value).toLowerCase();
-  if (!text) return fallback;
-  return ["yes", "y", "true", "1", "active", "on"].includes(text);
+  return text ? ["yes", "y", "true", "1", "active", "on"].includes(text) : fallback;
 };
-
-function normalizedTypeForContext(context: ChargeContext, type: ChargeType): ChargeType {
-  if (context === "purchase") return "cost";
-  if (context === "sales" && type === "cost") return "recovery";
-  return type;
-}
+const UNIT_OPTIONS: { value: ChargeUnit; label: string }[] = [
+  { value: "fixed", label: "Fixed / مقررہ" },
+  { value: "per_qty", label: "Qty / مقدار" },
+  { value: "per_kg", label: "Per Kg / فی کلو" },
+  { value: "per_ton", label: "Per Ton / فی ٹن" },
+  { value: "percent", label: "Percent / فیصد" },
+  { value: "manual", label: "Manual / دستی" },
+  { value: "per_piece", label: "Per Piece / فی عدد" },
+];
+const validUnits = new Set(UNIT_OPTIONS.map((row) => row.value));
+const normalizedTypeForContext = (context: ChargeContext, type: ChargeType): ChargeType =>
+  context === "purchase" ? "cost" : context === "sales" && type === "cost" ? "recovery" : type;
 
 export default function ChargeMaster() {
   const { activeCompany, isPlatformOwner } = useAuth();
   const canCreate = canPerformModule(activeCompany?.membership_role, "master", "create", activeCompany?.permissions, isPlatformOwner);
   const canEdit = canPerformModule(activeCompany?.membership_role, "master", "edit", activeCompany?.permissions, isPlatformOwner);
   const canDelete = canPerformModule(activeCompany?.membership_role, "master", "delete", activeCompany?.permissions, isPlatformOwner);
-
   const [charges, setCharges] = useState<Charge[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [form, setForm] = useState<ChargeForm>(emptyForm);
@@ -100,31 +98,23 @@ export default function ChargeMaster() {
       supabase.from("charge_master").select("*").order("charge_name"),
       supabase.from("chart_of_accounts").select("id,code,name,type").eq("is_active", true).eq("is_group", false).eq("allow_manual_entries", true).order("code"),
     ]);
-    if (chargeRes.error || accountRes.error) setError(chargeRes.error?.message || accountRes.error?.message || "Load failed");
-    else {
-      setError("");
-      setCharges((chargeRes.data ?? []) as Charge[]);
-      setAccounts((accountRes.data ?? []) as Account[]);
-    }
     setLoading(false);
+    if (chargeRes.error || accountRes.error) return setError(chargeRes.error?.message || accountRes.error?.message || "Load failed.");
+    setCharges((chargeRes.data ?? []) as Charge[]);
+    setAccounts((accountRes.data ?? []) as Account[]);
+    setError("");
   }, []);
 
   useEffect(() => { void load(); }, [load]);
 
-  const startAdd = () => {
-    setEditingId(null);
-    setForm(emptyForm);
-    setError("");
-    setOpen(true);
-  };
-
+  const startAdd = () => { setEditingId(null); setForm(emptyForm); setError(""); setOpen(true); };
   const startEdit = (charge: Charge) => {
     setEditingId(charge.id);
     setForm({
       charge_name: charge.charge_name,
       charge_name_urdu: charge.charge_name_urdu ?? toUrduName(charge.charge_name),
       charge_type: normalizedTypeForContext(charge.applies_to, charge.charge_type),
-      revenue_account_id: charge.applies_to === "purchase" ? "" : (charge.revenue_account_id ?? ""),
+      revenue_account_id: charge.applies_to === "purchase" ? "" : charge.revenue_account_id ?? "",
       cost_account_id: charge.cost_account_id ?? "",
       tax_applicable: charge.tax_applicable,
       service_party_required: charge.service_party_required,
@@ -140,26 +130,24 @@ export default function ChargeMaster() {
     setOpen(true);
   };
 
-  const changeContext = (context: ChargeContext) => {
-    setForm((current) => ({
-      ...current,
-      applies_to: context,
-      charge_type: context === "purchase" ? "cost" : context === "sales" ? "recovery" : "both",
-      revenue_account_id: context === "purchase" ? "" : current.revenue_account_id,
-    }));
-  };
+  const changeContext = (context: ChargeContext) => setForm((current) => ({
+    ...current,
+    applies_to: context,
+    charge_type: context === "purchase" ? "cost" : context === "sales" ? "recovery" : "both",
+    revenue_account_id: context === "purchase" ? "" : current.revenue_account_id,
+  }));
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     const name = form.charge_name.trim();
     const key = makeKey(name);
-    if (!name || !key) { setError("Valid Charge Name is required."); return; }
-
+    if (!name || !key) return setError("Valid Charge Name is required.");
     const type = normalizedTypeForContext(form.applies_to, form.charge_type);
     const needsRevenue = form.applies_to !== "purchase" && (type === "recovery" || type === "both");
     const needsCost = form.applies_to !== "sales" && (type === "cost" || type === "both");
-    if (needsRevenue && !form.revenue_account_id) { setError("Revenue Account is required for Sales recovery charges."); return; }
-    if (needsCost && !form.cost_account_id) { setError("Cost Account is required for Purchase charges."); return; }
+    if (needsRevenue && !form.revenue_account_id) return setError("Revenue Account is required for Sales recovery charges.");
+    if (needsCost && !form.cost_account_id) return setError("Cost Account is required for Purchase charges.");
+    if (form.unit === "manual" && form.is_fixed) return setError("Manual basis cannot use Lock Rate. Manual amount must remain editable on the document.");
 
     setSaving(true);
     const payload = {
@@ -168,14 +156,14 @@ export default function ChargeMaster() {
       charge_name_urdu: form.charge_name_urdu.trim() || toUrduName(name),
       charge_type: type,
       revenue_account_id: needsRevenue ? form.revenue_account_id : null,
-      cost_account_id: needsCost || type === "cost" || type === "both" ? (form.cost_account_id || null) : null,
+      cost_account_id: needsCost || type === "cost" || type === "both" ? form.cost_account_id || null : null,
       tax_applicable: form.tax_applicable,
       service_party_required: form.service_party_required,
-      default_rate: Math.max(0, Number(form.default_rate) || 0),
+      default_rate: form.unit === "manual" ? 0 : Math.max(0, Number(form.default_rate) || 0),
       unit: form.unit,
       applies_to: form.applies_to,
       purchase_treatment: form.applies_to === "sales" ? null : form.purchase_treatment,
-      is_fixed: form.is_fixed,
+      is_fixed: form.unit === "manual" ? false : form.is_fixed,
       is_active: form.is_active,
       description: form.description.trim() || null,
       updated_at: new Date().toISOString(),
@@ -184,28 +172,24 @@ export default function ChargeMaster() {
       ? await supabase.from("charge_master").update(payload).eq("id", editingId)
       : await supabase.from("charge_master").insert(payload);
     setSaving(false);
-    if (result.error) { setError(result.error.message); return; }
-    setOpen(false);
-    setEditingId(null);
-    setForm(emptyForm);
-    await load();
+    if (result.error) return setError(result.error.message);
+    setOpen(false); setEditingId(null); setForm(emptyForm); await load();
   };
 
   const toggle = async (charge: Charge) => {
     const { error: toggleError } = await supabase.from("charge_master").update({ is_active: !charge.is_active, updated_at: new Date().toISOString() }).eq("id", charge.id);
     if (toggleError) setError(toggleError.message); else await load();
   };
-
   const remove = async (charge: Charge) => {
     if (!confirm(`Delete ${charge.charge_name}?`)) return;
     const { error: deleteError } = await supabase.from("charge_master").delete().eq("id", charge.id);
     if (deleteError) setError(deleteError.message); else await load();
   };
-
   const accountLabel = (id: string | null) => {
     const account = accounts.find((candidate) => candidate.id === id);
     return account ? `${account.code} - ${account.name}` : "—";
   };
+  const unitLabel = (unit: ChargeUnit) => UNIT_OPTIONS.find((option) => option.value === unit)?.label || unit;
 
   const exportExcel = () => {
     const sheet = XLSX.utils.json_to_sheet(charges.map((charge) => ({
@@ -224,91 +208,58 @@ export default function ChargeMaster() {
       Active: charge.is_active ? "Yes" : "No",
       Description: charge.description ?? "",
     })));
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, sheet, "Charge Master");
-    XLSX.writeFile(book, "charge_master.xlsx");
+    const book = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(book, sheet, "Charge Master"); XLSX.writeFile(book, "charge_master.xlsx");
   };
 
   const downloadTemplate = () => {
     const sheet = XLSX.utils.json_to_sheet([
-      { "Charge Name": "Unloading Charges", "Urdu Name": "ان لوڈنگ چارجز", Type: "cost", Rate: 300, Unit: "per_ton", "Applies To": "purchase", "Purchase Treatment": "landed_cost", "Revenue Account Code": "", "Cost Account Code": "6410", "Tax Applicable": "Yes", "Service Party Required": "No", "Lock Rate": "Yes", Active: "Yes", Description: "Auto calculated by purchased weight" },
-      { "Charge Name": "Cutting Charges", "Urdu Name": "کٹنگ چارجز", Type: "recovery", Rate: 300, Unit: "per_ton", "Applies To": "sales", "Purchase Treatment": "", "Revenue Account Code": "4200", "Cost Account Code": "", "Tax Applicable": "Yes", "Service Party Required": "No", "Lock Rate": "Yes", Active: "Yes", Description: "Auto calculated by sold weight" },
+      { "Charge Name": "Unloading Charges", "Urdu Name": "ان لوڈنگ چارجز", Type: "cost", Rate: 300, Unit: "per_ton", "Applies To": "purchase", "Purchase Treatment": "landed_cost", "Revenue Account Code": "", "Cost Account Code": "6410", "Tax Applicable": "Yes", "Service Party Required": "No", "Lock Rate": "Yes", Active: "Yes", Description: "Auto calculated by purchased tons" },
+      { "Charge Name": "Handling Qty", "Urdu Name": "ہینڈلنگ", Type: "recovery", Rate: 10, Unit: "per_qty", "Applies To": "sales", "Purchase Treatment": "", "Revenue Account Code": "4200", "Cost Account Code": "", "Tax Applicable": "No", "Service Party Required": "No", "Lock Rate": "No", Active: "Yes", Description: "Qty × rate" },
+      { "Charge Name": "Manual Adjustment", "Urdu Name": "دستی چارج", Type: "recovery", Rate: 0, Unit: "manual", "Applies To": "sales", "Purchase Treatment": "", "Revenue Account Code": "4200", "Cost Account Code": "", "Tax Applicable": "No", "Service Party Required": "No", "Lock Rate": "No", Active: "Yes", Description: "Entered manually on document" },
     ]);
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, sheet, "Charge Master");
-    XLSX.writeFile(book, "charge_master_import_template.xlsx");
+    const book = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(book, sheet, "Charge Master"); XLSX.writeFile(book, "charge_master_import_template.xlsx");
   };
 
   const importExcel = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
+    const file = event.target.files?.[0]; event.target.value = "";
     if (!file) return;
-    if (!canCreate) { setError("You do not have permission to import charges."); return; }
-    setSaving(true);
-    setError("");
+    if (!canCreate) return setError("You do not have permission to import charges.");
+    setSaving(true); setError("");
     try {
       const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
       const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
       const accountByCode = new Map(accounts.map((account) => [account.code.trim().toLowerCase(), account]));
       const existing = new Set(charges.map((charge) => charge.charge_key));
       const seen = new Set<string>();
-      const payload: any[] = [];
+      const payload: Record<string, unknown>[] = [];
       const errors: string[] = [];
-
       raw.forEach((row, index) => {
-        const name = clean(row["Charge Name"] ?? row.Name ?? row.charge_name);
-        if (!name) return;
-        const key = makeKey(name);
-        if (!key || existing.has(key) || seen.has(key)) { errors.push(`Row ${index + 2}: Duplicate or invalid charge "${name}".`); return; }
+        const name = clean(row["Charge Name"] ?? row.Name ?? row.charge_name); if (!name) return;
+        const key = makeKey(name); if (!key || existing.has(key) || seen.has(key)) return errors.push(`Row ${index + 2}: Duplicate or invalid charge "${name}".`);
         const applies = (clean(row["Applies To"] ?? row.applies_to).toLowerCase() || "purchase") as ChargeContext;
-        if (!["sales", "purchase", "both"].includes(applies)) { errors.push(`Row ${index + 2}: Applies To must be sales, purchase or both.`); return; }
+        if (!["sales", "purchase", "both"].includes(applies)) return errors.push(`Row ${index + 2}: Applies To must be sales, purchase or both.`);
         let type = (clean(row.Type ?? row.charge_type).toLowerCase() || (applies === "purchase" ? "cost" : applies === "sales" ? "recovery" : "both")) as ChargeType;
         type = normalizedTypeForContext(applies, type);
         const unit = (clean(row.Unit ?? row.unit).toLowerCase() || "fixed") as ChargeUnit;
-        if (!["fixed", "percent", "per_kg", "per_ton", "per_piece"].includes(unit)) { errors.push(`Row ${index + 2}: Invalid Unit.`); return; }
+        if (!validUnits.has(unit)) return errors.push(`Row ${index + 2}: Unit must be fixed, per_qty, per_kg, per_ton, percent, manual or per_piece.`);
         const treatment = (clean(row["Purchase Treatment"] ?? row.purchase_treatment).toLowerCase() || "landed_cost") as PurchaseTreatment;
-        if (applies !== "sales" && !["landed_cost", "expense"].includes(treatment)) { errors.push(`Row ${index + 2}: Purchase Treatment must be landed_cost or expense.`); return; }
-        const revenueCode = clean(row["Revenue Account Code"] ?? row.revenue_account_code).toLowerCase();
-        const costCode = clean(row["Cost Account Code"] ?? row.cost_account_code).toLowerCase();
-        const revenue = revenueCode ? accountByCode.get(revenueCode) : undefined;
-        const cost = costCode ? accountByCode.get(costCode) : undefined;
+        if (applies !== "sales" && !["landed_cost", "expense"].includes(treatment)) return errors.push(`Row ${index + 2}: Purchase Treatment must be landed_cost or expense.`);
+        const revenue = accountByCode.get(clean(row["Revenue Account Code"] ?? row.revenue_account_code).toLowerCase());
+        const cost = accountByCode.get(clean(row["Cost Account Code"] ?? row.cost_account_code).toLowerCase());
         const needsRevenue = applies !== "purchase" && (type === "recovery" || type === "both");
         const needsCost = applies !== "sales" && (type === "cost" || type === "both");
-        if (needsRevenue && (!revenue || revenue.type !== "revenue")) { errors.push(`Row ${index + 2}: Valid revenue account code is required.`); return; }
-        if (needsCost && (!cost || cost.type !== "expense")) { errors.push(`Row ${index + 2}: Valid expense account code is required.`); return; }
-        const rate = Number(clean(row.Rate ?? row.default_rate) || 0);
-        if (!Number.isFinite(rate) || rate < 0) { errors.push(`Row ${index + 2}: Rate must be zero or greater.`); return; }
+        if (needsRevenue && (!revenue || revenue.type !== "revenue")) return errors.push(`Row ${index + 2}: Valid revenue account code is required.`);
+        if (needsCost && (!cost || cost.type !== "expense")) return errors.push(`Row ${index + 2}: Valid expense account code is required.`);
+        const rate = unit === "manual" ? 0 : Number(clean(row.Rate ?? row.default_rate) || 0);
+        if (!Number.isFinite(rate) || rate < 0) return errors.push(`Row ${index + 2}: Rate must be zero or greater.`);
         seen.add(key);
-        payload.push({
-          charge_key: key,
-          charge_name: name,
-          charge_name_urdu: clean(row["Urdu Name"] ?? row.charge_name_urdu) || toUrduName(name),
-          charge_type: type,
-          revenue_account_id: needsRevenue ? revenue?.id ?? null : null,
-          cost_account_id: needsCost ? cost?.id ?? null : null,
-          tax_applicable: yes(row["Tax Applicable"] ?? row.tax_applicable, false),
-          service_party_required: yes(row["Service Party Required"] ?? row.service_party_required, false),
-          default_rate: rate,
-          unit,
-          applies_to: applies,
-          purchase_treatment: applies === "sales" ? null : treatment,
-          is_fixed: yes(row["Lock Rate"] ?? row.is_fixed, false),
-          is_active: yes(row.Active ?? row.is_active, true),
-          description: clean(row.Description ?? row.description) || null,
-          updated_at: new Date().toISOString(),
-        });
+        payload.push({ charge_key: key, charge_name: name, charge_name_urdu: clean(row["Urdu Name"] ?? row.charge_name_urdu) || toUrduName(name), charge_type: type, revenue_account_id: needsRevenue ? revenue?.id ?? null : null, cost_account_id: needsCost ? cost?.id ?? null : null, tax_applicable: yes(row["Tax Applicable"] ?? row.tax_applicable), service_party_required: yes(row["Service Party Required"] ?? row.service_party_required), default_rate: rate, unit, applies_to: applies, purchase_treatment: applies === "sales" ? null : treatment, is_fixed: unit === "manual" ? false : yes(row["Lock Rate"] ?? row.is_fixed), is_active: yes(row.Active ?? row.is_active, true), description: clean(row.Description ?? row.description) || null, updated_at: new Date().toISOString() });
       });
-      if (errors.length) throw new Error(errors.slice(0, 6).join(" "));
+      if (errors.length) throw new Error(errors.slice(0, 8).join(" "));
       if (!payload.length) throw new Error("No valid charge rows found in the file.");
-      const { error: importError } = await supabase.from("charge_master").insert(payload);
-      if (importError) throw importError;
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Charge import failed.");
-    } finally {
-      setSaving(false);
-      if (fileRef.current) fileRef.current.value = "";
-    }
+      const { error: importError } = await supabase.from("charge_master").insert(payload); if (importError) throw importError; await load();
+    } catch (e) { setError(e instanceof Error ? e.message : "Charge import failed."); }
+    finally { setSaving(false); if (fileRef.current) fileRef.current.value = ""; }
   };
 
   const actions = <div className="flex flex-wrap gap-2">
@@ -316,59 +267,26 @@ export default function ChargeMaster() {
     {canCreate && <button className="btn-secondary" disabled={saving} onClick={() => fileRef.current?.click()}><Upload size={16} />Import</button>}
     <input ref={fileRef} hidden type="file" accept=".xlsx,.xls,.csv" onChange={importExcel} />
     <button className="btn-secondary" onClick={exportExcel}><FileSpreadsheet size={16} />Excel</button>
-    {canCreate && <button className="btn-primary" onClick={startAdd}><Plus size={16} /> Add Charge</button>}
+    {canCreate && <button className="btn-primary" onClick={startAdd}><Plus size={16} />Add Charge</button>}
   </div>;
 
   return <div className="space-y-5">
-    <PageHeader title="Charge Master / چارج ماسٹر" subtitle="Sales recovery and Purchase cost charges with automatic quantity-based rates and accounting mappings." action={actions} />
+    <PageHeader title="Charge Master / چارج ماسٹر" subtitle="Central Sales/Purchase charges: Fixed, Qty, Kg, Ton, %, Manual and Piece with accounting, tax and landed-cost rules." action={actions} />
     {error && <ErrorBanner message={error} />}
-
-    <div className="overflow-x-auto rounded-xl border bg-white">
-      <table className="w-full text-sm">
-        <thead className="bg-slate-50"><tr><th className="p-3 text-left">Charge</th><th className="p-3 text-right">اردو نام</th><th className="p-3">Type</th><th className="p-3">Rate</th><th className="p-3">Applies To</th><th className="p-3">Purchase Treatment</th><th className="p-3">Revenue COA</th><th className="p-3">Cost COA</th><th className="p-3">Tax</th><th className="p-3">Status</th><th /></tr></thead>
-        <tbody>{loading ? <tr><td colSpan={11} className="p-6 text-center">Loading...</td></tr> : charges.map((charge) => <tr key={charge.id} className="border-t">
-          <td className="p-3"><div className="font-medium">{charge.charge_name}</div><div className="text-xs text-slate-400">{charge.charge_key}</div></td>
-          <td dir="rtl" className="p-3 text-right">{charge.charge_name_urdu || "—"}</td>
-          <td className="p-3 capitalize">{charge.charge_type}</td>
-          <td className="p-3 whitespace-nowrap">{Number(charge.default_rate || 0).toLocaleString()} {charge.unit}</td>
-          <td className="p-3 capitalize">{charge.applies_to}</td>
-          <td className="p-3">{charge.applies_to === "sales" ? "—" : charge.purchase_treatment === "expense" ? "Expense" : "Landed Cost / Inventory"}</td>
-          <td className="p-3">{accountLabel(charge.revenue_account_id)}</td>
-          <td className="p-3">{accountLabel(charge.cost_account_id)}</td>
-          <td className="p-3">{charge.tax_applicable ? "Yes / ہاں" : "No / نہیں"}</td>
-          <td className="p-3">{charge.is_active ? "Active / فعال" : "Inactive / غیر فعال"}</td>
-          <td className="p-3"><div className="flex justify-end gap-2">{canEdit && <button onClick={() => startEdit(charge)} className="rounded border p-2"><Pencil size={15} /></button>}{canEdit && <button onClick={() => void toggle(charge)} className="rounded border p-2"><Power size={15} /></button>}{canDelete && <button onClick={() => void remove(charge)} className="rounded border p-2 text-red-600"><Trash2 size={15} /></button>}</div></td>
-        </tr>)}</tbody>
-      </table>
-    </div>
+    <div className="overflow-x-auto rounded-xl border bg-white"><table className="w-full text-sm"><thead className="bg-slate-50"><tr><th className="p-3 text-left">Charge</th><th className="p-3 text-right">اردو نام</th><th className="p-3">Basis / Rate</th><th className="p-3">Applies To</th><th className="p-3">Purchase Treatment</th><th className="p-3">Revenue COA</th><th className="p-3">Cost COA</th><th className="p-3">Tax</th><th className="p-3">Status</th><th /></tr></thead><tbody>{loading ? <tr><td colSpan={10} className="p-6 text-center">Loading...</td></tr> : charges.map((charge) => <tr key={charge.id} className="border-t"><td className="p-3"><div className="font-medium">{charge.charge_name}</div><div className="text-xs text-slate-400">{charge.charge_key} · {charge.charge_type}</div></td><td dir="rtl" className="p-3 text-right">{charge.charge_name_urdu || "—"}</td><td className="p-3 whitespace-nowrap"><div>{unitLabel(charge.unit)}</div><div className="text-xs text-slate-500">{charge.unit === "manual" ? "Entered on document" : `Rate ${Number(charge.default_rate || 0).toLocaleString()}${charge.is_fixed ? " · Locked" : ""}`}</div></td><td className="p-3 capitalize">{charge.applies_to}</td><td className="p-3">{charge.applies_to === "sales" ? "—" : charge.purchase_treatment === "expense" ? "Expense" : "Landed Cost / Inventory"}</td><td className="p-3">{accountLabel(charge.revenue_account_id)}</td><td className="p-3">{accountLabel(charge.cost_account_id)}</td><td className="p-3">{charge.tax_applicable ? "Yes / ہاں" : "No / نہیں"}</td><td className="p-3">{charge.is_active ? "Active / فعال" : "Inactive / غیر فعال"}</td><td className="p-3"><div className="flex justify-end gap-2">{canEdit && <button onClick={() => startEdit(charge)} className="rounded border p-2"><Pencil size={15} /></button>}{canEdit && <button onClick={() => void toggle(charge)} className="rounded border p-2"><Power size={15} /></button>}{canDelete && <button onClick={() => void remove(charge)} className="rounded border p-2 text-red-600"><Trash2 size={15} /></button>}</div></td></tr>)}</tbody></table></div>
 
     <Modal open={open} title={editingId ? "Edit Charge / چارج میں ترمیم" : "Add Charge / نیا چارج"} onClose={() => !saving && setOpen(false)}>
       <form onSubmit={save} className="space-y-4">
-        <div><label className="label">Charge Name (English)</label><input className="input" value={form.charge_name} onChange={(e) => setForm((current) => ({ ...current, charge_name: e.target.value, charge_name_urdu: (!current.charge_name_urdu || current.charge_name_urdu === toUrduName(current.charge_name)) ? toUrduName(e.target.value) : current.charge_name_urdu }))} /></div>
-        <div><div className="mb-1 flex items-center justify-between gap-2"><label className="label mb-0">Urdu Name / اردو نام</label><button type="button" className="inline-flex min-h-8 items-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700" onClick={() => setForm((current) => ({ ...current, charge_name_urdu: toUrduName(current.charge_name) }))}>Auto Urdu / خودکار اردو</button></div><input dir="rtl" className="input text-right" value={form.charge_name_urdu} onChange={(e) => setForm((current) => ({ ...current, charge_name_urdu: e.target.value }))} /></div>
-
-        <div><label className="label">Applies To / لاگو</label><select className="input" value={form.applies_to} onChange={(e) => changeContext(e.target.value as ChargeContext)}><option value="purchase">Purchase / خریداری</option><option value="sales">Sales / سیلز</option><option value="both">Sales + Purchase</option></select></div>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div><label className="label">Type / قسم</label><select className="input" value={form.charge_type} disabled={form.applies_to !== "both"} onChange={(e) => setForm((current) => ({ ...current, charge_type: e.target.value as ChargeType }))}>{form.applies_to === "purchase" ? <option value="cost">Cost / Purchase Cost</option> : form.applies_to === "sales" ? <option value="recovery">Recovery / Sales Recovery</option> : <><option value="both">Both</option><option value="recovery">Recovery</option><option value="cost">Cost</option></>}</select></div>
-          <div><label className="label">Rate / ریٹ</label><input type="number" min="0" step="0.01" className="input" value={form.default_rate} onChange={(e) => setForm((current) => ({ ...current, default_rate: e.target.value }))} /></div>
-          <div><label className="label">Unit / یونٹ</label><select className="input" value={form.unit} onChange={(e) => setForm((current) => ({ ...current, unit: e.target.value as ChargeUnit }))}><option value="fixed">Fixed</option><option value="percent">Percent</option><option value="per_kg">Per KG</option><option value="per_ton">Per Ton</option><option value="per_piece">Per Piece</option></select></div>
-        </div>
-
-        {form.applies_to !== "sales" && <div><label className="label">Purchase Treatment / خریداری اثر</label><select className="input" value={form.purchase_treatment} onChange={(e) => setForm((current) => ({ ...current, purchase_treatment: e.target.value as PurchaseTreatment }))}><option value="landed_cost">Landed Cost / Inventory — مال کی لاگت میں شامل</option><option value="expense">Expense — مدت کا خرچ</option></select><p className="mt-1 text-xs text-slate-500">Landed Cost inventory value mein add hota hai. Expense selected Cost COA mein post hota hai.</p></div>}
-
-        {form.applies_to !== "purchase" && <div><label className="label">Revenue Account / ریکوری اکاؤنٹ</label><select className="input" value={form.revenue_account_id} onChange={(e) => setForm((current) => ({ ...current, revenue_account_id: e.target.value }))}><option value="">Select Revenue COA</option>{accounts.filter((account) => account.type === "revenue").map((account) => <option key={account.id} value={account.id}>{account.code} - {account.name}</option>)}</select></div>}
-
-        {form.applies_to !== "sales" && <div><label className="label">Cost Account / خرچ اکاؤنٹ</label><select className="input" value={form.cost_account_id} onChange={(e) => setForm((current) => ({ ...current, cost_account_id: e.target.value }))}><option value="">Select Expense COA</option>{accounts.filter((account) => account.type === "expense").map((account) => <option key={account.id} value={account.id}>{account.code} - {account.name}</option>)}</select></div>}
-
-        <div className="grid grid-cols-2 gap-2">
-          <label className="rounded border p-3"><input type="checkbox" checked={form.tax_applicable} onChange={(e) => setForm((current) => ({ ...current, tax_applicable: e.target.checked }))} /> Tax Applicable</label>
-          <label className="rounded border p-3"><input type="checkbox" checked={form.service_party_required} onChange={(e) => setForm((current) => ({ ...current, service_party_required: e.target.checked }))} /> Service Party</label>
-          <label className="rounded border p-3"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm((current) => ({ ...current, is_active: e.target.checked }))} /> Active / فعال</label>
-          <label className="rounded border p-3"><input type="checkbox" checked={form.is_fixed} onChange={(e) => setForm((current) => ({ ...current, is_fixed: e.target.checked }))} /> Lock Rate</label>
-        </div>
-
-        <div><label className="label">Description / تفصیل</label><textarea className="input min-h-20" value={form.description} onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))} /></div>
+        <div><label className="label">Charge Name (English)</label><input className="input" value={form.charge_name} onChange={(e) => setForm((current) => ({ ...current, charge_name: e.target.value, charge_name_urdu: !current.charge_name_urdu || current.charge_name_urdu === toUrduName(current.charge_name) ? toUrduName(e.target.value) : current.charge_name_urdu }))} /></div>
+        <div><div className="mb-1 flex items-center justify-between"><label className="label mb-0">Urdu Name / اردو نام</label><button type="button" className="btn-secondary text-xs" onClick={() => setForm((current) => ({ ...current, charge_name_urdu: toUrduName(current.charge_name) }))}>Auto Urdu</button></div><input dir="rtl" className="input text-right" value={form.charge_name_urdu} onChange={(e) => setForm((current) => ({ ...current, charge_name_urdu: e.target.value }))} /></div>
+        <div><label className="label">Applies To / لاگو</label><select className="input" value={form.applies_to} onChange={(e) => changeContext(e.target.value as ChargeContext)}><option value="purchase">Purchase</option><option value="sales">Sales</option><option value="both">Sales + Purchase</option></select></div>
+        <div className="grid gap-3 sm:grid-cols-3"><div><label className="label">Type</label><select className="input" value={form.charge_type} disabled={form.applies_to !== "both"} onChange={(e) => setForm((current) => ({ ...current, charge_type: e.target.value as ChargeType }))}>{form.applies_to === "purchase" ? <option value="cost">Cost</option> : form.applies_to === "sales" ? <option value="recovery">Recovery</option> : <><option value="both">Both</option><option value="recovery">Recovery</option><option value="cost">Cost</option></>}</select></div><div><label className="label">Calculation Basis</label><select className="input" value={form.unit} onChange={(e) => setForm((current) => ({ ...current, unit: e.target.value as ChargeUnit, default_rate: e.target.value === "manual" ? "0" : current.default_rate, is_fixed: e.target.value === "manual" ? false : current.is_fixed }))}>{UNIT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div><div><label className="label">Rate / ریٹ</label><input type="number" min="0" step="0.01" className="input" disabled={form.unit === "manual"} value={form.default_rate} onChange={(e) => setForm((current) => ({ ...current, default_rate: e.target.value }))} /></div></div>
+        {form.unit === "manual" && <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">Manual basis par amount invoice/purchase document par enter hoga; Charge Master mein rate 0 rahega.</div>}
+        {form.applies_to !== "sales" && <div><label className="label">Purchase Treatment</label><select className="input" value={form.purchase_treatment} onChange={(e) => setForm((current) => ({ ...current, purchase_treatment: e.target.value as PurchaseTreatment }))}><option value="landed_cost">Landed Cost / Inventory</option><option value="expense">Expense</option></select></div>}
+        {form.applies_to !== "purchase" && <div><label className="label">Revenue Account</label><select className="input" value={form.revenue_account_id} onChange={(e) => setForm((current) => ({ ...current, revenue_account_id: e.target.value }))}><option value="">Select Revenue COA</option>{accounts.filter((account) => account.type === "revenue").map((account) => <option key={account.id} value={account.id}>{account.code} - {account.name}</option>)}</select></div>}
+        {form.applies_to !== "sales" && <div><label className="label">Cost Account</label><select className="input" value={form.cost_account_id} onChange={(e) => setForm((current) => ({ ...current, cost_account_id: e.target.value }))}><option value="">Select Expense COA</option>{accounts.filter((account) => account.type === "expense").map((account) => <option key={account.id} value={account.id}>{account.code} - {account.name}</option>)}</select></div>}
+        <div className="grid grid-cols-2 gap-2"><label className="rounded border p-3"><input type="checkbox" checked={form.tax_applicable} onChange={(e) => setForm((current) => ({ ...current, tax_applicable: e.target.checked }))} /> Tax Applicable</label><label className="rounded border p-3"><input type="checkbox" checked={form.service_party_required} onChange={(e) => setForm((current) => ({ ...current, service_party_required: e.target.checked }))} /> Service Party</label><label className="rounded border p-3"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm((current) => ({ ...current, is_active: e.target.checked }))} /> Active</label><label className="rounded border p-3"><input type="checkbox" disabled={form.unit === "manual"} checked={form.is_fixed} onChange={(e) => setForm((current) => ({ ...current, is_fixed: e.target.checked }))} /> Lock Rate</label></div>
+        <div><label className="label">Description</label><textarea className="input min-h-20" value={form.description} onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))} /></div>
         <div className="flex justify-end gap-2"><button type="button" className="btn-secondary" onClick={() => setOpen(false)}><X size={16} />Cancel</button><button className="btn-primary" disabled={saving}><Save size={16} />{saving ? "Saving..." : "Save Charge"}</button></div>
       </form>
     </Modal>

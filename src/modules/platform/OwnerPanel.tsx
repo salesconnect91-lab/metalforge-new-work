@@ -12,6 +12,7 @@ import BusinessUnitControl from "./BusinessUnitControl";
 import BusinessWorkspaceLoginControl from "./BusinessWorkspaceLoginControl";
 import CompanyDeleteControl from "./CompanyDeleteControl";
 import CoreAccountingControl from "./CoreAccountingControl";
+import OwnerOrderBookMigration from "./OwnerOrderBookMigration";
 
 type Company = {
   id: string;
@@ -264,6 +265,7 @@ export default function OwnerPanel() {
       </div>
     </section>
 
+    {selected && <OwnerOrderBookMigration companyId={selected.id} companyName={selected.name}/>} 
     {selected && <TransactionResetControl companyId={selected.id} companyName={selected.name} companyCode={selected.code}/>} 
   </div>;
 }

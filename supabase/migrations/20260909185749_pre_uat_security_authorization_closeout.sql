@@ -1,0 +1,4 @@
+-- Live production closeout marker.
+-- The canonical replay-safe Return Note authorization guard is implemented in
+-- 20260909185930_canonical_pre_uat_return_note_guard.sql.
+-- This migration version is retained so repository migration history matches production.

@@ -1,42 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Eye, Plus, Printer, Save, Trash2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { ErrorBanner, Modal, PageHeader, formatCurrency } from "@/components/ui";
+import PrintLayout from "@/components/PrintLayout";
+import { calculateConfiguredChargeAmount, chargeQuantityForUnit, type ConfiguredChargeUnit } from "@/lib/chargeCalculation";
+import { triggerPrint } from "@/lib/exportUtils";
 import { supabase } from "@/lib/supabase";
-import { ErrorBanner, PageHeader, formatCurrency } from "@/components/ui";
-import { buildChargePayload, createEmptyCharges, type ChargeValues } from "@/lib/chargeTypes";
-import { calculateConfiguredChargeAmount, type ConfiguredChargeUnit } from "@/lib/chargeCalculation";
 
-type Supplier = { id: string; name: string; name_urdu?: string | null };
-type Item = { id: string; name: string; name_urdu?: string | null; sku?: string | null; cost?: number | string | null; unit?: string | null };
+type InvoiceType = "Purchase Invoice" | "Tax Invoice";
+type Supplier = { id: string; name: string; name_urdu?: string | null; address?: string | null; phone?: string | null; email?: string | null; ntn?: string | null; strn?: string | null };
+type Item = { id: string; name: string; name_urdu?: string | null; sku?: string | null; cost?: number | string | null; unit?: string | null; grade?: string | null; size?: string | null };
 type Godown = { id: string; name: string; name_urdu?: string | null };
 type PurchaseLine = { item_id: string; description: string; godown_id: string; qty: string; unit_cost: string; tax_percent: string };
-type ConsolidatedOption = {
-  id: string;
-  invoice_no: string;
-  invoice_date: string;
-  supplier_id: string;
-  supplier_name: string;
-  reference_name?: string | null;
-  reference_no: string | null;
-  total: number | string;
-  linked_purchase_order_id: string | null;
-  invoice_type: "Purchase Invoice" | "Tax Invoice";
-};
-type ConfiguredCharge = {
-  charge_key: string;
-  charge_name: string;
-  default_rate: number | string;
-  is_fixed: boolean;
-  tax_applicable: boolean;
-  purchase_treatment?: "landed_cost" | "expense" | null;
-  unit: ConfiguredChargeUnit;
-  cost_account_id?: string | null;
-};
-type SupplierSnapshot = {
-  currentOutstanding: number;
-  lastPaymentDate: string | null;
-  lastPaymentAmount: number;
-  paidToday: number;
-};
+type ConsolidatedOption = { id: string; invoice_no: string; invoice_date: string; supplier_id: string; supplier_name: string; reference_name?: string | null; reference_no: string | null; reference_notes?: string | null; total: number | string; linked_purchase_order_id: string | null; invoice_type: InvoiceType };
+type ConfiguredCharge = { charge_key: string; charge_name: string; default_rate: number | string; is_fixed: boolean; tax_applicable: boolean; purchase_treatment?: "landed_cost" | "expense" | null; unit: ConfiguredChargeUnit; cost_account_id?: string | null };
+type ChargeRow = { charge_key: string; quantity: string; rate: string; amount: string; tax_percent: string };
+type CompanyPrintSettings = { company_name?: string | null; address?: string | null; phone?: string | null; email?: string | null; ntn?: string | null; strn?: string | null; logo_url?: string | null; document_header?: string | null; document_header_urdu?: string | null; document_footer?: string | null; document_footer_urdu?: string | null; prepared_by_label?: string | null; checked_by_label?: string | null; approved_by_label?: string | null };
+type SupplierSnapshot = { currentOutstanding: number; lastPaymentDate: string | null; lastPaymentAmount: number; paidToday: number };
 
 const emptyLine = (tax = "0", godown = ""): PurchaseLine => ({ item_id: "", description: "", godown_id: godown, qty: "1", unit_cost: "0", tax_percent: tax });
 const treatmentOf = (charge: ConfiguredCharge) => charge.purchase_treatment || "landed_cost";
@@ -48,64 +28,57 @@ export default function MainPurchaseInvoiceV2() {
   const [items, setItems] = useState<Item[]>([]);
   const [godowns, setGodowns] = useState<Godown[]>([]);
   const [configuredCharges, setConfiguredCharges] = useState<ConfiguredCharge[]>([]);
-  const [selectedChargeKeys, setSelectedChargeKeys] = useState<string[]>([]);
+  const [charges, setCharges] = useState<ChargeRow[]>([]);
   const [chargeToAdd, setChargeToAdd] = useState("");
-  const [charges, setCharges] = useState<ChargeValues>(createEmptyCharges());
+  const [companyPrint, setCompanyPrint] = useState<CompanyPrintSettings>({});
+
   const [orderNo, setOrderNo] = useState("");
   const [supplierId, setSupplierId] = useState("");
   const [orderDate, setOrderDate] = useState(new Date().toISOString().slice(0, 10));
-  const [invoiceType, setInvoiceType] = useState<"Purchase Invoice" | "Tax Invoice">("Purchase Invoice");
-  const [globalTaxPercent, setGlobalTaxPercent] = useState("0");
-  const [taxConfigured, setTaxConfigured] = useState(false);
+  const [invoiceType, setInvoiceType] = useState<InvoiceType>("Purchase Invoice");
+  const [configuredTaxRate, setConfiguredTaxRate] = useState<string | null>(null);
   const [rows, setRows] = useState<PurchaseLine[]>([emptyLine()]);
   const [allConsolidated, setAllConsolidated] = useState<ConsolidatedOption[]>([]);
   const [selectedConsolidatedIds, setSelectedConsolidatedIds] = useState<string[]>([]);
   const [consolidatedSearch, setConsolidatedSearch] = useState("");
   const [supplierSnapshot, setSupplierSnapshot] = useState<SupplierSnapshot | null>(null);
   const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const globalTaxPercent = invoiceType === "Tax Invoice" ? configuredTaxRate || "0" : "0";
 
   const loadBase = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [supplierRes, itemRes, godownRes, orderNoRes, taxRes, chargeRes, consolidatedRes] = await Promise.all([
-        supabase.from("suppliers").select("id,name,name_urdu").eq("is_active", true).order("name"),
-        supabase.from("items").select("id,name,name_urdu,sku,cost,unit").order("name"),
+      const [supplierRes, itemRes, godownRes, orderNoRes, taxRes, chargeRes, consolidatedRes, companyRes] = await Promise.all([
+        supabase.from("suppliers").select("*").eq("is_active", true).order("name"),
+        supabase.from("items").select("*").order("name"),
         supabase.from("godowns").select("id,name,name_urdu").order("name"),
         supabase.rpc("next_purchase_order_no"),
-        supabase.from("tax_rates").select("rate,is_fixed").eq("is_active", true).eq("is_fixed", true).in("applies_to", ["purchase", "both"]).order("created_at").limit(1).maybeSingle(),
+        supabase.from("tax_rates").select("rate").eq("is_active", true).eq("is_fixed", true).in("applies_to", ["purchase", "both"]).order("created_at").limit(1).maybeSingle(),
         supabase.from("charge_master").select("charge_key,charge_name,default_rate,is_fixed,tax_applicable,purchase_treatment,unit,cost_account_id").eq("is_active", true).in("applies_to", ["purchase", "both"]).order("charge_name"),
         supabase.rpc("get_available_consolidated_purchase_invoices_v2", { p_supplier_id: null, p_order_id: null }),
+        supabase.from("company_settings").select("*").maybeSingle(),
       ]);
-      const firstError = supplierRes.error || itemRes.error || godownRes.error || orderNoRes.error || taxRes.error || chargeRes.error || consolidatedRes.error;
+      const firstError = [supplierRes.error, itemRes.error, godownRes.error, orderNoRes.error, taxRes.error, chargeRes.error, consolidatedRes.error, companyRes.error].find(Boolean);
       if (firstError) throw firstError;
-
       const loadedGodowns = (godownRes.data ?? []) as Godown[];
-      const loadedCharges = (chargeRes.data ?? []) as ConfiguredCharge[];
+      const tax = taxRes.data ? String(Number(taxRes.data.rate) || 0) : null;
       setSuppliers((supplierRes.data ?? []) as Supplier[]);
       setItems((itemRes.data ?? []) as Item[]);
       setGodowns(loadedGodowns);
       setOrderNo(String(orderNoRes.data ?? ""));
+      setConfiguredTaxRate(tax);
+      setConfiguredCharges((chargeRes.data ?? []) as ConfiguredCharge[]);
       setAllConsolidated((consolidatedRes.data ?? []) as ConsolidatedOption[]);
-
-      const tax = taxRes.data ? String(Number(taxRes.data.rate) || 0) : "0";
-      setGlobalTaxPercent(tax);
-      setTaxConfigured(Boolean(taxRes.data));
-      setRows([emptyLine(tax, loadedGodowns[0]?.id ?? "")]);
-
-      setConfiguredCharges(loadedCharges);
-      const autoKeys = loadedCharges.filter((charge) => charge.is_fixed && Number(charge.default_rate) > 0).map((charge) => charge.charge_key);
-      setSelectedChargeKeys(autoKeys);
-      const next = createEmptyCharges();
-      loadedCharges.forEach((charge) => {
-        next[charge.charge_key] = autoKeys.includes(charge.charge_key) ? String(Number(charge.default_rate) || 0) : "0";
-      });
-      setCharges(next);
+      setCompanyPrint((companyRes.data || {}) as CompanyPrintSettings);
+      setRows([emptyLine("0", loadedGodowns[0]?.id || "")]);
     } catch (e: any) {
-      setError(e?.message || "Failed to load purchase form.");
+      setError(e?.message || "Failed to load Main Purchase Invoice.");
     } finally {
       setLoading(false);
     }
@@ -114,164 +87,120 @@ export default function MainPurchaseInvoiceV2() {
   useEffect(() => { void loadBase(); }, [loadBase]);
 
   useEffect(() => {
-    const loadSnapshot = async () => {
-      if (!supplierId) { setSupplierSnapshot(null); return; }
+    if (!supplierId) { setSupplierSnapshot(null); return; }
+    void (async () => {
       setSnapshotLoading(true);
       const [ordersRes, paymentsRes] = await Promise.all([
-        supabase.from("purchase_orders").select("id,order_date,total,paid_amount,outstanding_amount,status").eq("supplier_id", supplierId).eq("status", "posted"),
+        supabase.from("purchase_orders").select("outstanding_amount,status").eq("supplier_id", supplierId).eq("status", "posted"),
         supabase.from("purchase_payment_allocations").select("allocation_date,amount,created_at").eq("supplier_id", supplierId).order("allocation_date", { ascending: false }).order("created_at", { ascending: false }),
       ]);
       setSnapshotLoading(false);
       if (ordersRes.error || paymentsRes.error) return;
-      const orders = ordersRes.data ?? [];
       const payments = paymentsRes.data ?? [];
       const today = new Date().toISOString().slice(0, 10);
       setSupplierSnapshot({
-        currentOutstanding: orders.reduce((sum: number, row: any) => sum + Math.max(0, Number(row.outstanding_amount) || 0), 0),
+        currentOutstanding: (ordersRes.data ?? []).reduce((sum: number, row: any) => sum + Math.max(0, Number(row.outstanding_amount) || 0), 0),
         lastPaymentDate: payments[0]?.allocation_date ? String(payments[0].allocation_date) : null,
         lastPaymentAmount: Number(payments[0]?.amount) || 0,
         paidToday: payments.reduce((sum: number, row: any) => String(row.allocation_date).slice(0, 10) === today ? sum + (Number(row.amount) || 0) : sum, 0),
       });
-    };
-    void loadSnapshot();
+    })();
   }, [supplierId]);
 
-  const selectedCharges = useMemo(() => configuredCharges.filter((charge) => selectedChargeKeys.includes(charge.charge_key)), [configuredCharges, selectedChargeKeys]);
-  const availableCharges = useMemo(() => configuredCharges.filter((charge) => !selectedChargeKeys.includes(charge.charge_key)), [configuredCharges, selectedChargeKeys]);
-  const consolidated = useMemo(() => allConsolidated.filter((invoice) => (!supplierId || invoice.supplier_id === supplierId) && invoice.invoice_type === invoiceType), [allConsolidated, supplierId, invoiceType]);
-  const visibleConsolidated = useMemo(() => {
-    const q = consolidatedSearch.trim().toLowerCase();
-    if (!q) return consolidated;
-    return consolidated.filter((invoice) => [invoice.invoice_no, invoice.reference_name, invoice.reference_no, invoice.supplier_name, invoice.invoice_date].some((value) => String(value ?? "").toLowerCase().includes(q)));
-  }, [consolidated, consolidatedSearch]);
   const directSubtotal = rows.reduce((sum, row) => sum + (Number(row.qty) || 0) * (Number(row.unit_cost) || 0), 0);
+  const directItemTax = invoiceType === "Tax Invoice" ? rows.reduce((sum, row) => { const base = (Number(row.qty) || 0) * (Number(row.unit_cost) || 0); return sum + (base * (Number(row.tax_percent) || 0)) / 100; }, 0) : 0;
+
+  const recalculateCharge = useCallback((charge: ChargeRow, nextRate?: string) => {
+    const master = configuredCharges.find((row) => row.charge_key === charge.charge_key);
+    if (!master) return charge;
+    const rate = Number(nextRate ?? charge.rate ?? master.default_rate) || 0;
+    const quantity = chargeQuantityForUnit(master.unit, rows, items, directSubtotal);
+    const amount = calculateConfiguredChargeAmount({ unit: master.unit, rate, rows, items, baseAmount: directSubtotal });
+    return { ...charge, quantity: String(Number(quantity.toFixed(3))), rate: String(rate), amount: String(Number(amount.toFixed(2))) };
+  }, [configuredCharges, rows, items, directSubtotal]);
 
   useEffect(() => {
-    if (!selectedChargeKeys.length) return;
-    setCharges((current) => {
-      const next = { ...current };
-      selectedChargeKeys.forEach((key) => {
-        const charge = configuredCharges.find((candidate) => candidate.charge_key === key);
-        if (!charge) return;
-        next[key] = String(calculateConfiguredChargeAmount({ unit: charge.unit, rate: Number(charge.default_rate) || 0, rows, items, baseAmount: directSubtotal }));
-      });
-      return next;
-    });
-  }, [selectedChargeKeys, configuredCharges, rows, items, directSubtotal]);
+    if (!charges.length) return;
+    setCharges((current) => current.map((charge) => recalculateCharge(charge)));
+  }, [recalculateCharge]);
 
-  useEffect(() => {
-    setSelectedConsolidatedIds((current) => current.filter((id) => consolidated.some((invoice) => invoice.id === id)));
-  }, [supplierId, invoiceType, consolidated]);
+  const directCharges = charges.reduce((sum, charge) => sum + (Number(charge.amount) || 0), 0);
+  const directChargeTax = invoiceType === "Tax Invoice" ? charges.reduce((sum, charge) => sum + ((Number(charge.amount) || 0) * (Number(charge.tax_percent) || 0)) / 100, 0) : 0;
+  const landedCharges = charges.reduce((sum, charge) => treatmentOf(configuredCharges.find((master) => master.charge_key === charge.charge_key) || {} as ConfiguredCharge) === "landed_cost" ? sum + (Number(charge.amount) || 0) : sum, 0);
+  const expenseCharges = directCharges - landedCharges;
 
-  const directItemTax = invoiceType === "Tax Invoice" ? rows.reduce((sum, row) => {
-    const base = (Number(row.qty) || 0) * (Number(row.unit_cost) || 0);
-    return sum + base * (Number(row.tax_percent) || 0) / 100;
-  }, 0) : 0;
-  const directCharges = selectedCharges.reduce((sum, charge) => sum + (Number(charges[charge.charge_key]) || 0), 0);
-  const directChargeTax = invoiceType === "Tax Invoice" ? selectedCharges.reduce((sum, charge) => charge.tax_applicable ? sum + (Number(charges[charge.charge_key]) || 0) * (Number(globalTaxPercent) || 0) / 100 : sum, 0) : 0;
-  const landedCharges = selectedCharges.reduce((sum, charge) => treatmentOf(charge) === "landed_cost" ? sum + (Number(charges[charge.charge_key]) || 0) : sum, 0);
-  const expenseCharges = selectedCharges.reduce((sum, charge) => treatmentOf(charge) === "expense" ? sum + (Number(charges[charge.charge_key]) || 0) : sum, 0);
+  const availableConsolidated = useMemo(() => allConsolidated.filter((invoice) => (!supplierId || invoice.supplier_id === supplierId) && invoice.invoice_type === invoiceType), [allConsolidated, supplierId, invoiceType]);
+  const visibleConsolidated = useMemo(() => { const q = consolidatedSearch.trim().toLowerCase(); return q ? availableConsolidated.filter((invoice) => [invoice.invoice_no, invoice.reference_name, invoice.reference_no, invoice.supplier_name, invoice.invoice_date].some((value) => String(value ?? "").toLowerCase().includes(q))) : availableConsolidated; }, [availableConsolidated, consolidatedSearch]);
   const selectedConsolidated = allConsolidated.filter((invoice) => selectedConsolidatedIds.includes(invoice.id));
   const consolidatedTotal = selectedConsolidated.reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
   const grandTotal = directSubtotal + directItemTax + directCharges + directChargeTax + consolidatedTotal;
   const projectedSupplierBalance = (supplierSnapshot?.currentOutstanding || 0) + grandTotal;
+  const selectedSupplier = suppliers.find((row) => row.id === supplierId) || null;
+
+  useEffect(() => { setSelectedConsolidatedIds((current) => current.filter((docId) => availableConsolidated.some((invoice) => invoice.id === docId))); }, [availableConsolidated]);
 
   const updateLine = (index: number, field: keyof PurchaseLine, value: string) => {
-    setRows((current) => current.map((row, i) => {
-      if (i !== index) return row;
+    setRows((current) => current.map((row, rowIndex) => {
+      if (rowIndex !== index) return row;
       const next = { ...row, [field]: value };
-      if (field === "item_id") {
-        const item = items.find((candidate) => candidate.id === value);
-        if (item) next.unit_cost = String(Number(item.cost) || 0);
-      }
+      if (field === "item_id") { const item = items.find((candidate) => candidate.id === value); if (item) next.unit_cost = String(Number(item.cost) || 0); }
       return next;
     }));
   };
 
-  const addCharge = () => {
-    if (!chargeToAdd) return;
-    const charge = configuredCharges.find((candidate) => candidate.charge_key === chargeToAdd);
-    if (!charge) return;
-    const amount = calculateConfiguredChargeAmount({ unit: charge.unit, rate: Number(charge.default_rate) || 0, rows, items, baseAmount: directSubtotal });
-    setSelectedChargeKeys((current) => current.includes(charge.charge_key) ? current : [...current, charge.charge_key]);
-    setCharges((current) => ({ ...current, [charge.charge_key]: String(amount) }));
-    setChargeToAdd("");
+  const changeInvoiceType = (next: InvoiceType) => {
+    setInvoiceType(next);
+    const tax = next === "Tax Invoice" ? configuredTaxRate || "0" : "0";
+    setRows((current) => current.map((row) => ({ ...row, tax_percent: tax })));
+    setCharges((current) => current.map((charge) => ({ ...charge, tax_percent: next === "Tax Invoice" && configuredCharges.find((master) => master.charge_key === charge.charge_key)?.tax_applicable ? tax : "0" })));
   };
 
-  const removeCharge = (key: string) => {
-    setSelectedChargeKeys((current) => current.filter((value) => value !== key));
-    setCharges((current) => ({ ...current, [key]: "0" }));
+  const addCharge = () => {
+    if (!chargeToAdd || charges.some((row) => row.charge_key === chargeToAdd)) return;
+    const master = configuredCharges.find((row) => row.charge_key === chargeToAdd);
+    if (!master) return;
+    const base: ChargeRow = { charge_key: master.charge_key, quantity: "1", rate: String(Number(master.default_rate) || 0), amount: "0", tax_percent: invoiceType === "Tax Invoice" && master.tax_applicable ? configuredTaxRate || "0" : "0" };
+    setCharges((current) => [...current, recalculateCharge(base)]);
+    setChargeToAdd("");
   };
 
   const toggleConsolidated = (invoice: ConsolidatedOption, checked: boolean) => {
     setError(null);
     if (checked) {
       if (!supplierId) setSupplierId(invoice.supplier_id);
-      if (supplierId && supplierId !== invoice.supplier_id) {
-        setError("Main Purchase Invoice aur Consolidated Purchase ka supplier same hona chahiye.");
-        return;
-      }
+      if (supplierId && supplierId !== invoice.supplier_id) return setError("Main Purchase Invoice aur Consolidated Purchase ka supplier same hona chahiye.");
       setSelectedConsolidatedIds((current) => current.includes(invoice.id) ? current : [...current, invoice.id]);
-    } else {
-      setSelectedConsolidatedIds((current) => current.filter((id) => id !== invoice.id));
-    }
+    } else setSelectedConsolidatedIds((current) => current.filter((docId) => docId !== invoice.id));
   };
 
   const handleSave = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
+    if (!supplierId) return setError("Select a supplier or a Consolidated Purchase document.");
+    if (invoiceType === "Tax Invoice" && !configuredTaxRate) return setError("Configure one active fixed Purchase/Both tax rate before using With Tax.");
+    const validRows = rows.filter((row) => row.item_id && Number(row.qty) > 0);
+    if (!validRows.length && !selectedConsolidatedIds.length) return setError("Add at least one direct item or link a posted Consolidated Purchase document.");
+    if (validRows.some((row) => !row.godown_id)) return setError("Select a destination godown for every direct item.");
+    if (selectedConsolidated.some((invoice) => invoice.supplier_id !== supplierId || invoice.invoice_type !== invoiceType)) return setError("Linked Consolidated Purchase documents must match supplier and tax type.");
+
     setSaving(true);
     let createdOrderId: string | null = null;
     try {
-      if (!supplierId) throw new Error("Please select a supplier or select a Consolidated Purchase Invoice.");
-      if (invoiceType === "Tax Invoice" && !taxConfigured) throw new Error("Add and fix an active Purchase/Both tax rate in Tax Settings before creating a Tax Invoice.");
-      const validRows = rows.filter((row) => row.item_id && Number(row.qty) > 0);
-      if (!validRows.length && !selectedConsolidatedIds.length) throw new Error("Add at least one direct item or select a Consolidated Purchase Invoice.");
-      if (validRows.some((row) => !row.godown_id)) throw new Error("Select a destination godown for every direct item.");
-
-      const selectedDocs = allConsolidated.filter((invoice) => selectedConsolidatedIds.includes(invoice.id));
-      if (selectedDocs.some((invoice) => invoice.supplier_id !== supplierId)) throw new Error("Selected Consolidated Purchase Invoice belongs to another supplier.");
-      if (selectedDocs.some((invoice) => invoice.invoice_type !== invoiceType)) throw new Error("Main and Consolidated Purchase invoice tax type must match.");
-
-      const { data: order, error: orderError } = await supabase.from("purchase_orders").insert({
-        order_no: orderNo,
-        supplier_id: supplierId,
-        order_date: orderDate,
-        status: "draft",
-        invoice_type: invoiceType,
-        tax_percent: invoiceType === "Tax Invoice" ? Number(globalTaxPercent) || 0 : 0,
-        total: grandTotal,
-        ...buildChargePayload(charges),
-      }).select().single();
+      const { data: order, error: orderError } = await supabase.from("purchase_orders").insert({ order_no: orderNo, supplier_id: supplierId, order_date: orderDate, status: "draft", invoice_type: invoiceType, tax_percent: invoiceType === "Tax Invoice" ? Number(configuredTaxRate) || 0 : 0, total: Number(grandTotal.toFixed(2)) }).select("id").single();
       if (orderError) throw orderError;
       createdOrderId = order.id;
 
       if (validRows.length) {
-        const { error: lineError } = await supabase.from("purchase_order_lines").insert(validRows.map((row) => ({
-          order_id: order.id,
-          item_id: row.item_id,
-          godown_id: row.godown_id,
-          qty: Number(row.qty) || 0,
-          unit_cost: Number(row.unit_cost) || 0,
-          tax_percent: invoiceType === "Tax Invoice" ? Number(row.tax_percent) || 0 : 0,
-          description: row.description.trim() || null,
-          line_total: (Number(row.qty) || 0) * (Number(row.unit_cost) || 0),
-        })));
+        const { error: lineError } = await supabase.from("purchase_order_lines").insert(validRows.map((row) => ({ order_id: order.id, item_id: row.item_id, godown_id: row.godown_id, qty: Number(row.qty) || 0, unit_cost: Number(row.unit_cost) || 0, tax_percent: invoiceType === "Tax Invoice" ? Number(row.tax_percent) || 0 : 0, description: row.description.trim() || null, line_total: (Number(row.qty) || 0) * (Number(row.unit_cost) || 0) })));
         if (lineError) throw lineError;
       }
 
-      const chargeRows = selectedCharges.map((charge) => ({
-        order_id: order.id,
-        charge_key: charge.charge_key,
-        charge_label: charge.charge_name,
-        amount: Number(charges[charge.charge_key]) || 0,
-        tax_percent: invoiceType === "Tax Invoice" && charge.tax_applicable ? Number(globalTaxPercent) || 0 : 0,
-        treatment: treatmentOf(charge),
-        cost_account_id: charge.cost_account_id || null,
-        rate: Number(charge.default_rate) || 0,
-      })).filter((charge) => charge.amount > 0);
-      if (chargeRows.length) {
-        const { error: chargeError } = await supabase.from("purchase_order_charges").insert(chargeRows);
+      const activeCharges = charges.filter((charge) => Number(charge.amount) > 0);
+      if (activeCharges.length) {
+        const { error: chargeError } = await supabase.from("purchase_order_charges").insert(activeCharges.map((charge) => {
+          const master = configuredCharges.find((row) => row.charge_key === charge.charge_key);
+          return { order_id: order.id, charge_key: charge.charge_key, charge_label: master?.charge_name || charge.charge_key, quantity: Number(charge.quantity) || 1, rate: Number(charge.rate) || 0, amount: Number(charge.amount) || 0, tax_percent: invoiceType === "Tax Invoice" && master?.tax_applicable ? Number(charge.tax_percent) || 0 : 0, treatment: master ? treatmentOf(master) : "landed_cost", cost_account_id: master?.cost_account_id || null };
+        }));
         if (chargeError) throw chargeError;
       }
 
@@ -286,54 +215,32 @@ export default function MainPurchaseInvoiceV2() {
     }
   };
 
+  const printItems = rows.filter((row) => row.item_id && Number(row.qty) > 0).map((row) => {
+    const item = items.find((candidate) => candidate.id === row.item_id);
+    const base = (Number(row.qty) || 0) * (Number(row.unit_cost) || 0);
+    return { name: item?.name || "—", description: row.description || null, grade: item?.grade || null, size: item?.size || null, qty: Number(row.qty) || 0, unitPrice: Number(row.unit_cost) || 0, lineTotal: base, taxPercent: invoiceType === "Tax Invoice" ? Number(row.tax_percent) || 0 : undefined, taxAmount: invoiceType === "Tax Invoice" ? (base * (Number(row.tax_percent) || 0)) / 100 : undefined, unit: item?.unit || null };
+  });
+  const printCharges = charges.filter((row) => Number(row.amount) > 0).map((row) => ({ label: configuredCharges.find((master) => master.charge_key === row.charge_key)?.charge_name || row.charge_key, amount: Number(row.amount) || 0 }));
+
   return <div>
-    <Link to="/purchase" className="mb-4 inline-block text-sm text-primary-600 hover:text-primary-700">← Back to Purchase</Link>
-    <PageHeader title="Main Purchase Invoice / مین خریداری انوائس" subtitle="Supplier, consolidated documents, financial position, items, charges and review" />
+    <Link to="/purchase" className="mb-4 inline-flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700"><ArrowLeft className="h-3.5 w-3.5" />Back to Purchase</Link>
+    <PageHeader title="Main Purchase Invoice / مین خریداری انوائس" subtitle="Canonical supplier invoice: direct items, dynamic charges and linked Consolidated receipts" />
     {error && <ErrorBanner message={error} />}
 
     <form onSubmit={handleSave} className="space-y-4">
-      <section className="card p-5">
-        <div className="mb-4"><h3 className="font-semibold text-slate-900">Invoice Information / انوائس معلومات</h3><p className="mt-1 text-xs text-slate-500">Supplier, invoice type and tax details</p></div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-          <div><label className="label">Invoice Type / انوائس قسم</label><select className="input" value={invoiceType} onChange={(e) => setInvoiceType(e.target.value as "Purchase Invoice" | "Tax Invoice")}><option value="Purchase Invoice">Without Tax / بغیر ٹیکس</option><option value="Tax Invoice">With Tax / ٹیکس کے ساتھ</option></select></div>
-          <div><label className="label">Invoice No. / انوائس نمبر</label><input className="input cursor-not-allowed bg-slate-50" readOnly value={orderNo} /></div>
-          <div><label className="label">Invoice Date / تاریخ</label><input className="input" type="date" required value={orderDate} onChange={(e) => setOrderDate(e.target.value)} /></div>
-          <div><label className="label">Supplier / سپلائر</label><select className="input" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}><option value="">— Select supplier —</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}{supplier.name_urdu ? ` / ${supplier.name_urdu}` : ""}</option>)}</select></div>
-        </div>
-        {invoiceType === "Tax Invoice" && <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3"><span className="text-sm font-medium text-blue-800">Configured VAT / مقررہ ویٹ</span><span className="rounded-md bg-white px-3 py-1 text-sm font-bold text-blue-800">{globalTaxPercent}%</span><span className="text-xs text-blue-600">Locked from Tax Settings</span></div>}
-      </section>
+      <section className="card p-5"><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-semibold text-slate-900">Invoice Information</h3><p className="mt-1 text-xs text-slate-500">Payment mode is separate from invoice classification.</p></div><button type="button" className="btn-secondary" onClick={() => setPreviewOpen(true)}><Eye className="h-3.5 w-3.5" />Preview</button></div><div className="grid grid-cols-1 gap-4 md:grid-cols-4"><div><label className="label">Invoice Type</label><select className="input" value={invoiceType} onChange={(e) => changeInvoiceType(e.target.value as InvoiceType)}><option value="Purchase Invoice">Without Tax</option><option value="Tax Invoice">With Tax</option></select></div><div><label className="label">Invoice No.</label><input className="input bg-slate-50 font-semibold" readOnly value={orderNo} /></div><div><label className="label">Invoice Date</label><input className="input" type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} /></div><div><label className="label">Fixed VAT %</label><input className="input bg-slate-50 text-right" readOnly value={invoiceType === "Tax Invoice" ? configuredTaxRate || "Not configured" : "0"} /></div><div className="md:col-span-2"><label className="label">Supplier</label><select className="input" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}><option value="">— Select supplier —</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}{supplier.name_urdu ? ` / ${supplier.name_urdu}` : ""}</option>)}</select></div></div></section>
 
-      <section className="rounded-xl border border-blue-300 bg-blue-50/40 p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-semibold text-blue-950">Select Consolidated Purchase / کنسولیڈیٹڈ خریداری منتخب کریں</h3><p className="mt-1 text-xs text-blue-700">Select one or more posted Consolidated Purchase invoices to add into this Main Purchase Invoice. Stock is not received twice.</p></div><Link to="/purchase/consolidated" className="btn-secondary text-sm">Open Consolidated Purchase</Link></div>
-        <label className="label">Search Consolidated Invoice / تلاش کریں</label>
-        <input className="input mb-3" placeholder="Type Invoice No., Reference or Supplier..." value={consolidatedSearch} onChange={(e) => setConsolidatedSearch(e.target.value)} />
-        {loading ? <div className="rounded-lg border bg-white p-4 text-center text-sm text-slate-400">Loading…</div> : visibleConsolidated.length === 0 ? <div className="rounded-lg border bg-white p-4 text-center text-sm text-slate-500">{supplierId ? "No posted unused Consolidated Purchase invoices available for this supplier and invoice type." : "No posted unused Consolidated Purchase invoices available for this invoice type."}</div> : <div className="max-h-64 space-y-2 overflow-y-auto">{visibleConsolidated.map((invoice) => <label key={invoice.id} className="flex cursor-pointer items-center justify-between rounded-lg border border-blue-100 bg-white p-3 hover:bg-blue-50"><span className="flex items-center gap-3"><input type="checkbox" checked={selectedConsolidatedIds.includes(invoice.id)} onChange={(e) => toggleConsolidated(invoice, e.target.checked)} /><span><span className="font-medium">{invoice.invoice_no}</span><span className="ml-2 text-xs text-slate-500">{invoice.invoice_date}{invoice.reference_no ? ` · ${invoice.reference_no}` : ""}</span>{!supplierId && <span className="ml-2 text-xs font-semibold text-blue-700">{invoice.supplier_name}</span>}</span></span><span className="font-semibold">{formatCurrency(Number(invoice.total) || 0)}</span></label>)}</div>}
-        <div className="mt-3 grid gap-2 md:grid-cols-2"><div className="rounded-lg bg-white px-4 py-3"><div className="text-xs font-semibold uppercase text-slate-500">Selected Invoices / منتخب انوائس</div><div className="mt-1 font-bold">{selectedConsolidatedIds.length}</div></div><div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-right"><div className="text-xs font-semibold uppercase text-blue-600">Selected Consolidated Total / کل</div><div className="mt-1 font-bold text-blue-700">{formatCurrency(consolidatedTotal)}</div></div></div>
-      </section>
+      <section className="rounded-xl border border-blue-300 bg-blue-50/40 p-4"><div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-semibold text-blue-950">Link Consolidated Purchase</h3><p className="mt-1 text-xs text-blue-700">Posted receiving documents are linked here. Their physical stock is not received again.</p></div><Link to="/purchase/consolidated" className="btn-secondary text-sm">Open Consolidated Purchase</Link></div><input className="input mb-3" placeholder="Search invoice, reference or supplier…" value={consolidatedSearch} onChange={(e) => setConsolidatedSearch(e.target.value)} />{loading ? <div className="rounded border bg-white p-4 text-center text-sm text-slate-400">Loading…</div> : !visibleConsolidated.length ? <div className="rounded border bg-white p-4 text-center text-sm text-slate-500">No posted unused matching Consolidated Purchase documents.</div> : <div className="max-h-64 overflow-y-auto rounded border border-blue-100 bg-white">{visibleConsolidated.map((invoice) => <label key={invoice.id} className="flex items-center gap-3 border-b border-slate-100 px-3 py-2"><input type="checkbox" checked={selectedConsolidatedIds.includes(invoice.id)} onChange={(e) => toggleConsolidated(invoice,e.target.checked)} /><div className="min-w-0 flex-1"><div className="font-semibold">{invoice.invoice_no}</div><div className="text-xs text-slate-500">{invoice.supplier_name} · {invoice.invoice_date}{invoice.reference_no ? ` · ${invoice.reference_no}` : ""}</div></div><strong>{formatCurrency(Number(invoice.total) || 0)}</strong></label>)}</div>}<div className="mt-3 flex justify-between rounded bg-white px-3 py-2 text-sm"><span>Selected: <strong>{selectedConsolidatedIds.length}</strong></span><span className="text-blue-700">Linked Total: <strong>{formatCurrency(consolidatedTotal)}</strong></span></div></section>
 
-      <section className="card overflow-hidden">
-        <div className="border-b px-4 py-3"><h3 className="font-semibold text-slate-900">Supplier Financial Position / سپلائر مالی پوزیشن</h3><p className="mt-1 text-xs text-slate-500">Outstanding balance, latest payment and projected balance</p></div>
-        <div className="grid grid-cols-1 md:grid-cols-5">
-          <div className="border-r p-4"><div className="text-xs font-semibold uppercase text-slate-500">Current AP Balance / موجودہ بقایا</div><div className="mt-1 font-bold text-amber-700">{snapshotLoading ? "…" : formatCurrency(supplierSnapshot?.currentOutstanding || 0)}</div></div>
-          <div className="border-r p-4"><div className="text-xs font-semibold uppercase text-slate-500">Last Payment / آخری ادائیگی</div><div className="mt-1 font-bold text-emerald-700">{snapshotLoading ? "…" : formatCurrency(supplierSnapshot?.lastPaymentAmount || 0)}</div><div className="mt-1 text-xs text-slate-500">{supplierSnapshot?.lastPaymentDate || "No payment / کوئی ادائیگی نہیں"}</div></div>
-          <div className="border-r p-4"><div className="text-xs font-semibold uppercase text-slate-500">Paid Today / آج ادائیگی</div><div className="mt-1 font-bold text-blue-700">{snapshotLoading ? "…" : formatCurrency(supplierSnapshot?.paidToday || 0)}</div></div>
-          <div className="border-r p-4"><div className="text-xs font-semibold uppercase text-slate-500">Invoice Balance / انوائس بقایا</div><div className="mt-1 font-bold">{formatCurrency(grandTotal)}</div></div>
-          <div className="p-4"><div className="text-xs font-semibold uppercase text-slate-500">Projected Balance / متوقع بقایا</div><div className="mt-1 font-bold text-rose-700">{formatCurrency(projectedSupplierBalance)}</div></div>
-        </div>
-      </section>
+      {supplierId && <section className="card overflow-hidden"><div className="border-b px-4 py-3"><h3 className="font-semibold">Supplier Financial Position</h3></div><div className="grid grid-cols-2 md:grid-cols-5"><div className="border-r p-3"><div className="text-xs text-slate-500">Current AP</div><strong className="text-amber-700">{snapshotLoading ? "…" : formatCurrency(supplierSnapshot?.currentOutstanding || 0)}</strong></div><div className="border-r p-3"><div className="text-xs text-slate-500">Last Payment</div><strong className="text-emerald-700">{formatCurrency(supplierSnapshot?.lastPaymentAmount || 0)}</strong><div className="text-xs text-slate-400">{supplierSnapshot?.lastPaymentDate || "—"}</div></div><div className="border-r p-3"><div className="text-xs text-slate-500">Paid Today</div><strong className="text-blue-700">{formatCurrency(supplierSnapshot?.paidToday || 0)}</strong></div><div className="border-r p-3"><div className="text-xs text-slate-500">Invoice Balance</div><strong>{formatCurrency(grandTotal)}</strong></div><div className="p-3"><div className="text-xs text-slate-500">Projected AP</div><strong className="text-rose-700">{formatCurrency(projectedSupplierBalance)}</strong></div></div></section>}
 
-      <section className="card p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-semibold text-slate-900">Purchase Items / خریداری آئٹمز</h3><p className="mt-1 text-xs text-slate-500">Direct items only. Consolidated items remain linked separately.</p></div><button type="button" className="btn-secondary text-sm" onClick={() => setRows((current) => [...current, emptyLine(invoiceType === "Tax Invoice" ? globalTaxPercent : "0", godowns[0]?.id ?? "")])}>+ Add Row</button></div>
-        <div className="overflow-x-auto rounded-lg border border-slate-200"><table className="w-full min-w-[1050px] text-sm"><thead className="bg-slate-50"><tr><th className="p-2 text-left">Item / آئٹم</th><th className="p-2 text-left">Godown / گودام</th><th className="p-2 text-right">Qty / مقدار</th><th className="p-2 text-left">UOM / پیمائش اکائی</th><th className="p-2 text-right">Unit Cost</th>{invoiceType === "Tax Invoice" && <th className="p-2 text-right">VAT</th>}<th className="p-2 text-right">Line Total</th><th className="p-2" /></tr></thead><tbody>{rows.map((row, index) => { const item = items.find((candidate) => candidate.id === row.item_id); const base = (Number(row.qty) || 0) * (Number(row.unit_cost) || 0); const vat = invoiceType === "Tax Invoice" ? base * (Number(row.tax_percent) || 0) / 100 : 0; return <tr key={index} className="border-t border-slate-100 align-top"><td className="p-2"><select className="input w-full" value={row.item_id} onChange={(e) => updateLine(index, "item_id", e.target.value)}><option value="">— Select item —</option>{items.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}{candidate.sku ? ` (${candidate.sku})` : ""}</option>)}</select><input className="input mt-1 w-full" placeholder="Optional description / اختیاری تفصیل" value={row.description} onChange={(e) => updateLine(index, "description", e.target.value)} /></td><td className="p-2"><select className="input w-full" value={row.godown_id} onChange={(e) => updateLine(index, "godown_id", e.target.value)}><option value="">— Select —</option>{godowns.map((godown) => <option key={godown.id} value={godown.id}>{godown.name}{godown.name_urdu ? ` / ${godown.name_urdu}` : ""}</option>)}</select></td><td className="p-2"><input className="input w-full text-right" type="number" min="0.001" step="0.001" value={row.qty} onChange={(e) => updateLine(index, "qty", e.target.value)} /></td><td className="p-2"><div className="input bg-slate-50">{item?.unit || "—"}</div></td><td className="p-2"><input className="input w-full text-right" type="number" min="0" step="0.01" value={row.unit_cost} onChange={(e) => updateLine(index, "unit_cost", e.target.value)} /></td>{invoiceType === "Tax Invoice" && <td className="p-2 text-right">{globalTaxPercent}%</td>}<td className="p-2 text-right font-semibold whitespace-nowrap">{formatCurrency(base + vat)}</td><td className="p-2 text-center">{rows.length > 1 && <button type="button" className="text-rose-600" onClick={() => setRows((current) => current.filter((_, i) => i !== index))}>Remove</button>}</td></tr>; })}</tbody></table></div>
-        <div className="mt-3 flex justify-end"><div className="rounded-lg bg-slate-50 px-4 py-2 text-right"><div className="text-xs text-slate-500">Direct Items Total</div><div className="font-bold">{formatCurrency(directSubtotal + directItemTax)}</div></div></div>
-      </section>
+      <section className="card p-5"><div className="mb-3 flex items-center justify-between"><div><h3 className="font-semibold">Direct Purchase Items</h3><p className="text-xs text-slate-500">Direct item stock posts only when the Main Purchase Invoice is posted.</p></div><button type="button" className="btn-secondary" onClick={() => setRows((current) => [...current, emptyLine(globalTaxPercent,godowns[0]?.id || "")])}><Plus className="h-3.5 w-3.5" />Add Row</button></div><div className="overflow-x-auto rounded border"><table className="w-full min-w-[980px] text-sm"><thead className="bg-slate-50"><tr><th className="p-2 text-left">Item</th><th className="p-2 text-left">Description</th><th className="p-2 text-left">Godown</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Unit Cost</th>{invoiceType === "Tax Invoice" && <th className="p-2 text-right">VAT %</th>}<th className="p-2 text-right">Amount</th><th className="w-10" /></tr></thead><tbody>{rows.map((row,index) => { const base=(Number(row.qty)||0)*(Number(row.unit_cost)||0); const vat=invoiceType === "Tax Invoice" ? base*(Number(row.tax_percent)||0)/100 : 0; return <tr key={index} className="border-t"><td className="p-2"><select className="input" value={row.item_id} onChange={(e)=>updateLine(index,"item_id",e.target.value)}><option value="">— Select item —</option>{items.map((item)=><option key={item.id} value={item.id}>{item.name}{item.sku ? ` · ${item.sku}` : ""}</option>)}</select></td><td className="p-2"><input className="input" value={row.description} onChange={(e)=>updateLine(index,"description",e.target.value)} /></td><td className="p-2"><select className="input" value={row.godown_id} onChange={(e)=>updateLine(index,"godown_id",e.target.value)}><option value="">— Select —</option>{godowns.map((godown)=><option key={godown.id} value={godown.id}>{godown.name}</option>)}</select></td><td className="p-2"><input className="input text-right" type="number" min="0.001" step="0.001" value={row.qty} onChange={(e)=>updateLine(index,"qty",e.target.value)} /></td><td className="p-2"><input className="input text-right" type="number" min="0" step="0.01" value={row.unit_cost} onChange={(e)=>updateLine(index,"unit_cost",e.target.value)} /></td>{invoiceType === "Tax Invoice" && <td className="p-2"><input className="input bg-slate-50 text-right" readOnly value={row.tax_percent} /></td>}<td className="p-2 text-right font-semibold">{formatCurrency(base+vat)}</td><td className="p-2">{rows.length>1 && <button type="button" className="text-rose-600" onClick={()=>setRows((current)=>current.filter((_,rowIndex)=>rowIndex!==index))}><Trash2 className="h-3.5 w-3.5" /></button>}</td></tr>; })}</tbody></table></div></section>
 
-      <section className="card p-5">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-semibold text-slate-900">Applicable Charges / قابل اطلاق چارجز</h3><p className="mt-1 text-xs text-slate-500">Purchase/Both charges come from Charge Master. Per-kg / per-ton / per-piece charges recalculate automatically.</p></div><Link to="/sales/charges" className="btn-secondary text-sm">Charge Master</Link></div>
-        {configuredCharges.length === 0 ? <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">No active Purchase/Both charges are configured. Add a charge in Charge Master with Applies To = Purchase or Both.</div> : <><div className="flex flex-wrap gap-2"><select className="input max-w-sm" value={chargeToAdd} onChange={(e) => setChargeToAdd(e.target.value)}><option value="">— Select charge to add —</option>{availableCharges.map((charge) => <option key={charge.charge_key} value={charge.charge_key}>{charge.charge_name}</option>)}</select><button type="button" className="btn-secondary" onClick={addCharge} disabled={!chargeToAdd}>+ Add Charge</button></div>{selectedCharges.length === 0 ? <div className="mt-4 rounded-lg border border-dashed border-slate-200 p-4 text-sm text-slate-400">No purchase charges selected.</div> : <div className="mt-4 space-y-2">{selectedCharges.map((charge) => <div key={charge.charge_key} className="grid grid-cols-1 items-center gap-3 rounded-lg border border-slate-200 px-4 py-3 md:grid-cols-[1fr_180px_160px_115px_auto]"><div><div className="font-medium">{charge.charge_name}</div><div className="text-xs text-slate-500">Rate {Number(charge.default_rate || 0).toLocaleString()} {unitLabel(charge.unit)}{charge.is_fixed ? " · Locked" : ""}</div></div><input className="input text-right" type="number" min="0" step="0.01" disabled={charge.is_fixed || charge.unit !== "fixed"} value={charges[charge.charge_key] ?? "0"} onChange={(e) => setCharges((current) => ({ ...current, [charge.charge_key]: e.target.value }))}/><span className="text-xs text-slate-600">{treatmentOf(charge) === "landed_cost" ? "Landed Cost / Inventory" : "Expense"}</span><span className="text-xs text-slate-600">{charge.tax_applicable ? "Taxable" : "Non-taxable"}</span><button type="button" className="text-sm text-rose-600 disabled:text-slate-300" disabled={charge.is_fixed && Number(charge.default_rate) > 0} onClick={() => removeCharge(charge.charge_key)}>Remove</button></div>)}</div>}</>}
-      </section>
+      <section className="card p-5"><div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-semibold">Applicable Charges</h3><p className="text-xs text-slate-500">One dynamic engine: Fixed, %, per kg, per ton or per piece.</p></div><Link to="/sales/charges" className="btn-secondary text-sm">Charge Master</Link></div><div className="flex gap-2"><select className="input max-w-sm" value={chargeToAdd} onChange={(e)=>setChargeToAdd(e.target.value)}><option value="">— Select charge —</option>{configuredCharges.filter((master)=>!charges.some((row)=>row.charge_key===master.charge_key)).map((master)=><option key={master.charge_key} value={master.charge_key}>{master.charge_name}</option>)}</select><button type="button" className="btn-secondary" onClick={addCharge} disabled={!chargeToAdd}><Plus className="h-3.5 w-3.5" />Add</button></div><div className="mt-3 grid gap-2 md:grid-cols-2">{!charges.length ? <div className="text-sm text-slate-400">No additional charges selected.</div> : charges.map((charge,index)=>{ const master=configuredCharges.find((row)=>row.charge_key===charge.charge_key); return <div key={charge.charge_key} className="rounded border bg-slate-50 p-3"><div className="mb-2 flex justify-between"><div><strong>{master?.charge_name || charge.charge_key}</strong><div className="text-xs text-slate-500">{unitLabel(master?.unit || "fixed")} · {master ? treatmentOf(master) : "landed_cost"}</div></div><button type="button" className="text-rose-600" onClick={()=>setCharges((current)=>current.filter((_,rowIndex)=>rowIndex!==index))}><Trash2 className="h-3.5 w-3.5" /></button></div><div className="grid grid-cols-2 gap-2"><div><label className="label">Qty / Basis</label><input className="input bg-slate-100 text-right" readOnly value={charge.quantity} /></div><div><label className="label">Rate</label><input className="input text-right" type="number" step="0.01" disabled={Boolean(master?.is_fixed)} value={charge.rate} onChange={(e)=>setCharges((current)=>current.map((candidate,rowIndex)=>rowIndex===index ? recalculateCharge(candidate,e.target.value) : candidate))} /></div><div><label className="label">Amount</label><input className="input bg-slate-100 text-right" readOnly value={charge.amount} /></div>{invoiceType === "Tax Invoice" && master?.tax_applicable && <div><label className="label">VAT %</label><input className="input bg-slate-100 text-right" readOnly value={charge.tax_percent} /></div>}</div></div>; })}</div></section>
 
-      <section className="card p-5"><div className="grid gap-5 lg:grid-cols-[1fr_420px]"><div><h3 className="font-semibold text-slate-900">Review & Save / جائزہ اور محفوظ کریں</h3><p className="mt-1 text-sm text-slate-500">Saving creates a Draft Purchase Invoice. Direct stock and accounting post only from the invoice detail workflow; linked Consolidated stock is never received twice.</p></div><div className="rounded-xl bg-slate-50 p-4 text-sm"><div className="flex justify-between py-1"><span>Direct Items</span><span>{formatCurrency(directSubtotal)}</span></div>{invoiceType === "Tax Invoice" && <div className="flex justify-between py-1"><span>Items VAT</span><span>{formatCurrency(directItemTax)}</span></div>}<div className="flex justify-between py-1"><span>Landed Cost Charges</span><span>{formatCurrency(landedCharges)}</span></div><div className="flex justify-between py-1"><span>Expense Charges</span><span>{formatCurrency(expenseCharges)}</span></div>{invoiceType === "Tax Invoice" && <div className="flex justify-between py-1"><span>Charge VAT</span><span>{formatCurrency(directChargeTax)}</span></div>}<div className="flex justify-between py-1"><span>Linked Consolidated</span><span>{formatCurrency(consolidatedTotal)}</span></div><div className="mt-2 flex justify-between border-t border-slate-200 pt-3 text-lg font-bold"><span>Grand Total / مجموعی کل</span><span>{formatCurrency(grandTotal)}</span></div></div></div><div className="mt-5 flex justify-end"><button className="btn-primary" disabled={saving || loading}>{saving ? "Saving..." : "Save Draft Purchase Invoice"}</button></div></section>
+      <section className="card p-5"><div className="grid gap-5 lg:grid-cols-[1fr_420px]"><div><h3 className="font-semibold">Review & Save</h3><p className="mt-1 text-sm text-slate-500">Saving creates a draft only. Posting remains a separate controlled action from invoice detail.</p></div><div className="rounded-xl bg-slate-50 p-4 text-sm"><div className="flex justify-between py-1"><span>Direct Items</span><span>{formatCurrency(directSubtotal)}</span></div>{invoiceType === "Tax Invoice" && <div className="flex justify-between py-1"><span>Items VAT</span><span>{formatCurrency(directItemTax)}</span></div>}<div className="flex justify-between py-1"><span>Landed Cost Charges</span><span>{formatCurrency(landedCharges)}</span></div><div className="flex justify-between py-1"><span>Expense Charges</span><span>{formatCurrency(expenseCharges)}</span></div>{invoiceType === "Tax Invoice" && <div className="flex justify-between py-1"><span>Charge VAT</span><span>{formatCurrency(directChargeTax)}</span></div>}<div className="flex justify-between py-1 text-blue-700"><span>Linked Consolidated</span><span>{formatCurrency(consolidatedTotal)}</span></div><div className="mt-2 flex justify-between border-t pt-3 text-lg font-bold"><span>Grand Total</span><span>{formatCurrency(grandTotal)}</span></div></div></div><div className="mt-4 flex justify-end gap-2"><button type="button" className="btn-secondary" onClick={()=>setPreviewOpen(true)}><Eye className="h-3.5 w-3.5" />Preview</button><button className="btn-primary" disabled={saving || loading}><Save className="h-3.5 w-3.5" />{saving ? "Saving…" : "Save Draft Purchase Invoice"}</button></div></section>
     </form>
+
+    <Modal open={previewOpen} title={`Purchase Invoice Preview — ${orderNo}`} onClose={()=>setPreviewOpen(false)}><div className="p-2"><PrintLayout voucherTitle={invoiceType === "Tax Invoice" ? "Purchase Tax Invoice" : "Purchase Invoice"} voucherNo={orderNo} voucherDate={orderDate} company={{ name: companyPrint.company_name || "NAVILO", address: companyPrint.address || undefined, phone: companyPrint.phone || undefined, email: companyPrint.email || undefined, taxId: [companyPrint.ntn ? `NTN: ${companyPrint.ntn}` : "",companyPrint.strn ? `STRN: ${companyPrint.strn}` : ""].filter(Boolean).join(" | ") || undefined, logoUrl: companyPrint.logo_url || undefined }} party={{ name: selectedSupplier?.name || "—", address: selectedSupplier?.address, phone: selectedSupplier?.phone, email: selectedSupplier?.email, ntn: selectedSupplier?.ntn, strn: selectedSupplier?.strn }} items={printItems} chargeBreakdown={printCharges} itemsTotal={directSubtotal} chargesTotal={directCharges} taxAmount={directItemTax+directChargeTax} showTaxSummary={invoiceType === "Tax Invoice"} normalInvoiceTotal={directSubtotal+directItemTax+directCharges+directChargeTax} hawalaDocuments={selectedConsolidated.map((row)=>({ id:row.id, invoiceNo:row.invoice_no, invoiceDate:row.invoice_date, referenceName:row.reference_name, referenceNo:row.reference_no, referenceNotes:row.reference_notes, amount:Number(row.total)||0 }))} grandTotal={grandTotal} documentHeader={companyPrint.document_header || undefined} documentHeaderUrdu={companyPrint.document_header_urdu || undefined} documentFooter={companyPrint.document_footer || undefined} documentFooterUrdu={companyPrint.document_footer_urdu || undefined} documentNotice="DRAFT PURCHASE INVOICE — STOCK/AP/VAT POST ONLY AFTER APPROVAL" documentNoticeUrdu="ڈرافٹ خریداری انوائس — اسٹاک، واجبات اور ٹیکس منظوری کے بعد پوسٹ ہوں گے" signatureLabels={[companyPrint.prepared_by_label || "Prepared By",companyPrint.checked_by_label || "Checked By",companyPrint.approved_by_label || "Approved By"]} /><div className="mt-3 flex justify-end gap-2 border-t pt-3"><button type="button" className="btn-secondary" onClick={()=>triggerPrint(".print-document")}><Printer className="h-3.5 w-3.5" />Print</button><button type="button" className="btn-primary" onClick={()=>setPreviewOpen(false)}>Close</button></div></div></Modal>
   </div>;
 }

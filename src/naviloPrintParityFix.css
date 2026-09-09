@@ -1,0 +1,41 @@
+/* Ensure the browser print/PDF output uses the same decorated NAVILO layout
+   that is shown in Professional Print Preview.
+
+   Some legacy report components include their own @media print rule that moves
+   .print-report (or #customer-order-book-report) to position:absolute. Inside
+   the centralized print iframe that legacy rule can overlay the injected
+   NAVILO brand header/footer and make the native print look plain or create a
+   blank second page. The centralized print surface must remain the layout
+   owner. */
+
+@media print {
+  html body .navilo-print-output,
+  html body .navilo-print-output * {
+    visibility: visible !important;
+  }
+
+  html body .navilo-print-output :is(#customer-order-book-report, .print-report) {
+    position: static !important;
+    inset: auto !important;
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  html body .navilo-print-output :is(#customer-order-book-report, .print-report) > :first-child {
+    margin-top: 0 !important;
+  }
+
+  html body .navilo-print-output .navilo-report-brand-header,
+  html body .navilo-print-output .navilo-report-footer {
+    position: static !important;
+    visibility: visible !important;
+  }
+}

@@ -1,4 +1,4 @@
-export type ConfiguredChargeUnit = "fixed" | "percent" | "per_kg" | "per_ton" | "per_piece";
+export type ConfiguredChargeUnit = "fixed" | "percent" | "per_qty" | "per_kg" | "per_ton" | "per_piece" | "manual";
 
 type ChargeRow = { item_id: string; qty: number | string };
 type ChargeItem = { id: string; unit?: string | null };
@@ -28,8 +28,11 @@ export function chargeQuantityForUnit(
   items: ChargeItem[],
   baseAmount: number,
 ): number {
-  if (chargeUnit === "fixed") return 1;
+  if (chargeUnit === "fixed" || chargeUnit === "manual") return 1;
   if (chargeUnit === "percent") return Math.max(0, Number(baseAmount) || 0);
+  if (chargeUnit === "per_qty") {
+    return rows.reduce((sum, row) => sum + Math.max(0, Number(row.qty) || 0), 0);
+  }
 
   let totalKg = 0;
   let totalPieces = 0;
@@ -57,6 +60,7 @@ export function calculateConfiguredChargeAmount(args: {
   baseAmount: number;
 }): number {
   const rate = Math.max(0, Number(args.rate) || 0);
+  if (args.unit === "manual") return Math.round((rate + Number.EPSILON) * 100) / 100;
   const quantity = chargeQuantityForUnit(args.unit, args.rows, args.items, args.baseAmount);
   const amount = args.unit === "percent" ? (quantity * rate) / 100 : quantity * rate;
   return Math.round((amount + Number.EPSILON) * 100) / 100;

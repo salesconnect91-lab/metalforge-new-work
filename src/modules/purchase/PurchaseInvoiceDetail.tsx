@@ -3,8 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { ErrorBanner, StatusBadge, formatCurrency, formatDate } from "@/components/ui";
-import { exportToCSV, exportToExcel } from "@/lib/exportUtils";
-import { chargesFromRecord, getChargeBreakdown } from "@/lib/chargeTypes";
+import { exportToCSV, exportToExcel, triggerPrint } from "@/lib/exportUtils";
 import PrintLayout from "@/components/PrintLayout";
 import PurchaseDraftAddControls from "@/components/PurchaseDraftAddControls";
 
@@ -71,6 +70,7 @@ type Consolidated = {
   invoice_type?: "Purchase Invoice" | "Tax Invoice" | null;
 };
 type PaymentAccount = { account_id: string; mapping_key: "cash" | "bank"; label: string };
+type PurchaseChargeRow = { charge_key:string; charge_name:string; amount:number|string; tax_percent?:number|string|null; quantity?:number|string|null; rate?:number|string|null };
 type CompanyPrintSettings = {
   company_name?: string | null;
   address?: string | null;
@@ -122,6 +122,7 @@ export default function PurchaseInvoiceDetail() {
   const [items, setItems] = useState<Option[]>([]);
   const [godowns, setGodowns] = useState<Godown[]>([]);
   const [consolidated, setConsolidated] = useState<Consolidated[]>([]);
+  const [purchaseCharges, setPurchaseCharges] = useState<PurchaseChargeRow[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [newLine, setNewLine] = useState({ item_id: "", description: "", godown_id: "", qty: "1", unit_cost: "0" });
   const [sourceDocument, setSourceDocument] = useState({ supplier_invoice_no: "", supplier_invoice_date: "", reference_no: "", reference_notes: "" });
@@ -164,18 +165,20 @@ export default function PurchaseInvoiceDetail() {
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true); setError(null);
-    const [orderRes, linesRes, itemsRes, godownRes] = await Promise.all([
+    const [orderRes, linesRes, itemsRes, godownRes, chargesRes] = await Promise.all([
       supabase.from("purchase_orders").select("*, supplier:suppliers(id,name,name_urdu,phone,address,ntn,strn,cnic,tax_registration_status)").eq("id", id).maybeSingle(),
       supabase.from("purchase_order_lines").select("*, item:items(id,name,name_urdu,sku,hs_code,unit), godown:godowns(id,name,name_urdu)").eq("order_id", id).order("created_at"),
       supabase.from("items").select("id,name,name_urdu,sku,cost,hs_code,unit").order("name"),
       supabase.from("godowns").select("id,name,name_urdu").order("name"),
+      supabase.from("purchase_order_charges").select("charge_key,charge_name,amount,tax_percent,quantity,rate").eq("order_id", id).order("created_at"),
     ]);
-    const firstError = orderRes.error || linesRes.error || itemsRes.error || godownRes.error;
+    const firstError = orderRes.error || linesRes.error || itemsRes.error || godownRes.error || chargesRes.error;
     if (firstError) { setError(firstError.message); setLoading(false); return; }
     const loadedOrder = orderRes.data as PurchaseOrder | null;
     setOrder(loadedOrder);
     if (loadedOrder) setSourceDocument({ supplier_invoice_no: loadedOrder.supplier_invoice_no ?? "", supplier_invoice_date: loadedOrder.supplier_invoice_date ?? "", reference_no: loadedOrder.reference_no ?? "", reference_notes: loadedOrder.reference_notes ?? "" });
     setLines((linesRes.data ?? []) as Line[]);
+    setPurchaseCharges((chargesRes.data ?? []) as PurchaseChargeRow[]);
     setItems((itemsRes.data ?? []) as Option[]);
     const loadedGodowns = (godownRes.data ?? []) as Godown[];
     setGodowns(loadedGodowns);
@@ -199,13 +202,13 @@ export default function PurchaseInvoiceDetail() {
   const isTax = invoiceType === "Tax Invoice";
   const directLines = lines.filter((line) => !line.source_consolidated_purchase_invoice_id);
   const linkedLines = lines.filter((line) => Boolean(line.source_consolidated_purchase_invoice_id));
-  const charges = order ? getChargeBreakdown(chargesFromRecord(order as unknown as Record<string, unknown>), "purchase") : [];
+  const charges = purchaseCharges;
   const chargeTotal = charges.reduce((sum, charge) => sum + n(charge.amount), 0);
   const directBase = directLines.reduce((sum, line) => sum + n(line.line_total), 0);
   const linkedBase = linkedLines.reduce((sum, line) => sum + n(line.line_total), 0);
   const directVat = isTax ? directLines.reduce((sum, line) => sum + n(line.line_total) * n(line.tax_percent) / 100, 0) : 0;
   const linkedVat = isTax ? linkedLines.reduce((sum, line) => sum + n(line.line_total) * n(line.tax_percent) / 100, 0) : 0;
-  const chargeVat = isTax ? chargeTotal * n(order?.tax_percent) / 100 : 0;
+  const chargeVat = isTax ? charges.reduce((sum, charge) => sum + n(charge.amount) * n(charge.tax_percent ?? order?.tax_percent) / 100, 0) : 0;
   const totalVat = directVat + linkedVat + chargeVat;
   const computedTotal = directBase + linkedBase + totalVat + chargeTotal;
   const outstanding = n(order?.outstanding_amount ?? (order?.status === "posted" ? order?.total : 0));
@@ -293,7 +296,7 @@ export default function PurchaseInvoiceDetail() {
     { key: "base_amount", label: "Base Amount" }, { key: "amount_incl_vat", label: "Amount Incl VAT" },
   ];
 
-  const printInvoice = async () => { await loadPrintSettings(); requestAnimationFrame(() => requestAnimationFrame(() => window.print())); };
+  const printInvoice = async () => { await loadPrintSettings(); triggerPrint(".print-document"); };
 
   if (loading) return <div className="card p-12 text-center text-slate-400">Loading Purchase Invoice…</div>;
   if (!order) return <ErrorBanner message="Purchase Invoice not found." />;
@@ -305,7 +308,7 @@ export default function PurchaseInvoiceDetail() {
         {order.status !== "posted" && <PurchaseDraftAddControls orderId={order.id} onChanged={() => void load()} />}
         {order.status !== "posted" && <button className="btn-primary" disabled={posting} onClick={() => void post()}>{posting ? "Posting…" : "Post Purchase Invoice"}</button>}
         <button className="btn-secondary" onClick={() => exportToCSV(`${order.order_no}-purchase.csv`, exportColumns, rowsForExport)}>CSV</button>
-        <button className="btn-secondary" onClick={() => exportToExcel(`${order.order_no}-purchase.xls`, exportColumns, rowsForExport)}>Excel</button>
+        <button className="btn-secondary" onClick={() => exportToExcel(`${order.order_no}-purchase.xlsx`, exportColumns, rowsForExport)}>Excel</button>
         <button className="btn-secondary" onClick={() => void printInvoice()}>Print / PDF</button>
         {order.status !== "posted" && <button className="btn-danger" onClick={async () => { if (!window.confirm("Delete this draft Purchase Invoice?")) return; const { error: delError } = await supabase.from("purchase_orders").delete().eq("id", order.id); if (delError) setError(delError.message); else navigate("/purchase"); }}>Delete</button>}
       </div>

@@ -6,6 +6,7 @@ export type CompanyRole =
   | "purchase"
   | "store"
   | "production"
+  | "transport"
   | "viewer"
   | string;
 
@@ -16,6 +17,7 @@ export type ModuleKey =
   | "purchase"
   | "inventory"
   | "production"
+  | "transport"
   | "accounting"
   | "reports"
   | "settings";
@@ -31,6 +33,7 @@ const ALL_MODULES: ModuleKey[] = [
   "purchase",
   "inventory",
   "production",
+  "transport",
   "accounting",
   "reports",
   "settings",
@@ -44,6 +47,7 @@ const VIEW_MODULES: Record<string, ModuleKey[]> = {
   purchase: ["dashboard", "purchase", "reports", "master", "inventory"],
   store: ["dashboard", "inventory", "reports", "master"],
   production: ["dashboard", "production", "inventory", "reports", "master"],
+  transport: ["dashboard", "transport", "accounting", "reports", "master", "settings"],
   viewer: ["dashboard", "reports"],
 };
 
@@ -53,6 +57,7 @@ const OPERATIONAL_MODULE: Partial<Record<string, ModuleKey>> = {
   purchase: "purchase",
   store: "inventory",
   production: "production",
+  transport: "transport",
 };
 
 export function canViewModule(role: CompanyRole | null | undefined, module: ModuleKey, isPlatformOwner = false) {

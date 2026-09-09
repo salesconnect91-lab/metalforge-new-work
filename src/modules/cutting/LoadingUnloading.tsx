@@ -25,6 +25,14 @@ type OrderBookHeader = {
   remarks?: string | null;
 };
 
+type GodownOption = {
+  id: string;
+  name: string;
+  location?: string | null;
+  warehouse_id?: string | null;
+  warehouse?: { id: string; name: string } | null;
+};
+
 type GatePassRow = GatePass & {
   order_book_header_id?: string | null;
   order_book_header?: OrderBookHeader | null;
@@ -34,6 +42,7 @@ type GatePassRow = GatePass & {
 export default function LoadingUnloading() {
   const [rows, setRows] = useState<GatePassRow[]>([]);
   const [orderBookOrders, setOrderBookOrders] = useState<OrderBookHeader[]>([]);
+  const [godowns, setGodowns] = useState<GodownOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -44,7 +53,7 @@ export default function LoadingUnloading() {
     pass_no: "",
     order_book_header_id: "",
     type: "loading" as GatePassType,
-    godown: "Main",
+    godown_id: "",
     vehicle_no: "",
     driver_name: "",
     tare_weight: "0",
@@ -80,10 +89,24 @@ export default function LoadingUnloading() {
     setOrderBookOrders((data ?? []) as OrderBookHeader[]);
   }, []);
 
+  const fetchGodowns = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("godowns")
+      .select("id,name,location,warehouse_id,warehouse:warehouses(id,name)")
+      .order("name", { ascending: true });
+    if (error) {
+      setError(error.message);
+      setGodowns([]);
+      return;
+    }
+    setGodowns((data ?? []) as GodownOption[]);
+  }, []);
+
   useEffect(() => {
     void fetchRows();
     void fetchOrderBookOrders();
-  }, [fetchRows, fetchOrderBookOrders]);
+    void fetchGodowns();
+  }, [fetchRows, fetchOrderBookOrders, fetchGodowns]);
 
   const netWeight =
     (parseFloat(form.gross_weight) || 0) - (parseFloat(form.tare_weight) || 0);
@@ -91,6 +114,11 @@ export default function LoadingUnloading() {
   const selectedOrder = useMemo(
     () => orderBookOrders.find((order) => order.id === form.order_book_header_id) ?? null,
     [orderBookOrders, form.order_book_header_id],
+  );
+
+  const selectedGodown = useMemo(
+    () => godowns.find((godown) => godown.id === form.godown_id) ?? null,
+    [godowns, form.godown_id],
   );
 
   const nextPreviewPassNo = useMemo(() => {
@@ -106,7 +134,7 @@ export default function LoadingUnloading() {
       pass_no: nextPreviewPassNo,
       order_book_header_id: "",
       type: "loading",
-      godown: "Main",
+      godown_id: "",
       vehicle_no: "",
       driver_name: "",
       tare_weight: "0",
@@ -126,6 +154,10 @@ export default function LoadingUnloading() {
       setError("Sales Order is required for a Loading gate pass.");
       return;
     }
+    if (!selectedGodown) {
+      setError("Select an approved Godown / Warehouse before creating the gate pass.");
+      return;
+    }
     if ((parseFloat(form.tare_weight) || 0) < 0 || (parseFloat(form.gross_weight) || 0) < 0 || netWeight < 0) {
       setError("Gross weight must be equal to or greater than tare weight.");
       return;
@@ -136,7 +168,9 @@ export default function LoadingUnloading() {
       sales_order_id: null,
       order_book_header_id: form.order_book_header_id || null,
       type: form.type,
-      godown: form.godown,
+      godown: selectedGodown.name,
+      godown_id: selectedGodown.id,
+      warehouse_id: selectedGodown.warehouse_id || null,
       vehicle_no: form.vehicle_no.trim() || null,
       driver_name: form.driver_name.trim() || null,
       tare_weight: parseFloat(form.tare_weight) || 0,
@@ -463,8 +497,20 @@ export default function LoadingUnloading() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label className="label">Godown / Warehouse / گودام یا ویئرہاؤس</label>
-              <input className="input cursor-not-allowed bg-slate-100 font-semibold" required readOnly value={form.godown} />
-              <div className="mt-1 text-[11px] text-slate-500">Locked to operational godown / آپریشنل گودام لاک</div>
+              <SearchableSelect className="input" required value={form.godown_id} onChange={(e) => setForm({ ...form, godown_id: e.target.value })}>
+                <option value="">— Select approved godown —</option>
+                {godowns.map((godown) => (
+                  <option key={godown.id} value={godown.id}>
+                    {godown.warehouse?.name ? `${godown.warehouse.name} / ` : ""}{godown.name}{godown.location ? ` — ${godown.location}` : ""}
+                  </option>
+                ))}
+              </SearchableSelect>
+              <div className="mt-1 text-[11px] text-slate-500">Select from Godown Master only; free text is not allowed / صرف گودام ماسٹر سے انتخاب کریں</div>
+              {selectedGodown && (
+                <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                  <span className="font-semibold text-slate-800">Selected:</span> {selectedGodown.warehouse?.name || "Warehouse"} / {selectedGodown.name}{selectedGodown.location ? ` · ${selectedGodown.location}` : ""}
+                </div>
+              )}
             </div>
             <div>
               <label className="label">Labour / Contractor / مزدور یا ٹھیکیدار</label>

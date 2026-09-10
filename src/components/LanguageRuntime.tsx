@@ -19,7 +19,7 @@ async function loadRuntimeLanguage(): Promise<RuntimeLanguage> {
   const company: RuntimeLanguage = {
     mode: (companyResult.data?.screen_language_mode || "single") as LanguageMode,
     primary: companyResult.data?.screen_primary_language || "en",
-    secondary: companyResult.data?.screen_secondary_language || null,
+    secondary: companyResult.data?.screen_language_mode === "bilingual" ? companyResult.data?.screen_secondary_language || null : null,
   };
 
   const { data: authData } = await supabase.auth.getUser();
@@ -79,10 +79,19 @@ function translateTree(root: Node, language: RuntimeLanguage) {
     const current = node.nodeValue || "";
     if (!current.trim()) return;
 
-    if (!originalText.has(node)) originalText.set(node, current);
+    const stored = originalText.get(node);
+    if (!stored) originalText.set(node, current);
     const source = originalText.get(node) || current;
-    const next = selectLanguageText(source, language);
-    if (node.nodeValue !== next) node.nodeValue = next;
+    const expected = selectLanguageText(source, language);
+
+    // If React changed this existing text node, treat the new value as the new source.
+    if (stored && current !== source && current !== expected) {
+      originalText.set(node, current);
+      node.nodeValue = selectLanguageText(current, language);
+      return;
+    }
+
+    if (node.nodeValue !== expected) node.nodeValue = expected;
   });
 }
 
@@ -91,13 +100,18 @@ export default function LanguageRuntime() {
     let active = true;
     let language: RuntimeLanguage = { mode: "single", primary: "en", secondary: null };
     let frame = 0;
+    let applying = false;
 
     const apply = () => {
       if (!active) return;
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
+        applying = true;
         applyDocumentLanguage(language);
         translateTree(document.body, language);
+        queueMicrotask(() => {
+          applying = false;
+        });
       });
     };
 
@@ -111,15 +125,18 @@ export default function LanguageRuntime() {
     };
 
     const observer = new MutationObserver((mutations) => {
-      if (!active) return;
+      if (!active || applying) return;
       for (const mutation of mutations) {
         mutation.addedNodes.forEach((node) => {
           if (node.nodeType === Node.TEXT_NODE || node.nodeType === Node.ELEMENT_NODE) translateTree(node, language);
         });
         if (mutation.type === "characterData" && mutation.target.nodeType === Node.TEXT_NODE) {
           const node = mutation.target as Text;
-          originalText.set(node, node.nodeValue || "");
-          const next = selectLanguageText(node.nodeValue || "", language);
+          const current = node.nodeValue || "";
+          const stored = originalText.get(node);
+          if (!stored || (current !== stored && current !== selectLanguageText(stored, language))) originalText.set(node, current);
+          const source = originalText.get(node) || current;
+          const next = selectLanguageText(source, language);
           if (node.nodeValue !== next) node.nodeValue = next;
         }
       }

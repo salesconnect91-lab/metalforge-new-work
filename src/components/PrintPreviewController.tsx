@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/auth/AuthContext";
+import GlobalPrintButton from "@/components/GlobalPrintButton";
 
 type PrintOrientation = "portrait" | "landscape";
 type PreviewPayload = { html: string; title: string; orientation: PrintOrientation };
@@ -240,10 +241,7 @@ export default function PrintPreviewController() {
         .trim()
         .toLowerCase();
 
-      // Gate Pass has its own purpose-built loading worksheet / final-GP document.
-      // Do not capture those buttons into the generic whole-page report preview.
       if (/\bprint loading worksheet\b|\bprint final gp\b|\bprint token\b/.test(label)) return;
-
       if (!/\bprint\b|پرنٹ/.test(label)) return;
 
       const target = getButtonPrintableTarget(button);
@@ -314,7 +312,6 @@ export default function PrintPreviewController() {
         );
         if (doc.fonts?.ready) await doc.fonts.ready;
       } catch {
-        // Printing remains available if a non-critical asset cannot be loaded.
       }
 
       await new Promise((resolve) => window.setTimeout(resolve, 150));
@@ -327,7 +324,7 @@ export default function PrintPreviewController() {
     else frame.onload = () => void executePrint();
   };
 
-  if (!preview) return null;
+  if (!preview) return <GlobalPrintButton />;
 
   const previewWidth = preview.orientation === "landscape" ? "297mm" : "210mm";
   const previewMinHeight = preview.orientation === "landscape" ? "210mm" : "297mm";

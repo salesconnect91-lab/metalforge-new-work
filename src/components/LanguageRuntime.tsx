@@ -8,6 +8,8 @@ type RuntimeLanguage = {
   secondary: string | null;
 };
 
+const originalText = new WeakMap<Text, string>();
+
 async function loadRuntimeLanguage(): Promise<RuntimeLanguage> {
   const companyResult = await supabase
     .from("company_settings")
@@ -15,9 +17,9 @@ async function loadRuntimeLanguage(): Promise<RuntimeLanguage> {
     .maybeSingle();
 
   const company: RuntimeLanguage = {
-    mode: (companyResult.data?.screen_language_mode || "bilingual") as LanguageMode,
+    mode: (companyResult.data?.screen_language_mode || "single") as LanguageMode,
     primary: companyResult.data?.screen_primary_language || "en",
-    secondary: companyResult.data?.screen_secondary_language || "ur",
+    secondary: companyResult.data?.screen_secondary_language || null,
   };
 
   const { data: authData } = await supabase.auth.getUser();
@@ -34,9 +36,9 @@ async function loadRuntimeLanguage(): Promise<RuntimeLanguage> {
   if (!preference || preference.use_company_default !== false) return company;
 
   return {
-    mode: (preference.screen_language_mode || "bilingual") as LanguageMode,
+    mode: (preference.screen_language_mode || "single") as LanguageMode,
     primary: preference.primary_language || "en",
-    secondary: preference.secondary_language || null,
+    secondary: preference.screen_language_mode === "bilingual" ? preference.secondary_language || null : null,
   };
 }
 
@@ -50,25 +52,88 @@ function applyDocumentLanguage(language: RuntimeLanguage) {
   else delete document.documentElement.dataset.secondaryLanguage;
 }
 
+function hasUrdu(value: string) {
+  return /[\u0600-\u06FF]/.test(value);
+}
+
+function selectLanguageText(value: string, language: RuntimeLanguage) {
+  if (language.mode === "bilingual") return value;
+  if (!value.includes("/") || !hasUrdu(value)) return value;
+
+  const leading = value.match(/^\s*/)?.[0] || "";
+  const trailing = value.match(/\s*$/)?.[0] || "";
+  const parts = value.trim().split("/").map((part) => part.trim()).filter(Boolean);
+  const rtlParts = parts.filter(hasUrdu);
+  const ltrParts = parts.filter((part) => !hasUrdu(part));
+  const chosen = language.primary === "ur" ? rtlParts : ltrParts;
+  if (!chosen.length) return value;
+  return `${leading}${chosen.join(" / ")}${trailing}`;
+}
+
+function translateTree(root: Node, language: RuntimeLanguage) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes: Text[] = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode as Text);
+
+  nodes.forEach((node) => {
+    const current = node.nodeValue || "";
+    if (!current.trim()) return;
+
+    if (!originalText.has(node)) originalText.set(node, current);
+    const source = originalText.get(node) || current;
+    const next = selectLanguageText(source, language);
+    if (node.nodeValue !== next) node.nodeValue = next;
+  });
+}
+
 export default function LanguageRuntime() {
   useEffect(() => {
     let active = true;
+    let language: RuntimeLanguage = { mode: "single", primary: "en", secondary: null };
+    let frame = 0;
+
+    const apply = () => {
+      if (!active) return;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        applyDocumentLanguage(language);
+        translateTree(document.body, language);
+      });
+    };
 
     const refresh = async () => {
       try {
-        const language = await loadRuntimeLanguage();
-        if (active) applyDocumentLanguage(language);
+        language = await loadRuntimeLanguage();
       } catch {
-        if (active) applyDocumentLanguage({ mode: "bilingual", primary: "en", secondary: "ur" });
+        language = { mode: "single", primary: "en", secondary: null };
       }
+      apply();
     };
 
+    const observer = new MutationObserver((mutations) => {
+      if (!active) return;
+      for (const mutation of mutations) {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === Node.TEXT_NODE || node.nodeType === Node.ELEMENT_NODE) translateTree(node, language);
+        });
+        if (mutation.type === "characterData" && mutation.target.nodeType === Node.TEXT_NODE) {
+          const node = mutation.target as Text;
+          originalText.set(node, node.nodeValue || "");
+          const next = selectLanguageText(node.nodeValue || "", language);
+          if (node.nodeValue !== next) node.nodeValue = next;
+        }
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     void refresh();
     const handleChange = () => void refresh();
     window.addEventListener("navilo-language-changed", handleChange);
 
     return () => {
       active = false;
+      observer.disconnect();
+      cancelAnimationFrame(frame);
       window.removeEventListener("navilo-language-changed", handleChange);
     };
   }, []);

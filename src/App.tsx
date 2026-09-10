@@ -9,6 +9,7 @@ import Layout from "@/components/Layout";
 import CompanySwitcher from "@/components/CompanySwitcher";
 import BusinessUnitSwitcher from "@/components/BusinessUnitSwitcher";
 import PrintPreviewController from "@/components/PrintPreviewController";
+import GlobalModalManager from "@/components/GlobalModalManager";
 import DashboardGlobalSearch from "@/components/DashboardGlobalSearch";
 import Dashboard from "@/modules/Dashboard";
 import MasterData from "@/modules/master-data/MasterData";
@@ -69,7 +70,9 @@ function WorkspaceSwitchers() {
   return <><CompanySwitcher /><BusinessUnitSwitcher /></>;
 }
 
-function GlobalExperience() { return <PrintPreviewController />; }
+function GlobalExperience() {
+  return <><PrintPreviewController /><GlobalModalManager /></>;
+}
 
 function DashboardHome() {
   const { activeCompany,activeBusinessUnit }=useAuth();

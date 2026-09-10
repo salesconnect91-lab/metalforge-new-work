@@ -93,12 +93,21 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Searchable combobox menus stay compact and app-like. */
 .erp-searchable-menu {
   font-family: var(--erp-font);
   border-radius: 8px !important;
   border: 1px solid var(--erp-border) !important;
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.14) !important;
+}
+
+/* Legacy ledger party picker used to render its result panel even before interaction. */
+.erp-shell main .relative:has(> .relative > input[placeholder*="customer or supplier"]):not(:focus-within) > .absolute.z-30 {
+  display: none !important;
+}
+
+.erp-shell main .relative:has(> .relative > input[placeholder*="customer or supplier"]):focus-within > .absolute.z-30 {
+  display: block !important;
+  max-height: 280px !important;
 }
 
 /* Print preview/output only. This never changes normal application layout. */

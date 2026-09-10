@@ -1,37 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { BarChart3, Download, Printer, RefreshCw } from "lucide-react";
+import { BarChart3, RefreshCw, RotateCcw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { ErrorBanner, formatCurrency, formatDate } from "@/components/ui";
 
 type ReportKey = "sales"|"sales_register"|"purchase_register"|"receivables"|"payables"|"customer_items"|"supplier_items"|"stock"|"returns"|"reconciliation"|"exceptions"|"charges"|"gatepass";
 type Col = { key:string; label:string; kind?:"money"|"date"|"number"|"percent" };
 const n=(v:unknown)=>Number.isFinite(Number(v))?Number(v):0;
-const today=()=>new Date().toISOString().slice(0,10);
-const monthStart=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`;};
 
 const pathToReport: Record<string,ReportKey> = {
-  "/reports":"sales",
-  "/reports/sales-margin":"sales",
-  "/reports/sales-register":"sales_register",
-  "/reports/purchase-register":"purchase_register",
-  "/reports/customer-aging":"receivables",
-  "/reports/supplier-aging":"payables",
-  "/reports/customer-item-history":"customer_items",
-  "/reports/supplier-item-history":"supplier_items",
-  "/reports/stock-valuation":"stock",
-  "/reports/returns-register":"returns",
-  "/reports/ar-ap-reconciliation":"reconciliation",
-  "/reports/exceptions":"exceptions",
-  "/reports/service-charges":"charges",
-  "/reports/gate-pass":"gatepass",
+  "/reports":"sales", "/reports/sales-margin":"sales", "/reports/sales-register":"sales_register", "/reports/purchase-register":"purchase_register",
+  "/reports/customer-aging":"receivables", "/reports/supplier-aging":"payables", "/reports/customer-item-history":"customer_items", "/reports/supplier-item-history":"supplier_items",
+  "/reports/stock-valuation":"stock", "/reports/returns-register":"returns", "/reports/ar-ap-reconciliation":"reconciliation", "/reports/exceptions":"exceptions",
+  "/reports/service-charges":"charges", "/reports/gate-pass":"gatepass",
 };
 
-const titles:Record<ReportKey,string>={
-  sales:"Sales & Margin", sales_register:"Sales Register", purchase_register:"Purchase Register", receivables:"Customer Aging", payables:"Supplier Aging",
-  customer_items:"Customer Item History", supplier_items:"Supplier Item History", stock:"Stock Valuation", returns:"Returns Register",
-  reconciliation:"AR / AP Reconciliation", exceptions:"Accounting Exceptions", charges:"Service Charges", gatepass:"Gate Pass Report",
-};
+const titles:Record<ReportKey,string>={sales:"Sales & Margin",sales_register:"Sales Register",purchase_register:"Purchase Register",receivables:"Customer Aging",payables:"Supplier Aging",customer_items:"Customer Item History",supplier_items:"Supplier Item History",stock:"Stock Valuation",returns:"Returns Register",reconciliation:"AR / AP Reconciliation",exceptions:"Accounting Exceptions",charges:"Service Charges",gatepass:"Gate Pass Report"};
+const dateKeys:Partial<Record<ReportKey,string>>={sales:"invoice_date",sales_register:"order_date",purchase_register:"order_date",receivables:"invoice_date",payables:"invoice_date",customer_items:"order_date",supplier_items:"order_date",returns:"note_date",exceptions:"created_at",gatepass:"pass_date"};
+const partyKeys:Partial<Record<ReportKey,string>>={sales:"customer_name",sales_register:"customer_name",purchase_register:"supplier_name",receivables:"customer_name",payables:"supplier_name",customer_items:"customer_name",supplier_items:"supplier_name",returns:"party_name",charges:"name",gatepass:"customer_name"};
+const itemKeys:Partial<Record<ReportKey,string>>={customer_items:"item_name",supplier_items:"item_name",stock:"item_name"};
+const statusKeys:Partial<Record<ReportKey,string>>={sales_register:"payment_status",purchase_register:"payment_status",receivables:"payment_status",payables:"payment_status",exceptions:"status",gatepass:"status"};
 
 const cols: Record<Exclude<ReportKey,"gatepass">,Col[]> = {
   sales:[{key:"invoice_no",label:"Invoice"},{key:"invoice_date",label:"Date",kind:"date"},{key:"customer_name",label:"Customer"},{key:"sales_person",label:"Salesperson"},{key:"sales_amount",label:"Gross Sales",kind:"money"},{key:"return_amount",label:"Returns",kind:"money"},{key:"net_sales_amount",label:"Net Sales",kind:"money"},{key:"cost_amount",label:"Actual COGS",kind:"money"},{key:"gross_profit",label:"Gross Profit",kind:"money"},{key:"margin_percent",label:"Margin %",kind:"percent"}],
@@ -47,77 +35,49 @@ const cols: Record<Exclude<ReportKey,"gatepass">,Col[]> = {
   exceptions:[{key:"created_at",label:"Created"},{key:"severity",label:"Severity"},{key:"exception_type",label:"Exception"},{key:"source_module",label:"Module"},{key:"message",label:"Message"},{key:"status",label:"Status"}],
   charges:[{key:"name",label:"Party"},{key:"party_type",label:"Type"},{key:"charges_total",label:"Charges",kind:"money"}],
 };
-
 function show(v:any,kind?:Col["kind"]){if(v===null||v===undefined||v==="")return "—";if(kind==="money")return formatCurrency(n(v));if(kind==="percent")return `${n(v).toFixed(2)}%`;if(kind==="number")return n(v).toLocaleString();if(kind==="date")return formatDate(String(v));return String(v);}
+function unique(rows:any[],key?:string){if(!key)return[];return Array.from(new Set(rows.map(row=>String(row[key]??"").trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b));}
 
 export default function Reports(){
-  const location=useLocation();
-  const report=pathToReport[location.pathname]??"sales";
-  const [data,setData]=useState<Record<string,any[]>>({});
-  const [loading,setLoading]=useState(true);
-  const [error,setError]=useState<string|null>(null);
-  const [search,setSearch]=useState("");
-  const [gpFrom,setGpFrom]=useState(monthStart());
-  const [gpTo,setGpTo]=useState(today());
-  const [gpStatus,setGpStatus]=useState("all");
+  const location=useLocation(); const report=pathToReport[location.pathname]??"sales";
+  const [data,setData]=useState<Record<string,any[]>>({}); const [loading,setLoading]=useState(true); const [error,setError]=useState<string|null>(null);
+  const [search,setSearch]=useState(""); const [fromDate,setFromDate]=useState(""); const [toDate,setToDate]=useState(""); const [party,setParty]=useState(""); const [item,setItem]=useState(""); const [status,setStatus]=useState("");
 
-  useEffect(()=>{setSearch("");},[location.pathname]);
+  const reset=useCallback(()=>{setSearch("");setFromDate("");setToDate("");setParty("");setItem("");setStatus("");},[]);
+  useEffect(()=>{reset();},[location.pathname,reset]);
 
-  const load=useCallback(async()=>{
-    setLoading(true);setError(null);
-    const queries:any[]=[
-      supabase.from("sales_margin_report").select("*").order("invoice_date",{ascending:false}).limit(5000),
-      supabase.from("sales_register_report").select("*").order("order_date",{ascending:false}).limit(10000),
-      supabase.from("purchase_register_report").select("*").order("order_date",{ascending:false}).limit(10000),
-      supabase.from("customer_invoice_aging").select("*").gt("outstanding_amount",0).order("overdue_days",{ascending:false}).limit(10000),
-      supabase.from("supplier_invoice_aging").select("*").gt("outstanding_amount",0).order("overdue_days",{ascending:false}).limit(10000),
-      supabase.from("customer_item_history_report").select("*").order("order_date",{ascending:false}).limit(10000),
-      supabase.from("supplier_item_history_report").select("*").order("order_date",{ascending:false}).limit(10000),
-      supabase.from("stock_godown_report").select("*").order("item_name").limit(10000),
-      supabase.from("returns_register_report").select("*").order("note_date",{ascending:false}).limit(10000),
-      supabase.from("accounting_control_reconciliation").select("*").limit(100),
-      supabase.from("accounting_exceptions").select("*").neq("status","resolved").order("created_at",{ascending:false}).limit(5000),
-      supabase.from("service_party_balance_report").select("*").order("charges_total",{ascending:false}),
-      supabase.from("gate_passes").select("id,pass_no,pass_date,customer_name,vehicle_no,driver_name,loaded_by_name,tare_weight,gross_weight,net_weight,status,gate_pass_lines(item_description,requested_qty,actual_qty,uom,warehouse:warehouses(name),godown:godowns(name))").order("pass_date",{ascending:false}).limit(10000),
-    ];
-    const r=await Promise.all(queries);
-    const names:ReportKey[]=["sales","sales_register","purchase_register","receivables","payables","customer_items","supplier_items","stock","returns","reconciliation","exceptions","charges","gatepass"];
-    const first=r.find(x=>x.error)?.error;if(first)setError(first.message);
-    const next:Record<string,any[]>={};names.forEach((k,i)=>next[k]=r[i].data??[]);setData(next);setLoading(false);
-  },[]);
+  const load=useCallback(async()=>{setLoading(true);setError(null);const queries:any[]=[
+    supabase.from("sales_margin_report").select("*").order("invoice_date",{ascending:false}).limit(5000),supabase.from("sales_register_report").select("*").order("order_date",{ascending:false}).limit(10000),supabase.from("purchase_register_report").select("*").order("order_date",{ascending:false}).limit(10000),
+    supabase.from("customer_invoice_aging").select("*").gt("outstanding_amount",0).order("overdue_days",{ascending:false}).limit(10000),supabase.from("supplier_invoice_aging").select("*").gt("outstanding_amount",0).order("overdue_days",{ascending:false}).limit(10000),
+    supabase.from("customer_item_history_report").select("*").order("order_date",{ascending:false}).limit(10000),supabase.from("supplier_item_history_report").select("*").order("order_date",{ascending:false}).limit(10000),supabase.from("stock_godown_report").select("*").order("item_name").limit(10000),
+    supabase.from("returns_register_report").select("*").order("note_date",{ascending:false}).limit(10000),supabase.from("accounting_control_reconciliation").select("*").limit(100),supabase.from("accounting_exceptions").select("*").neq("status","resolved").order("created_at",{ascending:false}).limit(5000),
+    supabase.from("service_party_balance_report").select("*").order("charges_total",{ascending:false}),supabase.from("gate_passes").select("id,pass_no,pass_date,customer_name,vehicle_no,driver_name,loaded_by_name,tare_weight,gross_weight,net_weight,status,gate_pass_lines(item_description,requested_qty,actual_qty,uom,warehouse:warehouses(name),godown:godowns(name))").order("pass_date",{ascending:false}).limit(10000)
+  ];const r=await Promise.all(queries);const names:ReportKey[]=["sales","sales_register","purchase_register","receivables","payables","customer_items","supplier_items","stock","returns","reconciliation","exceptions","charges","gatepass"];const first=r.find(x=>x.error)?.error;if(first)setError(first.message);const next:Record<string,any[]>={};names.forEach((k,i)=>next[k]=r[i].data??[]);setData(next);setLoading(false);},[]);
   useEffect(()=>{void load();},[load]);
 
-  const rows=useMemo(()=>{
-    let r=data[report]??[];
-    if(report==="gatepass")r=r.filter(x=>(!gpFrom||String(x.pass_date)>=gpFrom)&&(!gpTo||String(x.pass_date)<=gpTo)&&(gpStatus==="all"||x.status===gpStatus));
-    const q=search.trim().toLowerCase();return !q?r:r.filter(x=>JSON.stringify(x).toLowerCase().includes(q));
-  },[data,report,search,gpFrom,gpTo,gpStatus]);
+  const allRows=data[report]??[]; const dateKey=dateKeys[report],partyKey=partyKeys[report],itemKey=itemKeys[report],statusKey=statusKeys[report];
+  const partyOptions=useMemo(()=>unique(allRows,partyKey),[allRows,partyKey]); const itemOptions=useMemo(()=>unique(allRows,itemKey),[allRows,itemKey]); const statusOptions=useMemo(()=>unique(allRows,statusKey),[allRows,statusKey]);
+  const rows=useMemo(()=>allRows.filter(row=>{
+    if(dateKey){const raw=String(row[dateKey]??"").slice(0,10);if(fromDate&&raw<fromDate)return false;if(toDate&&raw>toDate)return false;}
+    if(party&&partyKey&&String(row[partyKey]??"")!==party)return false; if(item&&itemKey&&String(row[itemKey]??"")!==item)return false; if(status&&statusKey&&String(row[statusKey]??"")!==status)return false;
+    const q=search.trim().toLowerCase();return !q||JSON.stringify(row).toLowerCase().includes(q);
+  }),[allRows,dateKey,fromDate,toDate,party,partyKey,item,itemKey,status,statusKey,search]);
 
-  const summary=useMemo(()=>{
-    if(report==="sales")return [["Net Sales",rows.reduce((s,r)=>s+n(r.net_sales_amount??r.sales_amount),0)],["Actual COGS",rows.reduce((s,r)=>s+n(r.cost_amount),0)],["Gross Profit",rows.reduce((s,r)=>s+n(r.gross_profit),0)]];
-    if(report==="receivables"||report==="payables")return [["Outstanding",rows.reduce((s,r)=>s+n(r.outstanding_amount),0)],["Overdue",rows.filter(r=>n(r.overdue_days)>0).reduce((s,r)=>s+n(r.outstanding_amount),0)],["Documents",rows.length]];
-    if(report==="stock")return [["Stock Value",rows.reduce((s,r)=>s+n(r.stock_value),0)],["Quantity",rows.reduce((s,r)=>s+n(r.quantity),0)],["Lines",rows.length]];
-    if(report==="reconciliation")return [["AR Difference",rows.reduce((s,r)=>s+n(r.ar_difference),0)],["AP Difference",rows.reduce((s,r)=>s+n(r.ap_difference),0)],["Status",rows.every(r=>Math.abs(n(r.ar_difference))<.01&&Math.abs(n(r.ap_difference))<.01)?"Reconciled":"Review"]];
-    return [["Rows",rows.length]];
-  },[rows,report]);
+  const summary=useMemo(()=>{if(report==="sales")return [["Net Sales",rows.reduce((s,r)=>s+n(r.net_sales_amount??r.sales_amount),0)],["Actual COGS",rows.reduce((s,r)=>s+n(r.cost_amount),0)],["Gross Profit",rows.reduce((s,r)=>s+n(r.gross_profit),0)]];if(report==="receivables"||report==="payables")return [["Outstanding",rows.reduce((s,r)=>s+n(r.outstanding_amount),0)],["Overdue",rows.filter(r=>n(r.overdue_days)>0).reduce((s,r)=>s+n(r.outstanding_amount),0)],["Documents",rows.length]];if(report==="stock")return [["Stock Value",rows.reduce((s,r)=>s+n(r.stock_value),0)],["Quantity",rows.reduce((s,r)=>s+n(r.quantity),0)],["Lines",rows.length]];if(report==="reconciliation")return [["AR Difference",rows.reduce((s,r)=>s+n(r.ar_difference),0)],["AP Difference",rows.reduce((s,r)=>s+n(r.ap_difference),0)],["Status",rows.every(r=>Math.abs(n(r.ar_difference))<.01&&Math.abs(n(r.ap_difference))<.01)?"Reconciled":"Review"]];return [["Rows",rows.length]];},[rows,report]);
+  const currentCols=report==="gatepass"?null:cols[report as Exclude<ReportKey,"gatepass">]; const hasFilters=Boolean(search||fromDate||toDate||party||item||status);
 
-  const exportCsv=()=>{
-    if(!rows.length)return;
-    const columns=report==="gatepass"?[{key:"pass_no",label:"GP No"},{key:"pass_date",label:"Date"},{key:"customer_name",label:"Customer"},{key:"vehicle_no",label:"Vehicle"},{key:"net_weight",label:"Net Kg"},{key:"status",label:"Status"}]:cols[report as Exclude<ReportKey,"gatepass">];
-    const esc=(v:any)=>`"${String(v??"").replace(/"/g,'""')}"`;
-    const csv=[columns.map(c=>esc(c.label)).join(","),...rows.map(r=>columns.map(c=>esc(r[c.key])).join(","))].join("\r\n");
-    const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`${report}_report.csv`;a.click();URL.revokeObjectURL(url);
-  };
-
-  const currentCols=report==="gatepass"?null:cols[report as Exclude<ReportKey,"gatepass">];
-  return <div className="space-y-4 pb-12 print-report">
-    <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
-      <div><h1 className="flex items-center gap-2 text-xl font-bold"><BarChart3 className="h-5 w-5 text-blue-600"/>{titles[report]}</h1><p className="mt-1 text-xs text-slate-500">Opened from the sidebar tree. Posted accounting, stock and operational sources only.</p></div>
-      <div className="flex flex-wrap gap-2 no-print"><button className="btn-secondary" onClick={exportCsv}><Download className="h-3.5 w-3.5"/>CSV</button><button className="btn-secondary" onClick={()=>window.print()}><Printer className="h-3.5 w-3.5"/>Print / PDF</button><button className="btn-secondary" onClick={()=>void load()}><RefreshCw className="h-3.5 w-3.5"/>Refresh</button></div>
-    </div>
+  return <div className="space-y-4 pb-12">
+    <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="flex items-center gap-2 text-xl font-bold"><BarChart3 className="h-5 w-5 text-blue-600"/>{titles[report]}</h1><p className="mt-1 text-xs text-slate-500">Filters affect screen totals, Excel export and Print/PDF output. Posted source data only.</p></div><button className="btn-secondary no-print" onClick={()=>void load()}><RefreshCw className="h-4 w-4"/>Refresh Data</button></div>
     {error&&<ErrorBanner message={error}/>} 
-    <div className="rounded-lg border bg-white p-3 no-print"><div className="grid gap-2 md:grid-cols-4"><input className="input md:col-span-2" placeholder={`Search ${titles[report]}...`} value={search} onChange={e=>setSearch(e.target.value)}/>{report==="gatepass"&&<><input type="date" className="input" value={gpFrom} onChange={e=>setGpFrom(e.target.value)}/><input type="date" className="input" value={gpTo} onChange={e=>setGpTo(e.target.value)}/><select className="input" value={gpStatus} onChange={e=>setGpStatus(e.target.value)}><option value="all">All Statuses</option><option value="issued">Issued</option><option value="tare_weighed">Tare Weighed</option><option value="loading">Loading</option><option value="weighed">Weighed</option><option value="finalized">Finalized</option><option value="cancelled">Cancelled</option></select></>}</div></div>
+    <div className="rounded-xl border border-slate-200 bg-white p-3 no-print"><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+      <input className="input lg:col-span-2" placeholder={`Search ${titles[report]}...`} value={search} onChange={e=>setSearch(e.target.value)}/>
+      {dateKey&&<><label className="text-[11px] font-semibold text-slate-600">From Date<input type="date" className="input mt-1 w-full" value={fromDate} max={toDate||undefined} onChange={e=>setFromDate(e.target.value)}/></label><label className="text-[11px] font-semibold text-slate-600">To Date<input type="date" className="input mt-1 w-full" value={toDate} min={fromDate||undefined} onChange={e=>setToDate(e.target.value)}/></label></>}
+      {partyOptions.length>0&&<select className="input" value={party} onChange={e=>setParty(e.target.value)}><option value="">All {report.includes("purchase")||report==="payables"||report==="supplier_items"?"Suppliers":"Parties / Customers"}</option>{partyOptions.map(v=><option key={v} value={v}>{v}</option>)}</select>}
+      {itemOptions.length>0&&<select className="input" value={item} onChange={e=>setItem(e.target.value)}><option value="">All Items</option>{itemOptions.map(v=><option key={v} value={v}>{v}</option>)}</select>}
+      {statusOptions.length>0&&<select className="input" value={status} onChange={e=>setStatus(e.target.value)}><option value="">All Statuses</option>{statusOptions.map(v=><option key={v} value={v}>{v.replace(/_/g," ")}</option>)}</select>}
+      {hasFilters&&<button type="button" className="btn-secondary" onClick={reset}><RotateCcw className="h-4 w-4"/>Reset Filters</button>}
+    </div></div>
     <div className="grid gap-2 sm:grid-cols-3">{summary.map(([label,value])=><div key={String(label)} className="summary-card"><div className="summary-label">{label}</div><div className="summary-value">{typeof value==="number"&&(String(label).toLowerCase().includes("difference")||String(label).toLowerCase().includes("sales")||String(label).toLowerCase().includes("cogs")||String(label).toLowerCase().includes("profit")||String(label).toLowerCase().includes("outstanding")||String(label).toLowerCase().includes("overdue")||String(label).toLowerCase().includes("value"))?formatCurrency(n(value)):String(value)}</div></div>)}</div>
-    {loading?<div className="rounded-lg border bg-white p-8 text-center text-sm text-slate-400">Loading report data…</div>:report==="gatepass"?<div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full text-xs"><thead><tr><th>GP No</th><th>Date</th><th>Customer</th><th>Vehicle</th><th>Driver</th><th>Material</th><th>Location</th><th className="text-right">Net Kg</th><th>Status</th></tr></thead><tbody>{rows.map((r:any)=><tr key={r.id}><td>{r.pass_no}</td><td>{formatDate(r.pass_date)}</td><td>{r.customer_name||"—"}</td><td>{r.vehicle_no||"—"}</td><td>{r.driver_name||"—"}</td><td>{(r.gate_pass_lines||[]).map((l:any)=>l.item_description).filter(Boolean).join("; ")||"—"}</td><td>{(r.gate_pass_lines||[]).map((l:any)=>[l.warehouse?.name,l.godown?.name].filter(Boolean).join(" / ")).filter(Boolean).join("; ")||"—"}</td><td className="text-right">{n(r.net_weight).toLocaleString()}</td><td>{r.status}</td></tr>)}</tbody></table></div>:<div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full text-xs"><thead><tr>{currentCols!.map(c=><th key={c.key} className={c.kind&&["money","number","percent"].includes(c.kind)?"text-right":"text-left"}>{c.label}</th>)}</tr></thead><tbody>{rows.map((r:any,i:number)=><tr key={r.id||r.sales_order_id||r.purchase_order_id||r.note_no||`${report}-${i}`}>{currentCols!.map(c=><td key={c.key} className={c.kind&&["money","number","percent"].includes(c.kind)?"text-right":"text-left"}>{show(r[c.key],c.kind)}</td>)}</tr>)}{!rows.length&&<tr><td colSpan={currentCols!.length} className="py-8 text-center text-slate-400">No data for this report.</td></tr>}</tbody></table></div>}
+    {loading?<div className="rounded-lg border bg-white p-8 text-center text-sm text-slate-400">Loading report data…</div>:report==="gatepass"?<div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full text-xs"><thead><tr><th>GP No</th><th>Date</th><th>Customer</th><th>Vehicle</th><th>Driver</th><th>Material</th><th>Location</th><th className="text-right">Net Kg</th><th>Status</th></tr></thead><tbody>{rows.map((r:any)=><tr key={r.id}><td>{r.pass_no}</td><td>{formatDate(r.pass_date)}</td><td>{r.customer_name||"—"}</td><td>{r.vehicle_no||"—"}</td><td>{r.driver_name||"—"}</td><td>{(r.gate_pass_lines||[]).map((l:any)=>l.item_description).filter(Boolean).join("; ")||"—"}</td><td>{(r.gate_pass_lines||[]).map((l:any)=>[l.warehouse?.name,l.godown?.name].filter(Boolean).join(" / ")).filter(Boolean).join("; ")||"—"}</td><td className="text-right">{n(r.net_weight).toLocaleString()}</td><td>{r.status}</td></tr>)}{!rows.length&&<tr><td colSpan={9} className="py-8 text-center text-slate-400">No data for selected filters.</td></tr>}</tbody></table></div>:<div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full text-xs"><thead><tr>{currentCols!.map(c=><th key={c.key} className={c.kind&&["money","number","percent"].includes(c.kind)?"text-right":"text-left"}>{c.label}</th>)}</tr></thead><tbody>{rows.map((r:any,i:number)=><tr key={r.id||r.sales_order_id||r.purchase_order_id||r.note_no||`${report}-${i}`}>{currentCols!.map(c=><td key={c.key} className={c.kind&&["money","number","percent"].includes(c.kind)?"text-right":"text-left"}>{show(r[c.key],c.kind)}</td>)}</tr>)}{!rows.length&&<tr><td colSpan={currentCols!.length} className="py-8 text-center text-slate-400">No data for selected filters.</td></tr>}</tbody></table></div>}
   </div>;
 }

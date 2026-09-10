@@ -9,15 +9,10 @@ function currentPageTitle() {
 
 export default function GlobalPrintButton() {
   const { pathname } = useLocation();
-  const hidden = pathname === "/login" || pathname === "/reset-password";
+  const hidden = pathname === "/login" || pathname === "/reset-password" || pathname.startsWith("/cutting/gate-pass");
   if (hidden) return null;
 
   const printPage = () => {
-    if (pathname.startsWith("/cutting/gate-pass")) {
-      window.dispatchEvent(new CustomEvent("navilo:print-gate-pass-summary"));
-      return;
-    }
-
     window.dispatchEvent(
       new CustomEvent("navilo:print-preview", {
         detail: {

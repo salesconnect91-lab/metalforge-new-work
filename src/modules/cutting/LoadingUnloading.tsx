@@ -105,8 +105,10 @@ export default function LoadingUnloading() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="w-full min-w-0 max-w-none space-y-4 overflow-hidden">
       <style>{`
+        .gp-workflow-shell { width:100%; min-width:0; max-width:none; }
+        .gp-workflow-shell > * { max-width:none!important; }
         .gp-workflow-shell button[data-gp-workflow-state="complete"] { background:#16a34a!important;border-color:#16a34a!important;color:#fff!important;box-shadow:0 1px 2px rgba(22,163,74,.18); }
         .gp-workflow-shell button[data-gp-workflow-state="complete"]:hover { background:#15803d!important;border-color:#15803d!important; }
         .gp-workflow-shell button[data-gp-workflow-state="final"] { background:#2563eb!important;border-color:#2563eb!important;color:#fff!important;box-shadow:0 1px 2px rgba(37,99,235,.18); }
@@ -116,7 +118,7 @@ export default function LoadingUnloading() {
         .gp-workflow-shell td[data-gp-status="Loading Done"], .gp-workflow-shell td[data-gp-status="1st Kanta Done"], .gp-workflow-shell td[data-gp-status="2nd Kanta Done"] { color:#15803d!important;font-weight:700; }
       `}</style>
 
-      <div className="rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-white p-4 shadow-sm" data-no-print>
+      <div className="w-full min-w-0 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-white p-4 shadow-sm" data-no-print>
         <div className="mb-3">
           <div className="font-semibold text-amber-950">Final GP Correction / فائنل گیٹ پاس کی تصحیح</div>
           <div className="text-xs text-amber-700">
@@ -124,10 +126,10 @@ export default function LoadingUnloading() {
           </div>
         </div>
 
-        <div className="grid gap-3 xl:grid-cols-[minmax(280px,1.1fr)_minmax(260px,1fr)_minmax(320px,1.25fr)_auto]">
-          <div>
+        <div className="grid w-full min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="min-w-0">
             <label className="label">Final Gate Pass / فائنل گیٹ پاس</label>
-            <select className="input" value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
+            <select className="input w-full min-w-0" value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
               <option value="">Select Final Gate Pass / فائنل گیٹ پاس منتخب کریں</option>
               {finalized.map((g) => (
                 <option key={g.id} value={g.id}>{g.pass_no} · {g.customer_name || "—"} · {g.vehicle_no || "—"} · {g.pass_date}</option>
@@ -135,21 +137,21 @@ export default function LoadingUnloading() {
             </select>
           </div>
 
-          <div>
+          <div className="min-w-0">
             <label className="label">Correction Reason / تصحیح کی وجہ</label>
-            <select className="input" value={reason} onChange={(e) => setReason(e.target.value)}>
+            <select className="input w-full min-w-0" value={reason} onChange={(e) => setReason(e.target.value)}>
               <option value="">Select a reason / وجہ منتخب کریں</option>
               {CORRECTION_REASONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
             </select>
           </div>
 
-          <div>
+          <div className="min-w-0">
             <label className="label">Remarks / تفصیل</label>
-            <input className="input" placeholder="Add remarks (optional) / اضافی تفصیل لکھیں" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
+            <input className="input w-full min-w-0" placeholder="Add remarks (optional) / اضافی تفصیل لکھیں" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
           </div>
 
-          <div className="flex items-end">
-            <button type="button" className="btn btn-primary whitespace-nowrap" disabled={busy} onClick={() => void reopen()}>
+          <div className="flex min-w-0 items-end">
+            <button type="button" className="btn btn-primary w-full whitespace-normal text-center leading-tight" disabled={busy} onClick={() => void reopen()}>
               {busy ? "Reopening... / دوبارہ کھولا جا رہا ہے..." : "↻ Reopen for Correction / تصحیح کے لیے دوبارہ کھولیں"}
             </button>
           </div>
@@ -157,11 +159,11 @@ export default function LoadingUnloading() {
         {message && <div className="mt-3 text-sm font-medium text-amber-900">{message}</div>}
       </div>
 
-      <div className="gp-workflow-shell">
+      <div className="gp-workflow-shell w-full min-w-0 max-w-none">
         <GatePassWorkflow />
       </div>
 
-      <div className="flex flex-wrap gap-4 rounded-xl border bg-white px-4 py-3 text-xs text-slate-600" data-no-print>
+      <div className="flex w-full flex-wrap gap-4 rounded-xl border bg-white px-4 py-3 text-xs text-slate-600" data-no-print>
         <span className="inline-flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-slate-300" />Not Started / شروع نہیں ہوا</span>
         <span className="inline-flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-blue-500" />Current Action / موجودہ مرحلہ</span>
         <span className="inline-flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full bg-green-600" />Completed / مکمل</span>

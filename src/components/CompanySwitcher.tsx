@@ -12,7 +12,7 @@ export default function CompanySwitcher() {
   if (availableCompanies.length <= 1) return null;
 
   return (
-    <div className="fixed right-[116px] top-[7px] z-40 hidden min-w-[250px] md:block" data-no-bilingual>
+    <div className="fixed right-[116px] top-[7px] z-40 hidden min-w-[250px] md:block" data-no-bilingual data-no-print data-no-print-overlay>
       <div className="relative rounded-xl border border-slate-200/90 bg-white/95 px-2.5 py-1.5 shadow-sm backdrop-blur-xl">
         <div className="mb-0.5 flex items-center gap-1.5 px-1 text-[12px] font-bold uppercase tracking-[0.13em] text-slate-400">
           <Building2 size={10} />

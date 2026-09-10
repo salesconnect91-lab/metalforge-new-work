@@ -91,21 +91,27 @@ function detectOrientation(root: HTMLElement): PrintOrientation {
   return widest >= 7 ? "landscape" : "portrait";
 }
 
-function currentLanguageMode() {
+function currentLanguageMode(scope: "screen" | "document" = "document") {
+  if (scope === "screen") {
+    return {
+      mode: document.documentElement.dataset.languageMode || "single",
+      primary: document.documentElement.dataset.primaryLanguage || "en",
+    };
+  }
   return {
-    mode: document.documentElement.dataset.languageMode || "single",
-    primary: document.documentElement.dataset.primaryLanguage || "en",
+    mode: document.documentElement.dataset.documentLanguageMode || "single",
+    primary: document.documentElement.dataset.documentPrimaryLanguage || "en",
   };
 }
 
 function localizedLabel(english: string, urdu: string) {
-  const { mode, primary } = currentLanguageMode();
+  const { mode, primary } = currentLanguageMode("screen");
   if (mode === "bilingual") return `${english} / ${urdu}`;
   return primary === "ur" ? urdu : english;
 }
 
 function filterTextForLanguage(value: string) {
-  const { mode, primary } = currentLanguageMode();
+  const { mode, primary } = currentLanguageMode("document");
   if (mode === "bilingual") return value;
   if (!/[\u0600-\u06FF]/.test(value) || !value.includes("/")) return value;
 
@@ -150,6 +156,18 @@ function removeEmptyUiShells(root: HTMLElement) {
   });
 }
 
+function removeGenericNoise(root: HTMLElement) {
+  const exactNoise = new Set([
+    "Steel Mill ERP",
+    "Read-only posted accounting records",
+  ]);
+  root.querySelectorAll<HTMLElement>("p,div,span").forEach((node) => {
+    const text = (node.textContent || "").replace(/\s+/g, " ").trim();
+    if (exactNoise.has(text) && node.children.length === 0) node.remove();
+    if (/^Ledger entries are read-only here\./i.test(text) && node.children.length === 0) node.remove();
+  });
+}
+
 function decorateGenericReport(clone: HTMLElement, context: PrintContext, reportTitle: string, subtitle: string) {
   clone.classList.add("professional-report", "navilo-generic-report");
   clone.setAttribute("data-navilo-generic-print", "true");
@@ -179,9 +197,9 @@ function decorateGenericReport(clone: HTMLElement, context: PrintContext, report
 
   const meta = document.createElement("div");
   meta.className = "navilo-report-meta";
-  meta.appendChild(createTextElement("h1", "navilo-report-title", reportTitle || localizedLabel("Report", "رپورٹ")));
+  meta.appendChild(createTextElement("h1", "navilo-report-title", reportTitle || filterTextForLanguage("Report / رپورٹ")));
   if (subtitle && subtitle !== reportTitle) meta.appendChild(createTextElement("div", "navilo-report-subtitle", subtitle));
-  meta.appendChild(createTextElement("div", "navilo-report-date", `${localizedLabel("Printed", "پرنٹ وقت")}: ${printedAt}`));
+  meta.appendChild(createTextElement("div", "navilo-report-date", `${filterTextForLanguage("Printed / پرنٹ وقت")}: ${printedAt}`));
 
   header.append(identity, meta);
 
@@ -189,14 +207,14 @@ function decorateGenericReport(clone: HTMLElement, context: PrintContext, report
   footer.className = "navilo-report-footer";
   const left = context.showPlatformBranding && context.platformName ? context.platformName : context.companyName;
   footer.appendChild(createTextElement("span", "", left || "ERP"));
-  footer.appendChild(createTextElement("span", "navilo-page-number", localizedLabel("Page", "صفحہ")));
+  footer.appendChild(createTextElement("span", "navilo-page-number", filterTextForLanguage("Page / صفحہ")));
 
   clone.prepend(header);
   clone.appendChild(footer);
 }
 
 function cleanClone(target: HTMLElement, context: PrintContext) {
-  const reportTitle = textOf(target, ".page-title") || textOf(target, "h1") || textOf(target, "h2") || localizedLabel("Report", "رپورٹ");
+  const reportTitle = textOf(target, ".page-title") || textOf(target, "h1") || textOf(target, "h2") || "Report / رپورٹ";
   const subtitle = textOf(target, ".page-subtitle");
   const clone = target.cloneNode(true) as HTMLElement;
   const isDocument = clone.classList.contains("print-document") || Boolean(clone.querySelector(".print-document"));
@@ -207,6 +225,7 @@ function cleanClone(target: HTMLElement, context: PrintContext) {
     const firstTitle = Array.from(clone.querySelectorAll("h1,h2")).find((node) => (node.textContent || "").replace(/\s+/g, " ").trim() === reportTitle);
     firstTitle?.remove();
     removeActionColumns(clone);
+    removeGenericNoise(clone);
     removeEmptyUiShells(clone);
     decorateGenericReport(clone, context, filterTextForLanguage(reportTitle), filterTextForLanguage(subtitle));
   }

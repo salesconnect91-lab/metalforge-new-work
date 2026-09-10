@@ -10,6 +10,7 @@ import "./reportPrint.css";
 import "./naviloDocumentPrint.css";
 import "./naviloEnterprisePrint.css";
 import "./naviloPrintParityFix.css";
+import "./gatePassPrintFix.css";
 import "./orderBook.css";
 import "./accountingStatements.css";
 

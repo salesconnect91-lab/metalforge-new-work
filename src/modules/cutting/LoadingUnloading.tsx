@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Printer } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import GatePassWorkflow from "./GatePassWorkflow";
 
@@ -104,6 +105,10 @@ export default function LoadingUnloading() {
     setTimeout(() => window.location.reload(), 700);
   };
 
+  const printSummary = () => {
+    window.dispatchEvent(new CustomEvent("navilo:print-gate-pass-summary"));
+  };
+
   return (
     <div className="w-full min-w-0 max-w-none space-y-4 overflow-hidden">
       <style>{`
@@ -157,6 +162,13 @@ export default function LoadingUnloading() {
           </div>
         </div>
         {message && <div className="mt-3 text-sm font-medium text-amber-900">{message}</div>}
+      </div>
+
+      <div className="flex w-full justify-end" data-no-print>
+        <button type="button" onClick={printSummary} className="btn btn-primary inline-flex items-center gap-2">
+          <Printer className="h-4 w-4" />
+          <span>Print / PDF / پرنٹ</span>
+        </button>
       </div>
 
       <div className="gp-workflow-shell w-full min-w-0 max-w-none">

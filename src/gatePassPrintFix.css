@@ -1,0 +1,200 @@
+/* Dedicated Gate Pass / Loading Worksheet A4 print polish */
+.navilo-live-preview .gp-doc,
+.navilo-print-output .gp-doc{
+  width:100%!important;
+  max-width:100%!important;
+  margin:0!important;
+  padding:0!important;
+  color:#0f172a!important;
+  font-family:Inter,"Segoe UI",Arial,"Noto Nastaliq Urdu",sans-serif!important;
+  font-size:8.5pt!important;
+  line-height:1.28!important;
+}
+.navilo-live-preview .gp-doc header,
+.navilo-print-output .gp-doc header{
+  display:grid!important;
+  grid-template-columns:28mm 1fr 54mm!important;
+  gap:5mm!important;
+  align-items:center!important;
+  padding:0 0 4mm!important;
+  margin:0 0 4mm!important;
+  border-bottom:1.5px solid #1d6fd6!important;
+}
+.navilo-live-preview .gp-doc header img,
+.navilo-print-output .gp-doc header img{
+  width:22mm!important;
+  height:22mm!important;
+  object-fit:contain!important;
+  margin:0!important;
+}
+.navilo-live-preview .gp-doc header h1,
+.navilo-print-output .gp-doc header h1{
+  margin:0!important;
+  font-size:15pt!important;
+  line-height:1.1!important;
+  font-weight:850!important;
+  text-align:center!important;
+}
+.navilo-live-preview .gp-doc header b,
+.navilo-print-output .gp-doc header b,
+.navilo-live-preview .gp-doc header small,
+.navilo-print-output .gp-doc header small{
+  display:block!important;
+  text-align:center!important;
+}
+.navilo-live-preview .gp-doc header b,
+.navilo-print-output .gp-doc header b{font-size:8pt!important;color:#274d78!important;margin-top:1mm!important}
+.navilo-live-preview .gp-doc header small,
+.navilo-print-output .gp-doc header small{font-size:6.6pt!important;color:#64748b!important;margin-top:.7mm!important}
+.navilo-live-preview .gp-doc header section,
+.navilo-print-output .gp-doc header section{
+  width:54mm!important;
+  min-width:0!important;
+  background:#eef3f8!important;
+  border:1px solid #dbe4ee!important;
+  border-radius:3mm!important;
+  padding:3mm!important;
+  text-align:center!important;
+}
+.navilo-live-preview .gp-doc header section strong,
+.navilo-print-output .gp-doc header section strong{
+  display:block!important;
+  font-size:10pt!important;
+  line-height:1.15!important;
+}
+.navilo-live-preview .gp-doc header section span,
+.navilo-print-output .gp-doc header section span{
+  display:block!important;
+  margin-top:1.5mm!important;
+  font-size:9pt!important;
+  font-weight:800!important;
+  color:#1d4f91!important;
+}
+.navilo-live-preview .gp-doc .meta,
+.navilo-print-output .gp-doc .meta{
+  display:grid!important;
+  grid-template-columns:2fr 1fr 1fr 1fr!important;
+  gap:2mm!important;
+  margin:0 0 3mm!important;
+}
+.navilo-live-preview .gp-doc .meta div,
+.navilo-print-output .gp-doc .meta div,
+.navilo-live-preview .gp-doc .notes,
+.navilo-print-output .gp-doc .notes{
+  border:1px solid #d7e0ea!important;
+  border-radius:2mm!important;
+  padding:2.2mm!important;
+  min-width:0!important;
+  overflow-wrap:anywhere!important;
+  background:#fff!important;
+}
+.navilo-live-preview .gp-doc .meta b,
+.navilo-print-output .gp-doc .meta b{
+  display:block!important;
+  margin-bottom:.8mm!important;
+  font-size:6.5pt!important;
+  color:#64748b!important;
+  text-transform:uppercase!important;
+}
+.navilo-live-preview .gp-doc .meta span,
+.navilo-print-output .gp-doc .meta span{display:block!important;font-size:8pt!important;font-weight:750!important}
+.navilo-live-preview .gp-doc .notes,
+.navilo-print-output .gp-doc .notes{margin:0 0 3mm!important;background:#f8fbff!important;font-size:7.5pt!important}
+.navilo-live-preview .gp-doc h2,
+.navilo-print-output .gp-doc h2{
+  margin:3mm 0 1.5mm!important;
+  padding:1.8mm 2.2mm!important;
+  border-left:2.5px solid #1d6fd6!important;
+  background:#f1f5f9!important;
+  font-size:8.6pt!important;
+  line-height:1.15!important;
+  font-weight:850!important;
+}
+.navilo-live-preview .gp-doc table,
+.navilo-print-output .gp-doc table{
+  width:100%!important;
+  border-collapse:collapse!important;
+  table-layout:fixed!important;
+  font-size:6.8pt!important;
+}
+.navilo-live-preview .gp-doc th,
+.navilo-print-output .gp-doc th{
+  background:#0f4c81!important;
+  color:#fff!important;
+  border:1px solid #d7e0ea!important;
+  padding:1.6mm 1.4mm!important;
+  height:auto!important;
+  min-height:0!important;
+  vertical-align:middle!important;
+  font-size:6.3pt!important;
+  line-height:1.2!important;
+  overflow-wrap:anywhere!important;
+}
+.navilo-live-preview .gp-doc td,
+.navilo-print-output .gp-doc td{
+  border:1px solid #cfd8e3!important;
+  padding:1.8mm 1.5mm!important;
+  height:auto!important;
+  min-height:8mm!important;
+  vertical-align:top!important;
+  line-height:1.25!important;
+  overflow-wrap:anywhere!important;
+  word-break:normal!important;
+}
+.navilo-live-preview .gp-doc th:nth-child(1),.navilo-print-output .gp-doc th:nth-child(1),.navilo-live-preview .gp-doc td:nth-child(1),.navilo-print-output .gp-doc td:nth-child(1){width:5%!important;text-align:center!important}
+.navilo-live-preview .gp-doc th:nth-child(2),.navilo-print-output .gp-doc th:nth-child(2),.navilo-live-preview .gp-doc td:nth-child(2),.navilo-print-output .gp-doc td:nth-child(2){width:29%!important}
+.navilo-live-preview .gp-doc th:nth-child(3),.navilo-print-output .gp-doc th:nth-child(3),.navilo-live-preview .gp-doc td:nth-child(3),.navilo-print-output .gp-doc td:nth-child(3){width:12%!important}
+.navilo-live-preview .gp-doc th:nth-child(4),.navilo-print-output .gp-doc th:nth-child(4),.navilo-live-preview .gp-doc td:nth-child(4),.navilo-print-output .gp-doc td:nth-child(4){width:12%!important}
+.navilo-live-preview .gp-doc th:nth-child(5),.navilo-print-output .gp-doc th:nth-child(5),.navilo-live-preview .gp-doc td:nth-child(5),.navilo-print-output .gp-doc td:nth-child(5){width:13%!important}
+.navilo-live-preview .gp-doc th:nth-child(6),.navilo-print-output .gp-doc th:nth-child(6),.navilo-live-preview .gp-doc td:nth-child(6),.navilo-print-output .gp-doc td:nth-child(6){width:12%!important}
+.navilo-live-preview .gp-doc th:nth-child(7),.navilo-print-output .gp-doc th:nth-child(7),.navilo-live-preview .gp-doc td:nth-child(7),.navilo-print-output .gp-doc td:nth-child(7){width:17%!important}
+.navilo-live-preview .gp-doc .weights,
+.navilo-print-output .gp-doc .weights{
+  display:grid!important;
+  grid-template-columns:1fr 1fr 1fr!important;
+  gap:2mm!important;
+}
+.navilo-live-preview .gp-doc .weights div,
+.navilo-print-output .gp-doc .weights div{
+  border:1px solid #cfd8e3!important;
+  border-radius:2mm!important;
+  padding:2.5mm!important;
+  min-height:0!important;
+  background:#fbfdff!important;
+}
+.navilo-live-preview .gp-doc .weights b,
+.navilo-print-output .gp-doc .weights b{display:block!important;font-size:6.8pt!important;color:#53677f!important}
+.navilo-live-preview .gp-doc .weights strong,
+.navilo-print-output .gp-doc .weights strong{display:block!important;margin-top:1.4mm!important;font-size:11pt!important;line-height:1!important;color:#0f172a!important}
+.navilo-live-preview .gp-doc .weights small,
+.navilo-print-output .gp-doc .weights small{display:block!important;margin-top:1.2mm!important;font-size:6.4pt!important;color:#64748b!important}
+.navilo-live-preview .gp-doc .sign,
+.navilo-print-output .gp-doc .sign{
+  display:grid!important;
+  grid-template-columns:1fr 1fr 1fr!important;
+  gap:3mm!important;
+  border:1px solid #d7e0ea!important;
+  border-radius:2mm!important;
+  padding:3mm!important;
+  font-size:7.2pt!important;
+}
+.navilo-live-preview .gp-doc footer,
+.navilo-print-output .gp-doc footer{
+  display:grid!important;
+  grid-template-columns:1fr 1fr 1fr!important;
+  gap:5mm!important;
+  align-items:end!important;
+  margin-top:10mm!important;
+  padding-top:3mm!important;
+  border-top:1px solid #1d6fd6!important;
+  text-align:center!important;
+  font-size:7pt!important;
+}
+.navilo-live-preview .gp-doc footer b,
+.navilo-print-output .gp-doc footer b{color:#1d6fd6!important;font-size:11pt!important}
+@media print{
+  .navilo-print-output .gp-doc{break-inside:auto!important}
+  .navilo-print-output .gp-doc header,.navilo-print-output .gp-doc .meta,.navilo-print-output .gp-doc .weights,.navilo-print-output .gp-doc .sign,.navilo-print-output .gp-doc footer{break-inside:avoid!important;page-break-inside:avoid!important}
+  .navilo-print-output .gp-doc thead{display:table-header-group!important}
+  .navilo-print-output .gp-doc tr{break-inside:avoid!important;page-break-inside:avoid!important}
+}

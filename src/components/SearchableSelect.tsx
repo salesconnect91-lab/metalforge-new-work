@@ -99,8 +99,8 @@ export default function SearchableSelect({
     const viewportPadding = 8;
     const below = window.innerHeight - rect.bottom - viewportPadding;
     const above = rect.top - viewportPadding;
-    const openUpward = below < 220 && above > below;
-    const available = Math.max(140, Math.min(360, openUpward ? above : below));
+    const openUpward = below < 190 && above > below;
+    const available = Math.max(128, Math.min(280, openUpward ? above : below));
     setMenuPosition({
       left: Math.max(viewportPadding, Math.min(rect.left, window.innerWidth - rect.width - viewportPadding)),
       top: openUpward ? Math.max(viewportPadding, rect.top - available - 4) : rect.bottom + 4,
@@ -143,7 +143,7 @@ export default function SearchableSelect({
     return options
       .filter((option) => option.value !== "" || !q)
       .filter((option) => !q || `${option.label} ${option.group ?? ""}`.toLocaleLowerCase().includes(q))
-      .slice(0, 300);
+      .slice(0, 150);
   }, [options, query]);
 
   const commit = (nextValue: string) => {
@@ -176,10 +176,11 @@ export default function SearchableSelect({
     }
     setOpen(false);
     setQuery("");
+    requestAnimationFrame(() => buttonRef.current?.focus());
   };
 
   const openMenu = () => {
-    if (disabled) return;
+    if (disabled || open) return;
     setOpen(true);
     setQuery("");
     const currentIndex = options.findIndex((option) => option.value === selectedValue && !option.disabled);
@@ -222,7 +223,7 @@ export default function SearchableSelect({
   const menu = open && menuPosition && typeof document !== "undefined" ? createPortal(
     <div
       ref={menuRef}
-      className="fixed z-[9999] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl"
+      className="erp-searchable-menu fixed z-[9999] overflow-hidden border border-slate-200 bg-white shadow-xl"
       style={{ left: menuPosition.left, top: menuPosition.top, width: menuPosition.width, maxHeight: menuPosition.maxHeight }}
     >
       <div className="border-b border-slate-100 p-2">
@@ -239,9 +240,9 @@ export default function SearchableSelect({
           />
         </div>
       </div>
-      <div role="listbox" className="overflow-auto p-1" style={{ maxHeight: Math.max(96, menuPosition.maxHeight - 49) }}>
+      <div role="listbox" className="overflow-auto p-1" style={{ maxHeight: Math.max(88, menuPosition.maxHeight - 49) }}>
         {!filtered.length ? (
-          <div className="px-3 py-5 text-center text-[12px] text-slate-500">{emptyText}</div>
+          <div className="px-3 py-4 text-center text-[12px] text-slate-500">{emptyText}</div>
         ) : filtered.map((option, index) => (
           <button
             key={`${option.group ?? ""}:${option.value}:${index}`}
@@ -252,10 +253,10 @@ export default function SearchableSelect({
             onMouseEnter={() => setActiveIndex(index)}
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => commit(option.value)}
-            className={`flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] ${index === activeIndex ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"} disabled:cursor-not-allowed disabled:opacity-40`}
+            className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] ${index === activeIndex ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"} disabled:cursor-not-allowed disabled:opacity-40`}
           >
             <span className="min-w-0 flex-1">
-              {option.group && <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{option.group} ·</span>}
+              {option.group && <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">{option.group} ·</span>}
               <span className="break-words">{option.label || option.value || "—"}</span>
             </span>
             {option.value === selectedValue && <Check className="h-3.5 w-3.5 shrink-0" />}
@@ -286,12 +287,18 @@ export default function SearchableSelect({
         type="button"
         disabled={disabled}
         onClick={openMenu}
+        onKeyDown={(event) => {
+          if ((event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") && !open) {
+            event.preventDefault();
+            openMenu();
+          }
+        }}
         className={`${className} flex min-h-8 w-full items-center justify-between gap-2 text-left text-slate-900 disabled:cursor-not-allowed disabled:opacity-60`}
         aria-haspopup="listbox"
         aria-expanded={open}
       >
         <span className={`min-w-0 flex-1 truncate ${selectedValue ? "text-slate-900" : "text-slate-500"}`}>{displayLabel}</span>
-        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+        <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {menu}

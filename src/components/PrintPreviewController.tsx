@@ -240,6 +240,10 @@ export default function PrintPreviewController() {
         .trim()
         .toLowerCase();
 
+      // Gate Pass has its own purpose-built loading worksheet / final-GP document.
+      // Do not capture those buttons into the generic whole-page report preview.
+      if (/\bprint loading worksheet\b|\bprint final gp\b|\bprint token\b/.test(label)) return;
+
       if (!/\bprint\b|پرنٹ/.test(label)) return;
 
       const target = getButtonPrintableTarget(button);

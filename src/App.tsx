@@ -12,6 +12,7 @@ import PrintPreviewController from "@/components/PrintPreviewController";
 import GatePassSummaryPrintBridge from "@/components/GatePassSummaryPrintBridge";
 import GlobalModalManager from "@/components/GlobalModalManager";
 import DashboardGlobalSearch from "@/components/DashboardGlobalSearch";
+import ReportSurface from "@/components/reports/ReportSurface";
 import Dashboard from "@/modules/Dashboard";
 import MasterData from "@/modules/master-data/MasterData";
 import SalesInvoiceList from "@/modules/sales/SalesInvoiceList";
@@ -102,7 +103,7 @@ export default function App() {
       <Route path="/sales" element={<ModuleOnly module="sales"><SalesInvoiceList /></ModuleOnly>} />
       <Route path="/sales/new" element={<ModuleActionOnly module="sales" action="create"><SalesInvoiceCreate /></ModuleActionOnly>} />
       <Route path="/sales/:id/edit" element={<ModuleActionOnly module="sales" action="edit"><SalesInvoiceCreate /></ModuleActionOnly>} />
-      <Route path="/sales/report" element={<ModuleOnly module="reports"><SalespersonReport /></ModuleOnly>} />
+      <Route path="/sales/report" element={<ModuleOnly module="reports"><ReportSurface><SalespersonReport /></ReportSurface></ModuleOnly>} />
       <Route path="/sales/charges" element={<ModuleOnly module="master"><ChargeMaster /></ModuleOnly>} />
       <Route path="/sales/consolidated" element={<ModuleOnly module="sales"><ConsolidatedInvoices /></ModuleOnly>} />
       <Route path="/sales/order-book" element={<ModuleOnly module="sales"><OrderBook type="sales" /></ModuleOnly>} />
@@ -112,10 +113,10 @@ export default function App() {
       <Route path="/production/*" element={<BusinessTypeOnly type="steel"><ModuleOnly module="production"><Production /></ModuleOnly></BusinessTypeOnly>} />
       <Route path="/cutting/*" element={<BusinessTypeOnly type="steel"><ModuleOnly module="production"><Cutting /></ModuleOnly></BusinessTypeOnly>} />
       <Route path="/transport/*" element={<BusinessTypeOnly type="transport"><ModuleOnly module="transport"><TransportWorkspace /></ModuleOnly></BusinessTypeOnly>} />
-      <Route path="/accounting/customer-invoice-statement" element={<ModuleOnly module="accounting"><CustomerInvoiceStatement /></ModuleOnly>} />
+      <Route path="/accounting/customer-invoice-statement" element={<ModuleOnly module="accounting"><ReportSurface><CustomerInvoiceStatement /></ReportSurface></ModuleOnly>} />
       <Route path="/accounting/*" element={<ModuleOnly module="accounting"><Accounting /></ModuleOnly>} />
-      <Route path="/reports/steel-stock" element={<BusinessTypeOnly type="steel"><ModuleOnly module="reports"><SteelStockControl /></ModuleOnly></BusinessTypeOnly>} />
-      <Route path="/reports/*" element={<ModuleOnly module="reports"><Reports /></ModuleOnly>} />
+      <Route path="/reports/steel-stock" element={<BusinessTypeOnly type="steel"><ModuleOnly module="reports"><ReportSurface><SteelStockControl /></ReportSurface></ModuleOnly></BusinessTypeOnly>} />
+      <Route path="/reports/*" element={<ModuleOnly module="reports"><ReportSurface><Reports /></ReportSurface></ModuleOnly>} />
       <Route path="/settings/*" element={<ModuleOnly module="settings"><Settings /></ModuleOnly>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes></Layout></></ProtectedRoute>} />

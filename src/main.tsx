@@ -14,6 +14,7 @@ import "./gatePassPrintFix.css";
 import "./printPreviewIsolation.css";
 import "./orderBook.css";
 import "./accountingStatements.css";
+import "./erpProfessionalSystem.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

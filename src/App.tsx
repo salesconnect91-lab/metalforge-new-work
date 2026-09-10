@@ -9,6 +9,7 @@ import Layout from "@/components/Layout";
 import CompanySwitcher from "@/components/CompanySwitcher";
 import BusinessUnitSwitcher from "@/components/BusinessUnitSwitcher";
 import PrintPreviewController from "@/components/PrintPreviewController";
+import GatePassSummaryPrintBridge from "@/components/GatePassSummaryPrintBridge";
 import GlobalModalManager from "@/components/GlobalModalManager";
 import DashboardGlobalSearch from "@/components/DashboardGlobalSearch";
 import Dashboard from "@/modules/Dashboard";
@@ -71,7 +72,7 @@ function WorkspaceSwitchers() {
 }
 
 function GlobalExperience() {
-  return <><PrintPreviewController /><GlobalModalManager /></>;
+  return <><PrintPreviewController /><GatePassSummaryPrintBridge /><GlobalModalManager /></>;
 }
 
 function DashboardHome() {

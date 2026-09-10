@@ -13,11 +13,15 @@ export default function GlobalPrintButton() {
   if (hidden) return null;
 
   const printPage = () => {
-    const selector = pathname.startsWith("/cutting/gate-pass") ? ".gp-workflow-shell" : "main";
+    if (pathname.startsWith("/cutting/gate-pass")) {
+      window.dispatchEvent(new CustomEvent("navilo:print-gate-pass-summary"));
+      return;
+    }
+
     window.dispatchEvent(
       new CustomEvent("navilo:print-preview", {
         detail: {
-          selector,
+          selector: "main",
           title: currentPageTitle(),
         },
       }),

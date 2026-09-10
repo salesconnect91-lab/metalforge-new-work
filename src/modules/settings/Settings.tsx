@@ -3,6 +3,7 @@ import CompanySettings from "./CompanySettings";
 import TaxSettings from "./TaxSettings";
 import DocumentPrintSettings from "./DocumentPrintSettings";
 import OrderBookSettings from "./OrderBookSettings";
+import GatePassWeighbridgeSettings from "./GatePassWeighbridgeSettings";
 
 export default function Settings() {
   return (
@@ -12,6 +13,7 @@ export default function Settings() {
         <Route path="/tax" element={<TaxSettings />} />
         <Route path="/documents" element={<DocumentPrintSettings />} />
         <Route path="/order-book" element={<OrderBookSettings />} />
+        <Route path="/gate-pass" element={<GatePassWeighbridgeSettings />} />
       </Routes>
     </div>
   );

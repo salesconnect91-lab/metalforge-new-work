@@ -11,6 +11,7 @@ import "./naviloDocumentPrint.css";
 import "./naviloEnterprisePrint.css";
 import "./naviloPrintParityFix.css";
 import "./gatePassPrintFix.css";
+import "./printPreviewIsolation.css";
 import "./orderBook.css";
 import "./accountingStatements.css";
 

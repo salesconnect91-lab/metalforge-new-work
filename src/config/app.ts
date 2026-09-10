@@ -1,7 +1,7 @@
 export const APP_CONFIG = {
-  name: "NAVILO",
+  name: "ERP",
   version: "1.0.0",
-  tagline: "Run Your Business as One.",
+  tagline: "",
   currency: "PKR", // Aap apni marzi ki currency yahan likhein (e.g., "Rs.", "PKR", "SAR", "₹")
 };
 

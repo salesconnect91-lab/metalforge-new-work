@@ -14,7 +14,7 @@ export default function PlatformBrandingControl() {
   useEffect(() => {
     void loadPlatformBranding(true)
       .then(setForm)
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load platform branding."))
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load NAVILO branding."))
       .finally(() => setLoading(false));
   }, []);
 
@@ -22,7 +22,7 @@ export default function PlatformBrandingControl() {
 
   const save = async () => {
     if (form.show_branding && !form.erp_name.trim()) {
-      setError("ERP name is required when platform branding is enabled.");
+      setError("Product name is required when NAVILO branding is enabled.");
       return;
     }
     setSaving(true); setError(""); setMessage("");
@@ -41,13 +41,13 @@ export default function PlatformBrandingControl() {
     setSaving(false);
     if (saveError) { setError(saveError.message); return; }
     invalidatePlatformBranding();
-    setMessage("Platform branding saved. The change now applies globally according to these switches.");
+    setMessage("NAVILO branding saved. Visibility now follows the selected locations below.");
   };
 
   const uploadLogo = async (file: File | null) => {
     if (!file) return;
     if (!["image/png", "image/jpeg", "image/webp", "image/svg+xml"].includes(file.type)) { setError("Use PNG, JPG, WebP or SVG."); return; }
-    if (file.size > 2 * 1024 * 1024) { setError("Platform logo must be 2 MB or smaller."); return; }
+    if (file.size > 2 * 1024 * 1024) { setError("NAVILO logo must be 2 MB or smaller."); return; }
     setUploading(true); setError(""); setMessage("");
     try {
       const ext = file.name.split(".").pop()?.toLowerCase() || "png";
@@ -60,7 +60,7 @@ export default function PlatformBrandingControl() {
       if (updateError) throw updateError;
       setForm((current) => ({ ...current, logo_url: logoUrl }));
       invalidatePlatformBranding();
-      setMessage("Platform logo uploaded and saved.");
+      setMessage("NAVILO logo uploaded and saved.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Logo upload failed.");
     } finally { setUploading(false); }
@@ -80,32 +80,32 @@ export default function PlatformBrandingControl() {
       if (updateError) throw updateError;
       setForm((current) => ({ ...current, logo_url: null }));
       invalidatePlatformBranding();
-      setMessage("Platform logo removed.");
+      setMessage("NAVILO logo removed.");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to remove platform logo.");
+      setError(e instanceof Error ? e.message : "Failed to remove NAVILO logo.");
     } finally { setUploading(false); }
   };
 
-  if (loading) return <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-center gap-2 text-sm"><Loader2 className="h-4 w-4 animate-spin" />Loading platform branding...</div></section>;
+  if (loading) return <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-center gap-2 text-sm"><Loader2 className="h-4 w-4 animate-spin" />Loading NAVILO branding...</div></section>;
 
   return <section className="rounded-xl border border-blue-200 bg-white p-5 shadow-sm">
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><h2 className="flex items-center gap-2 text-base font-black text-slate-950">{form.show_branding ? <Eye className="h-5 w-5 text-blue-600"/> : <EyeOff className="h-5 w-5 text-slate-500"/>}ERP Platform Branding</h2><p className="mt-1 max-w-3xl text-xs text-slate-500">Platform Owner is the single source of truth for the ERP product name and logo. Company logos remain separate company-level branding.</p></div>
-      <label className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-2 text-sm font-bold ${form.show_branding ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-slate-300 bg-slate-50 text-slate-700"}`}><input type="checkbox" checked={form.show_branding} onChange={(e)=>patch("show_branding",e.target.checked)} /><span>{form.show_branding ? "SHOW ERP BRANDING" : "HIDE ERP BRANDING"}</span></label>
+      <div><h2 className="flex items-center gap-2 text-base font-black text-slate-950">{form.show_branding ? <Eye className="h-5 w-5 text-blue-600"/> : <EyeOff className="h-5 w-5 text-slate-500"/>}NAVILO Branding</h2><p className="mt-1 max-w-3xl text-xs text-slate-500">Platform Owner controls the NAVILO product identity. Company names and company logos remain separate company-level branding.</p></div>
+      <label className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-2 text-sm font-bold ${form.show_branding ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-slate-300 bg-slate-50 text-slate-700"}`}><input type="checkbox" checked={form.show_branding} onChange={(e)=>patch("show_branding",e.target.checked)} /><span>Show NAVILO Branding</span></label>
     </div>
     {error && <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
     {message && <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</div>}
     <div className="mt-4 grid gap-4 lg:grid-cols-[180px_1fr]">
-      <div className="flex min-h-32 items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3">{form.logo_url ? <img src={form.logo_url} alt="ERP platform logo" className="max-h-28 max-w-full object-contain"/> : <span className="text-center text-xs text-slate-400">No platform logo</span>}</div>
+      <div className="flex min-h-32 items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3">{form.logo_url ? <img src={form.logo_url} alt="NAVILO logo" className="max-h-28 max-w-full object-contain"/> : <span className="text-center text-xs text-slate-400">No NAVILO logo</span>}</div>
       <div className="space-y-3">
-        <div className="grid gap-3 md:grid-cols-2"><label className="text-xs font-semibold text-slate-700">ERP Name<input className="input mt-1 w-full" value={form.erp_name} onChange={(e)=>patch("erp_name",e.target.value)} placeholder="NAVILO" /></label><label className="text-xs font-semibold text-slate-700">Tagline<input className="input mt-1 w-full" value={form.tagline ?? ""} onChange={(e)=>patch("tagline",e.target.value)} placeholder="Run Your Business as One." /></label></div>
-        <div className="flex flex-wrap gap-2"><label className="btn btn-secondary cursor-pointer">{uploading ? <Loader2 className="h-4 w-4 animate-spin"/> : <ImagePlus className="h-4 w-4"/>}{form.logo_url ? "Change Platform Logo" : "Upload Platform Logo"}<input type="file" className="hidden" disabled={uploading} accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(e)=>{void uploadLogo(e.target.files?.[0] ?? null); e.currentTarget.value="";}}/></label>{form.logo_url && <button type="button" className="btn btn-danger" disabled={uploading} onClick={()=>void removeLogo()}><Trash2 className="h-4 w-4"/>Remove Logo</button>}</div>
+        <div className="grid gap-3 md:grid-cols-2"><label className="text-xs font-semibold text-slate-700">Product Name<input className="input mt-1 w-full" value={form.erp_name} onChange={(e)=>patch("erp_name",e.target.value)} placeholder="NAVILO" /></label><label className="text-xs font-semibold text-slate-700">Tagline<input className="input mt-1 w-full" value={form.tagline ?? ""} onChange={(e)=>patch("tagline",e.target.value)} placeholder="Run Your Business as One." /></label></div>
+        <div className="flex flex-wrap gap-2"><label className="btn btn-secondary cursor-pointer">{uploading ? <Loader2 className="h-4 w-4 animate-spin"/> : <ImagePlus className="h-4 w-4"/>}{form.logo_url ? "Change NAVILO Logo" : "Upload NAVILO Logo"}<input type="file" className="hidden" disabled={uploading} accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(e)=>{void uploadLogo(e.target.files?.[0] ?? null); e.currentTarget.value="";}}/></label>{form.logo_url && <button type="button" className="btn btn-danger" disabled={uploading} onClick={()=>void removeLogo()}><Trash2 className="h-4 w-4"/>Remove Logo</button>}</div>
       </div>
     </div>
     <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{([
       ["show_on_login","Login screen"],["show_in_sidebar","Sidebar / workspace"],["show_on_prints","Print / PDF"],["show_tagline","Tagline"]
-    ] as const).map(([key,label])=><label key={key} className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm"><span>{label}</span><input type="checkbox" checked={form[key]} onChange={(e)=>patch(key,e.target.checked)} /></label>)}</div>
-    <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">Master switch OFF means the ERP product name/logo stays hidden even if individual location switches are ON. Master switch ON makes only the selected locations visible.</div>
-    <div className="mt-4 flex justify-end"><button type="button" className="btn btn-primary" disabled={saving || uploading} onClick={()=>void save()}>{saving ? <Loader2 className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4"/>}Save Platform Branding</button></div>
+    ] as const).map(([key,label])=><label key={key} className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm"><span>{label}</span><input type="checkbox" checked={form[key]} disabled={!form.show_branding} onChange={(e)=>patch(key,e.target.checked)} /></label>)}</div>
+    <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">When <strong>Show NAVILO Branding</strong> is ON, NAVILO appears only in the selected locations. When it is OFF, NAVILO product branding stays hidden everywhere.</div>
+    <div className="mt-4 flex justify-end"><button type="button" className="btn btn-primary" disabled={saving || uploading} onClick={()=>void save()}>{saving ? <Loader2 className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4"/>}Save NAVILO Branding</button></div>
   </section>;
 }

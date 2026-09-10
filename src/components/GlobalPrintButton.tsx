@@ -27,7 +27,7 @@ export default function GlobalPrintButton() {
     <button
       type="button"
       onClick={printPage}
-      className="fixed bottom-5 left-4 z-20 inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-lg hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 lg:left-[268px]"
+      className="fixed right-4 top-[82px] z-[9999] inline-flex h-10 items-center gap-2 rounded-lg border border-blue-300 bg-blue-600 px-4 text-xs font-extrabold text-white shadow-xl hover:bg-blue-700"
       title="Print current screen / Save as PDF"
       aria-label="Print current screen or save as PDF"
       data-no-print

@@ -1,0 +1,17 @@
+/* Customer-approved invoice output: keep operational storage details internal.
+   Sales/Purchase invoice preview + print show item, size, qty, rate, VAT and amount.
+   Grade is intentionally hidden; Godown is already not rendered by PrintLayout. */
+.navilo-live-preview .invoice-items-grid > :nth-child(3),
+.navilo-print-output .invoice-items-grid > :nth-child(3) {
+  display: none !important;
+}
+
+.navilo-live-preview .invoice-items-grid-tax,
+.navilo-print-output .invoice-items-grid-tax {
+  grid-template-columns: 5% 32% 10% 10% 14% 12% 17% !important;
+}
+
+.navilo-live-preview .invoice-items-grid-no-tax,
+.navilo-print-output .invoice-items-grid-no-tax {
+  grid-template-columns: 5% 37% 12% 11% 15% 20% !important;
+}

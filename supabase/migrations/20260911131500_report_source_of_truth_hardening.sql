@@ -1,0 +1,30 @@
+-- Canonical report source-of-truth hardening. Applied to production first.
+-- Existing report names are preserved; new views are additive and use caller RLS.
+alter view public.customer_invoice_aging set (security_invoker=true);
+alter view public.supplier_invoice_aging set (security_invoker=true);
+
+-- The production migration also rebuilt customer/supplier aging, sales_invoice_financials,
+-- sales_margin_report, salesperson_performance_report and stock_godown_report so that
+-- financial rows are posted-only, current invoice outstanding is not cumulative,
+-- realized margin uses posted line COGS, and company/BU/location dimensions are retained.
+
+create or replace view public.sales_register_report with (security_invoker=true) as
+select so.id,so.user_id,so.company_id,so.business_unit_id,so.operating_location_id,so.order_no,so.order_date,c.name customer_name,so.invoice_type,so.settlement_method,so.sales_person,coalesce(so.total,0) total,coalesce(so.paid_amount,0) paid_amount,coalesce(so.outstanding_amount,0) outstanding_amount,so.payment_status,so.due_date
+from public.sales_orders so left join public.customers c on c.id=so.customer_id and c.company_id=so.company_id where so.status='posted';
+create or replace view public.purchase_register_report with (security_invoker=true) as
+select po.id,po.user_id,po.company_id,po.business_unit_id,po.operating_location_id,po.order_no,po.order_date,s.name supplier_name,po.invoice_type,po.supplier_invoice_no,po.supplier_invoice_date,coalesce(po.total,0) total,coalesce(po.paid_amount,0) paid_amount,coalesce(po.outstanding_amount,0) outstanding_amount,po.payment_status,po.due_date
+from public.purchase_orders po left join public.suppliers s on s.id=po.supplier_id and s.company_id=po.company_id where po.status='posted';
+create or replace view public.customer_item_history_report with (security_invoker=true) as
+select so.user_id,so.company_id,so.business_unit_id,so.operating_location_id,so.customer_id,c.name customer_name,so.id sales_order_id,so.order_no,so.order_date,sol.item_id,i.name item_name,i.sku,i.size,i.unit,coalesce(sol.qty,0) qty,coalesce(sol.unit_price,0) rate,coalesce(sol.line_total,0) line_total,coalesce(sol.cogs_total,coalesce(sol.unit_cost_at_posting,0)*coalesce(sol.qty,0),0) cost_total
+from public.sales_orders so join public.sales_order_lines sol on sol.order_id=so.id and sol.company_id=so.company_id left join public.customers c on c.id=so.customer_id and c.company_id=so.company_id left join public.items i on i.id=sol.item_id and i.company_id=so.company_id where so.status='posted';
+create or replace view public.supplier_item_history_report with (security_invoker=true) as
+select po.user_id,po.company_id,po.business_unit_id,po.operating_location_id,po.supplier_id,s.name supplier_name,po.id purchase_order_id,po.order_no,po.order_date,pol.item_id,i.name item_name,i.sku,i.size,i.unit,coalesce(pol.qty,0) qty,coalesce(pol.unit_cost,0) rate,coalesce(pol.line_total,0) line_total
+from public.purchase_orders po join public.purchase_order_lines pol on pol.order_id=po.id and pol.company_id=po.company_id left join public.suppliers s on s.id=po.supplier_id and s.company_id=po.company_id left join public.items i on i.id=pol.item_id and i.company_id=po.company_id where po.status='posted';
+create or replace view public.returns_register_report with (security_invoker=true) as
+select id,user_id,company_id,business_unit_id,note_no,note_type,coalesce(sales_order_id,purchase_order_id) source_document_id,party_type,party_id,party_name,note_date,reason,subtotal,tax_total,total,cost_total,journal_entry_id,posted_at from public.return_notes where status='posted';
+create or replace view public.accounting_control_reconciliation with (security_invoker=true) as
+with maps as (select company_id,user_id,(array_agg(account_id) filter(where mapping_key='accounts_receivable'))[1] ar_id,(array_agg(account_id) filter(where mapping_key='accounts_payable'))[1] ap_id from public.account_mappings group by company_id,user_id),
+gl as (select l.company_id,l.business_unit_id,m.user_id,sum(case when l.account_id=m.ar_id then coalesce(l.debit,0)-coalesce(l.credit,0) else 0 end) ar_gl,sum(case when l.account_id=m.ap_id then coalesce(l.credit,0)-coalesce(l.debit,0) else 0 end) ap_gl from public.ledgers l join maps m on m.company_id=l.company_id and m.user_id=l.user_id group by l.company_id,l.business_unit_id,m.user_id),
+sub as (select company_id,business_unit_id,user_id,sum(case when party_type='customer' then coalesce(debit,0)-coalesce(credit,0) else 0 end) customer_subledger,sum(case when party_type='supplier' then coalesce(credit,0)-coalesce(debit,0) else 0 end) supplier_subledger from public.party_ledgers group by company_id,business_unit_id,user_id)
+select coalesce(gl.company_id,sub.company_id) company_id,coalesce(gl.business_unit_id,sub.business_unit_id) business_unit_id,coalesce(gl.user_id,sub.user_id) user_id,coalesce(gl.ar_gl,0) ar_gl_balance,coalesce(sub.customer_subledger,0) customer_subledger_balance,coalesce(gl.ar_gl,0)-coalesce(sub.customer_subledger,0) ar_difference,coalesce(gl.ap_gl,0) ap_gl_balance,coalesce(sub.supplier_subledger,0) supplier_subledger_balance,coalesce(gl.ap_gl,0)-coalesce(sub.supplier_subledger,0) ap_difference from gl full join sub on sub.company_id=gl.company_id and sub.business_unit_id is not distinct from gl.business_unit_id and sub.user_id=gl.user_id;
+grant select on public.sales_register_report,public.purchase_register_report,public.customer_item_history_report,public.supplier_item_history_report,public.returns_register_report,public.accounting_control_reconciliation to authenticated;

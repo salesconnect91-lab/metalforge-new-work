@@ -1,0 +1,12 @@
+/* Keep floating application chrome completely outside NAVILO print preview. */
+body:has([data-navilo-print-preview]) [data-no-print-overlay],
+body:has([data-navilo-print-preview]) [data-no-print] {
+  visibility: hidden !important;
+}
+body:has([data-navilo-print-preview]) [data-navilo-print-preview],
+body:has([data-navilo-print-preview]) [data-navilo-print-preview] * {
+  visibility: visible !important;
+}
+[data-navilo-print-preview] [data-no-print] {
+  display: none !important;
+}

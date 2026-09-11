@@ -54,11 +54,7 @@ export function exportWorkbookToExcel(filename: string, sheets: ExportSheet[]): 
 export function exportMatrixToExcel(filename: string, matrix: ExportMatrix, sheetName = "Data"): void { exportWorkbookToExcel(filename, [{ name: sheetName, rows: matrix }]); }
 export function flattenExportSheets(sheets: ExportSheet[]): ExportMatrix {
   const out: ExportMatrix = [];
-  sheets.forEach((sheet, index) => {
-    if (index) out.push([]);
-    out.push([sheet.name]);
-    out.push(...(sheet.rows.length ? sheet.rows : [["No data"]]));
-  });
+  sheets.forEach((sheet, index) => { if (index) out.push([]); out.push([sheet.name]); out.push(...(sheet.rows.length ? sheet.rows : [["No data"]])); });
   return out.length ? out : [["No data"]];
 }
 export function exportPackageToExcel(filename: string, pack: ExportPackage): void { exportWorkbookToExcel(filename, pack.sheets); }
@@ -76,10 +72,7 @@ export function exportToWord(filename: string, columns: ExportColumn[], rows: Re
 
 function controlLabel(el: Element): string {
   const id = (el as HTMLElement).id;
-  if (id) {
-    const lab = document.querySelector(`label[for="${CSS.escape(id)}"]`);
-    if (lab) return cleanText(lab.textContent);
-  }
+  if (id) { const lab = document.querySelector(`label[for="${CSS.escape(id)}"]`); if (lab) return cleanText(lab.textContent); }
   const parentLabel = el.closest("label");
   if (parentLabel) return cleanText(parentLabel.textContent).replace(cleanText((el as HTMLInputElement).value), "").trim();
   const parent = el.parentElement;
@@ -88,22 +81,23 @@ function controlLabel(el: Element): string {
 }
 function controlValue(el: Element): string {
   if (el instanceof HTMLSelectElement) return cleanText(el.selectedOptions[0]?.textContent) || el.value;
-  if (el instanceof HTMLInputElement) {
-    if (el.type === "checkbox" || el.type === "radio") return el.checked ? "Yes" : "No";
-    return el.value || "All";
-  }
+  if (el instanceof HTMLInputElement) { if (el.type === "checkbox" || el.type === "radio") return el.checked ? "Yes" : "No"; return el.value || "All"; }
   if (el instanceof HTMLTextAreaElement) return el.value || "All";
   return cleanText(el.textContent);
 }
 function collectFilters(root: HTMLElement): ExportMatrix {
-  const filters = Array.from(root.querySelectorAll("[data-report-filters] input,[data-report-filters] select,[data-report-filters] textarea"));
+  const scoped = Array.from(root.querySelectorAll("[data-report-filters] input,[data-report-filters] select,[data-report-filters] textarea"));
+  const controls = scoped.length ? scoped : Array.from(root.querySelectorAll("input:not([type=file]):not([type=hidden]),select,textarea")).filter(el => !el.closest("[role=dialog],.modal,[data-no-export]"));
   const rows: ExportMatrix = [["Filter", "Value"]];
-  filters.forEach(el => rows.push([controlLabel(el), controlValue(el)]));
+  const seen = new Set<string>();
+  controls.forEach(el => { const label=controlLabel(el); const value=controlValue(el); const key=`${label}|${value}`; if(!seen.has(key)){rows.push([label,value]);seen.add(key);} });
   root.querySelectorAll<HTMLElement>("[data-report-filter-value]").forEach(el => rows.push([el.dataset.reportFilterLabel || "Filter", cleanText(el.textContent)]));
+  const activeButtons = Array.from(root.querySelectorAll<HTMLButtonElement>("button.btn-primary")).filter(button => !button.closest("[data-no-export]") && !/new|add|save|refresh|print/i.test(cleanText(button.textContent)));
+  activeButtons.forEach(button => { const value=cleanText(button.textContent); if(value) rows.push(["Selected View / Status",value]); });
   return rows.length > 1 ? rows : [];
 }
 function collectSummary(root: HTMLElement): ExportMatrix {
-  const cards = Array.from(root.querySelectorAll<HTMLElement>("[data-export-summary] > *, [data-export-summary-item], .summary-card"));
+  const cards = Array.from(root.querySelectorAll<HTMLElement>("[data-export-summary] > *, [data-export-summary-item], .summary-card, #order-book-report > section.grid > *"));
   const rows: ExportMatrix = [["Metric", "Value"]];
   const seen = new Set<string>();
   cards.forEach(card => {
@@ -130,8 +124,7 @@ export function collectReportPackage(root: HTMLElement, title = document.title |
   if (summaryRows.length) overview.push([], ["Summary"], ...summaryRows);
   if (overview.length > 2) sheets.push({ name: "Summary & Filters", rows: overview });
   Array.from(root.querySelectorAll<HTMLTableElement>("table")).forEach((table, index) => {
-    const matrix = tableMatrix(table, includeTotals);
-    if (!matrix.length) return;
+    const matrix = tableMatrix(table, includeTotals); if (!matrix.length) return;
     const heading = table.closest("section,div")?.querySelector<HTMLElement>("h1,h2,h3,[data-export-table-title]");
     sheets.push({ name: cleanText(heading?.textContent) || (index === 0 ? "Report Data" : `Table ${index + 1}`), rows: matrix });
   });

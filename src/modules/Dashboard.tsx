@@ -52,6 +52,8 @@ const EMPTY: Summary = {
   as_of: null,
 };
 
+const DEFAULT_HIDDEN: WidgetId[] = ["financial_position", "quick_links"];
+
 const WIDGETS: Array<{ id: WidgetId; label: string }> = [
   { id: "sales", label: "Sales MTD / ماہانہ فروخت" },
   { id: "purchases", label: "Purchases MTD / ماہانہ خریداری" },
@@ -84,7 +86,7 @@ export default function Dashboard() {
   const companyId = activeCompany?.company_id ?? null;
   const businessUnitId = activeBusinessUnit?.business_unit_id ?? null;
   const [summary, setSummary] = useState<Summary>(EMPTY);
-  const [hidden, setHidden] = useState<WidgetId[]>([]);
+  const [hidden, setHidden] = useState<WidgetId[]>(DEFAULT_HIDDEN);
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -107,7 +109,8 @@ export default function Dashboard() {
     const { data, error: preferenceError } = await query.maybeSingle();
     if (preferenceError) { setError(preferenceError.message); return; }
     setPreferenceId(data?.id ?? null);
-    setHidden(((data?.hidden_widgets ?? []) as string[]).filter((id): id is WidgetId => WIDGETS.some((widget) => widget.id === id)));
+    const saved = ((data?.hidden_widgets ?? DEFAULT_HIDDEN) as string[]).filter((id): id is WidgetId => WIDGETS.some((widget) => widget.id === id));
+    setHidden(saved);
   }, [businessUnitId, companyId]);
 
   useEffect(() => { void load(); }, [load, companyId, businessUnitId]);
@@ -134,16 +137,16 @@ export default function Dashboard() {
   const kpis = useMemo<Kpi[]>(() => [
     { id: "sales", label: "Sales MTD / ماہانہ فروخت", value: money(summary.sales_mtd), note: `${summary.sales_documents_mtd} posted document(s) this month`, icon: ShoppingCart, color: "bg-blue-600", to: "/sales" },
     { id: "receivables", label: "Receivables / قابل وصول", value: money(summary.receivables), note: "Posted A/R ledger balance", icon: WalletCards, color: "bg-emerald-600", to: "/accounting/customer-invoice-statement" },
-    { id: "purchases", label: "Purchases MTD / ماہانہ خریداری", value: money(summary.purchases_mtd), note: `${summary.purchase_documents_mtd} posted document(s) this month`, icon: Banknote, color: "bg-amber-500", to: "/purchase" },
     { id: "payables", label: "Payables / قابل ادائیگی", value: money(summary.payables), note: "Posted A/P ledger balance", icon: Building2, color: "bg-violet-600", to: "/reports/supplier-aging" },
     { id: "cash", label: "Cash Balance / نقد بیلنس", value: money(summary.cash_balance), note: "Mapped cash account · posted entries", icon: Banknote, color: "bg-cyan-600", to: "/accounting/cash-counter" },
     { id: "bank", label: "Bank Balance / بینک بیلنس", value: money(summary.bank_balance), note: "Mapped bank account · posted entries", icon: Landmark, color: "bg-sky-700", to: "/accounting/bank-reconciliation" },
     { id: "inventory", label: "Inventory Value / اسٹاک مالیت", value: money(summary.inventory_value), note: `${number(summary.stock_quantity)} current stock quantity`, icon: Boxes, color: "bg-slate-700", to: "/reports/stock-valuation" },
+    { id: "purchases", label: "Purchases MTD / ماہانہ خریداری", value: money(summary.purchases_mtd), note: `${summary.purchase_documents_mtd} posted document(s) this month`, icon: Banknote, color: "bg-amber-500", to: "/purchase" },
   ], [summary]);
 
   return <div className="mx-auto max-w-[1600px] space-y-3 p-3 lg:p-4">
     <div className="flex flex-wrap items-end justify-between gap-3">
-      <div><h1 className="text-lg font-black text-slate-950">Business Overview / کاروباری خلاصہ</h1><p className="mt-0.5 text-[11px] font-semibold text-slate-500">Live posted accounting, sales, purchase and operational intelligence.</p></div>
+      <div><h1 className="text-lg font-black text-slate-950">Business Overview / کاروباری خلاصہ</h1><p className="mt-0.5 text-[11px] font-semibold text-slate-500">Live values from posted accounting and current operational records.</p></div>
       <div className="relative flex items-center gap-2">
         <span className="hidden text-[10px] font-bold text-emerald-700 sm:inline">● Live{summary.as_of ? ` · ${new Date(summary.as_of).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}</span>
         <button type="button" onClick={() => setCustomizeOpen((value) => !value)} className="inline-flex h-8 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-[10px] font-black text-slate-700 shadow-sm"><Settings2 className="h-3.5 w-3.5" />Customize / ترتیب</button>
@@ -151,7 +154,7 @@ export default function Dashboard() {
         {customizeOpen && <div className="absolute right-0 top-10 z-50 w-[310px] rounded-xl border border-slate-200 bg-white p-3 shadow-2xl">
           <div className="mb-2 flex items-center justify-between"><div className="text-xs font-black text-slate-900">Show / Hide Dashboard / دکھائیں یا چھپائیں</div><button type="button" onClick={() => setCustomizeOpen(false)} className="text-xs font-bold text-slate-500">Close</button></div>
           <div className="max-h-[380px] space-y-1 overflow-auto">{WIDGETS.map((widget) => <button type="button" key={widget.id} disabled={savingPreference} onClick={() => toggle(widget.id)} className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-xs font-semibold hover:bg-slate-50"><span>{widget.label}</span>{visible(widget.id) ? <Eye className="h-4 w-4 text-emerald-600" /> : <EyeOff className="h-4 w-4 text-slate-400" />}</button>)}</div>
-          {hidden.length > 0 && <button type="button" disabled={savingPreference} onClick={() => void saveHidden([])} className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-blue-700">Show All / سب دکھائیں</button>}
+          <div className="mt-2 grid grid-cols-2 gap-2"><button type="button" disabled={savingPreference} onClick={() => void saveHidden(DEFAULT_HIDDEN)} className="rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700">Recommended</button><button type="button" disabled={savingPreference} onClick={() => void saveHidden([])} className="rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-blue-700">Show All</button></div>
         </div>}
       </div>
     </div>
@@ -165,33 +168,27 @@ export default function Dashboard() {
       </button>; })}
     </div>
 
-    <div className="grid gap-3 xl:grid-cols-[1.65fr_1fr]">
-      {visible("trend") && <Panel title="Sales vs Purchase — Last 6 Months / گزشتہ 6 ماہ فروخت بمقابلہ خریداری">
-        <div className="h-64"><ResponsiveContainer width="100%" height="100%"><BarChart data={summary.sales_purchase_trend} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" /><XAxis dataKey="month" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 9 }} tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} /><Tooltip formatter={(value) => money(Number(value))} /><Legend wrapperStyle={{ fontSize: 10 }} /><Bar dataKey="sales" name="Sales" fill="#2563eb" radius={[3,3,0,0]} /><Bar dataKey="purchase" name="Purchase" fill="#10b981" radius={[3,3,0,0]} /></BarChart></ResponsiveContainer></div>
-      </Panel>}
+    {visible("trend") && <Panel title="Sales vs Purchase — Last 6 Months / گزشتہ 6 ماہ فروخت بمقابلہ خریداری">
+      <div className="h-64"><ResponsiveContainer width="100%" height="100%"><BarChart data={summary.sales_purchase_trend} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" /><XAxis dataKey="month" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 9 }} tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} /><Tooltip formatter={(value) => money(Number(value))} /><Legend wrapperStyle={{ fontSize: 10 }} /><Bar dataKey="sales" name="Sales" fill="#2563eb" radius={[3,3,0,0]} /><Bar dataKey="purchase" name="Purchase" fill="#10b981" radius={[3,3,0,0]} /></BarChart></ResponsiveContainer></div>
+    </Panel>}
 
-      {visible("financial_position") && <Panel title="Financial Position / مالی پوزیشن">
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
-          <button onClick={() => navigate("/accounting/cash-counter")} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-left"><span><span className="block text-[10px] font-bold text-slate-500">Cash</span><b className="text-sm text-slate-900">{money(summary.cash_balance)}</b></span><Banknote className="h-5 w-5 text-cyan-700" /></button>
-          <button onClick={() => navigate("/accounting/bank-reconciliation")} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-left"><span><span className="block text-[10px] font-bold text-slate-500">Bank</span><b className="text-sm text-slate-900">{money(summary.bank_balance)}</b></span><Landmark className="h-5 w-5 text-sky-700" /></button>
-          <button onClick={() => navigate("/accounting/customer-invoice-statement")} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-left"><span><span className="block text-[10px] font-bold text-slate-500">Receivables</span><b className="text-sm text-emerald-700">{money(summary.receivables)}</b></span><WalletCards className="h-5 w-5 text-emerald-700" /></button>
-          <button onClick={() => navigate("/reports/supplier-aging")} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-left"><span><span className="block text-[10px] font-bold text-slate-500">Payables</span><b className="text-sm text-violet-700">{money(summary.payables)}</b></span><Building2 className="h-5 w-5 text-violet-700" /></button>
-        </div>
-      </Panel>}
-    </div>
+    {visible("operations") && <Panel title="Operations & Alerts / آپریشن اور الرٹس" action={<span className="text-[9px] font-bold text-slate-400">LIVE</span>}>
+      <div className="grid gap-2 sm:grid-cols-3">
+        <button onClick={() => navigate("/godown")} className="rounded-lg bg-amber-50 p-3 text-left text-[10px] font-bold text-amber-950"><AlertTriangle className="mb-2 h-4 w-4 text-amber-600" />{summary.stock_alerts} stock position(s) are at or below zero.</button>
+        <button onClick={() => navigate("/production")} className="rounded-lg bg-blue-50 p-3 text-left text-[10px] font-bold text-blue-950"><Factory className="mb-2 h-4 w-4 text-blue-600" />{summary.pending_work_orders} work order(s) pending.</button>
+        <button onClick={() => navigate("/godown")} className="rounded-lg bg-slate-50 p-3 text-left text-[10px] font-bold text-slate-900"><Boxes className="mb-2 h-4 w-4 text-slate-600" />{number(summary.stock_quantity)} current stock quantity.</button>
+      </div>
+    </Panel>}
 
-    <div className="grid gap-3 xl:grid-cols-[1fr_1.5fr]">
-      {visible("operations") && <Panel title="Operations & Alerts / آپریشن اور الرٹس" action={<span className="text-[9px] font-bold text-slate-400">LIVE</span>}>
-        <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
-          <button onClick={() => navigate("/godown")} className="rounded-lg bg-amber-50 p-3 text-left text-[10px] font-bold text-amber-950"><AlertTriangle className="mb-2 h-4 w-4 text-amber-600" />{summary.stock_alerts} stock item(s) need attention.</button>
-          <button onClick={() => navigate("/production")} className="rounded-lg bg-blue-50 p-3 text-left text-[10px] font-bold text-blue-950"><Factory className="mb-2 h-4 w-4 text-blue-600" />{summary.pending_work_orders} work order(s) pending.</button>
-          <button onClick={() => navigate("/godown")} className="rounded-lg bg-slate-50 p-3 text-left text-[10px] font-bold text-slate-900"><Boxes className="mb-2 h-4 w-4 text-slate-600" />{number(summary.stock_quantity)} current stock quantity.</button>
-        </div>
-      </Panel>}
+    {visible("financial_position") && <Panel title="Financial Position / مالی پوزیشن">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <button onClick={() => navigate("/accounting/cash-counter")} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-left"><span className="block text-[10px] font-bold text-slate-500">Cash</span><b className="text-sm text-slate-900">{money(summary.cash_balance)}</b></button>
+        <button onClick={() => navigate("/accounting/bank-reconciliation")} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-left"><span className="block text-[10px] font-bold text-slate-500">Bank</span><b className="text-sm text-slate-900">{money(summary.bank_balance)}</b></button>
+        <button onClick={() => navigate("/accounting/customer-invoice-statement")} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-left"><span className="block text-[10px] font-bold text-slate-500">Receivables</span><b className="text-sm text-emerald-700">{money(summary.receivables)}</b></button>
+        <button onClick={() => navigate("/reports/supplier-aging")} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-left"><span className="block text-[10px] font-bold text-slate-500">Payables</span><b className="text-sm text-violet-700">{money(summary.payables)}</b></button>
+      </div>
+    </Panel>}
 
-      {visible("quick_links") && <Panel title="Quick Links / فوری رسائی">
-        <div className="flex flex-wrap gap-2">{[["New Sales Invoice", "/sales/new"], ["New Purchase", "/purchase/new"], ["Cash Counter", "/accounting/cash-counter"], ["Bank Reconciliation", "/accounting/bank-reconciliation"], ["Customer Statement", "/accounting/customer-invoice-statement"], ["Stock Movements", "/godown/movements"], ["Trial Balance", "/accounting/trial-balance"], ["Profit & Loss", "/accounting/profit-loss"]].map(([label, to]) => <button key={to} onClick={() => navigate(to)} className="inline-flex h-8 items-center rounded-md border border-blue-200 bg-blue-50 px-3 text-[10px] font-black text-blue-700 hover:bg-blue-100">{label}</button>)}</div>
-      </Panel>}
-    </div>
+    {visible("quick_links") && <Panel title="Quick Links / فوری رسائی"><div className="flex flex-wrap gap-2">{[["New Sales Invoice", "/sales/new"], ["New Purchase", "/purchase/new"], ["Cash Counter", "/accounting/cash-counter"], ["Bank Reconciliation", "/accounting/bank-reconciliation"], ["Customer Statement", "/accounting/customer-invoice-statement"], ["Stock Movements", "/godown/movements"], ["Trial Balance", "/accounting/trial-balance"], ["Profit & Loss", "/accounting/profit-loss"]].map(([label, to]) => <button key={to} onClick={() => navigate(to)} className="inline-flex h-8 items-center rounded-md border border-blue-200 bg-blue-50 px-3 text-[10px] font-black text-blue-700 hover:bg-blue-100">{label}</button>)}</div></Panel>}
   </div>;
 }

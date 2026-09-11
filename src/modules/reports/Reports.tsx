@@ -40,7 +40,7 @@ function unique(rows:any[],key?:string){return key?Array.from(new Set(rows.map(r
 function show(v:any,k?:Kind){if(v===null||v===undefined||v==="")return"—";if(k==="money")return formatCurrency(n(v));if(k==="percent")return `${n(v).toFixed(2)}%`;if(k==="number")return n(v).toLocaleString();if(k==="date")return formatDate(String(v));return String(v)}
 export default function Reports(){
  const loc=useLocation();const def=defs[loc.pathname]??defs["/reports/sales-margin"];
- const[data,setData]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState<string|null>(null);
+ const[data,setData]=useState<any[]>([]),[masterParties,setMasterParties]=useState<string[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState<string|null>(null);
  const[q,setQ]=useState(""),[from,setFrom]=useState(""),[to,setTo]=useState(""),[party,setParty]=useState(""),[item,setItem]=useState(""),[status,setStatus]=useState("");
  const reset=()=>{setQ("");setFrom("");setTo("");setParty("");setItem("");setStatus("")};
  useEffect(()=>{reset()},[loc.pathname]);
@@ -52,7 +52,20 @@ export default function Reports(){
   if(r.error)setError(r.error.message);setData(r.data??[]);setLoading(false);
  },[def.rpc,def.view,def.order,from,to]);
  useEffect(()=>{void load()},[load]);
- const parties=useMemo(()=>unique(data,def.partyKey),[data,def.partyKey]),items=useMemo(()=>unique(data,def.itemKey),[data,def.itemKey]),statuses=useMemo(()=>unique(data,def.statusKey),[data,def.statusKey]);
+ useEffect(()=>{
+  let cancelled=false;
+  const loadMasterParties=async()=>{
+   const table=def.partyKey==="supplier_name"?"suppliers":def.partyKey==="customer_name"?"customers":null;
+   if(!table){setMasterParties([]);return;}
+   const r=await supabase.from(table).select("name").eq("is_active",true).order("name");
+   if(cancelled)return;
+   if(r.error){setMasterParties([]);return;}
+   setMasterParties(Array.from(new Set((r.data??[]).map((x:any)=>String(x.name??"").trim()).filter(Boolean))));
+  };
+  void loadMasterParties();
+  return()=>{cancelled=true};
+ },[def.partyKey]);
+ const parties=useMemo(()=>masterParties.length?masterParties:unique(data,def.partyKey),[data,def.partyKey,masterParties]),items=useMemo(()=>unique(data,def.itemKey),[data,def.itemKey]),statuses=useMemo(()=>unique(data,def.statusKey),[data,def.statusKey]);
  const rows=useMemo(()=>data.filter(r=>{if(def.dateKey&&!def.rpc){const d=String(r[def.dateKey]??"").slice(0,10);if(from&&d<from)return false;if(to&&d>to)return false}if(party&&def.partyKey&&String(r[def.partyKey]??"")!==party)return false;if(item&&def.itemKey&&String(r[def.itemKey]??"")!==item)return false;if(status&&def.statusKey&&String(r[def.statusKey]??"")!==status)return false;const s=q.trim().toLowerCase();return !s||JSON.stringify(r).toLowerCase().includes(s)}),[data,def,q,from,to,party,item,status]);
  const showDates=Boolean(def.dateKey||def.period);
  return <div className="space-y-4 pb-12">

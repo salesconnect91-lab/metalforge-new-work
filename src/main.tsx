@@ -5,6 +5,7 @@ import App from "./App";
 import { AuthProvider } from "./auth/AuthContext";
 import LanguageRuntime from "./components/LanguageRuntime";
 import "./printTargetRuntime";
+import "./accountNameDisplayRuntime";
 import "./languageIsolationRuntime";
 import "./documentLanguageIsolationRuntime";
 import "./index.css";

@@ -23,6 +23,8 @@ type PurchaseOrder = {
   supplier_invoice_date?: string | null;
   reference_no?: string | null;
   reference_notes?: string | null;
+  purchase_person?: string | null;
+  purchase_person_employee_id?: string | null;
   supplier?: {
     id: string;
     name: string;
@@ -59,6 +61,7 @@ type Line = {
 
 type Option = { id: string; name: string; name_urdu?: string | null; sku?: string | null; cost?: number | string | null; hs_code?: string | null; unit?: string | null };
 type Godown = { id: string; name: string; name_urdu?: string | null };
+type Employee = { id: string; employee_code: string | null; name: string; designation?: string | null };
 type Consolidated = {
   id: string;
   invoice_no: string;
@@ -121,11 +124,12 @@ export default function PurchaseInvoiceDetail() {
   const [lines, setLines] = useState<Line[]>([]);
   const [items, setItems] = useState<Option[]>([]);
   const [godowns, setGodowns] = useState<Godown[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [consolidated, setConsolidated] = useState<Consolidated[]>([]);
   const [purchaseCharges, setPurchaseCharges] = useState<PurchaseChargeRow[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [newLine, setNewLine] = useState({ item_id: "", description: "", godown_id: "", qty: "1", unit_cost: "0" });
-  const [sourceDocument, setSourceDocument] = useState({ supplier_invoice_no: "", supplier_invoice_date: "", reference_no: "", reference_notes: "" });
+  const [sourceDocument, setSourceDocument] = useState({ supplier_invoice_no: "", supplier_invoice_date: "", reference_no: "", reference_notes: "", purchase_person_employee_id: "" });
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>([]);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentAccountId, setPaymentAccountId] = useState("");
@@ -165,21 +169,23 @@ export default function PurchaseInvoiceDetail() {
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true); setError(null);
-    const [orderRes, linesRes, itemsRes, godownRes, chargesRes] = await Promise.all([
+    const [orderRes, linesRes, itemsRes, godownRes, chargesRes, employeesRes] = await Promise.all([
       supabase.from("purchase_orders").select("*, supplier:suppliers(id,name,name_urdu,phone,address,ntn,strn,cnic,tax_registration_status)").eq("id", id).maybeSingle(),
       supabase.from("purchase_order_lines").select("*, item:items(id,name,name_urdu,sku,hs_code,unit), godown:godowns(id,name,name_urdu)").eq("order_id", id).order("created_at"),
       supabase.from("items").select("id,name,name_urdu,sku,cost,hs_code,unit").order("name"),
       supabase.from("godowns").select("id,name,name_urdu").order("name"),
       supabase.from("purchase_order_charges").select("charge_key,charge_name,amount,tax_percent,quantity,rate").eq("order_id", id).order("created_at"),
+      supabase.from("employees").select("id,employee_code,name,designation").eq("is_active", true).order("name"),
     ]);
-    const firstError = orderRes.error || linesRes.error || itemsRes.error || godownRes.error || chargesRes.error;
+    const firstError = orderRes.error || linesRes.error || itemsRes.error || godownRes.error || chargesRes.error || employeesRes.error;
     if (firstError) { setError(firstError.message); setLoading(false); return; }
     const loadedOrder = orderRes.data as PurchaseOrder | null;
     setOrder(loadedOrder);
-    if (loadedOrder) setSourceDocument({ supplier_invoice_no: loadedOrder.supplier_invoice_no ?? "", supplier_invoice_date: loadedOrder.supplier_invoice_date ?? "", reference_no: loadedOrder.reference_no ?? "", reference_notes: loadedOrder.reference_notes ?? "" });
+    if (loadedOrder) setSourceDocument({ supplier_invoice_no: loadedOrder.supplier_invoice_no ?? "", supplier_invoice_date: loadedOrder.supplier_invoice_date ?? "", reference_no: loadedOrder.reference_no ?? "", reference_notes: loadedOrder.reference_notes ?? "", purchase_person_employee_id: loadedOrder.purchase_person_employee_id ?? "" });
     setLines((linesRes.data ?? []) as Line[]);
     setPurchaseCharges((chargesRes.data ?? []) as PurchaseChargeRow[]);
     setItems((itemsRes.data ?? []) as Option[]);
+    setEmployees((employeesRes.data ?? []) as Employee[]);
     const loadedGodowns = (godownRes.data ?? []) as Godown[];
     setGodowns(loadedGodowns);
     setNewLine((current) => ({ ...current, godown_id: current.godown_id || loadedGodowns[0]?.id || "" }));
@@ -216,16 +222,19 @@ export default function PurchaseInvoiceDetail() {
   const saveSourceDocument = async () => {
     if (!order || order.status === "posted") return;
     setSavingSource(true); setError(null); setSuccess(null);
+    const employee = employees.find((row) => row.id === sourceDocument.purchase_person_employee_id) || null;
     const payload = {
       supplier_invoice_no: sourceDocument.supplier_invoice_no.trim() || null,
       supplier_invoice_date: sourceDocument.supplier_invoice_date || null,
       reference_no: sourceDocument.reference_no.trim() || null,
       reference_notes: sourceDocument.reference_notes.trim() || null,
+      purchase_person_employee_id: employee?.id || null,
+      purchase_person: employee?.name || null,
     };
     const { error: updateError } = await supabase.from("purchase_orders").update(payload).eq("id", order.id).eq("status", "draft");
     setSavingSource(false);
     if (updateError) { setError(updateError.message); return; }
-    setSuccess("Supplier source document details saved.");
+    setSuccess("Supplier source document and Purchase Person details saved.");
     await load();
   };
 
@@ -259,6 +268,7 @@ export default function PurchaseInvoiceDetail() {
 
   const post = async () => {
     if (!id || order?.status === "posted") return;
+    if (!order.purchase_person_employee_id || !order.purchase_person) { setError("Purchase Person / Buyer select aur save karein before posting."); return; }
     if (isTax && (!order.supplier_invoice_no || !order.supplier_invoice_date)) { setError("Purchase Tax Invoice post karne se pehle Supplier Original Invoice No. aur Invoice Date save karein."); return; }
     if (!window.confirm("Post Main Purchase Invoice? Is ke baad stock/accounting lock ho jayegi.")) return;
     setPosting(true); setError(null); setSuccess(null);
@@ -291,7 +301,7 @@ export default function PurchaseInvoiceDetail() {
     base_amount: n(line.line_total), amount_incl_vat: n(line.line_total) + (isTax ? n(line.line_total) * n(line.tax_percent) / 100 : 0),
   }));
   const exportColumns = [
-    { key: "source", label: "Source" }, { key: "item", label: "Item" }, { key: "hs_code", label: "HS Code" }, { key: "uom", label: "UOM" }, { key: "godown", label: "Godown" }, { key: "qty", label: "Qty" }, { key: "unit_cost", label: "Unit Cost" },
+    { key: "source", label: "Source" }, { key: "item", label: "Item" }, { key: "description", label: "Description" }, { key: "hs_code", label: "HS Code" }, { key: "uom", label: "UOM" }, { key: "godown", label: "Godown" }, { key: "qty", label: "Qty" }, { key: "unit_cost", label: "Unit Cost" },
     ...(isTax ? [{ key: "vat_percent", label: "VAT %" }, { key: "vat_amount", label: "VAT Amount" }] : []),
     { key: "base_amount", label: "Base Amount" }, { key: "amount_incl_vat", label: "Amount Incl VAT" },
   ];
@@ -318,18 +328,20 @@ export default function PurchaseInvoiceDetail() {
       {error && <ErrorBanner message={error} />}
       {success && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{success}</div>}
 
-      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-6">
+      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-7">
         <div className="card p-4"><div className="text-xs text-slate-500">Invoice Type</div><div className="mt-1 font-semibold">{isTax ? "With Tax" : "Without Tax"}</div></div>
         <div className="card p-4"><div className="text-xs text-slate-500">VAT Rate</div><div className="mt-1 font-semibold">{isTax ? `${n(order.tax_percent)}% (Fixed)` : "—"}</div></div>
         <div className="card p-4"><div className="text-xs text-slate-500">Date</div><div className="mt-1 font-semibold">{formatDate(order.order_date)}</div></div>
+        <div className="card p-4"><div className="text-xs text-slate-500">Purchase Person</div><div className="mt-1 font-semibold">{order.purchase_person || "—"}</div></div>
         <div className="card p-4"><div className="text-xs text-slate-500">Status</div><div className="mt-1"><StatusBadge status={order.status as any} /></div></div>
         <div className="card p-4"><div className="text-xs text-slate-500">Paid</div><div className="mt-1 font-semibold">{formatCurrency(n(order.paid_amount))}</div></div>
         <div className="card p-4"><div className="text-xs text-slate-500">Outstanding</div><div className="mt-1 font-semibold">{formatCurrency(outstanding)}</div></div>
       </div>
 
       <div className="card mt-5 p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-bold text-slate-900">Supplier Source Document / سپلائر اصل بل</h2><p className="mt-1 text-xs text-slate-500">Main Purchase Invoice ka internal number alag rahega; supplier ke original invoice/reference ko yahan preserve karein.</p></div>{isTax && <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Required before Tax Invoice posting</span>}</div>
-        <div className="mt-4 grid gap-3 md:grid-cols-4">
+        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-bold text-slate-900">Supplier Source Document / سپلائر اصل بل</h2><p className="mt-1 text-xs text-slate-500">Main Purchase Invoice ka internal number alag rahega; supplier ke original invoice/reference aur responsible Purchase Person ko yahan preserve karein.</p></div>{isTax && <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Required before Tax Invoice posting</span>}</div>
+        <div className="mt-4 grid gap-3 md:grid-cols-5">
+          <div><label className="label">Purchase Person / Buyer</label><SearchableSelect className="input" disabled={order.status === "posted"} value={sourceDocument.purchase_person_employee_id} onChange={(e) => setSourceDocument({ ...sourceDocument, purchase_person_employee_id: e.target.value })}><option value="">— Select employee —</option>{employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}{employee.employee_code ? ` · ${employee.employee_code}` : ""}{employee.designation ? ` · ${employee.designation}` : ""}</option>)}</SearchableSelect></div>
           <div><label className="label">Supplier Invoice No.</label><input className="input" disabled={order.status === "posted"} value={sourceDocument.supplier_invoice_no} onChange={(e) => setSourceDocument({ ...sourceDocument, supplier_invoice_no: e.target.value })} /></div>
           <div><label className="label">Supplier Invoice Date</label><input className="input" type="date" disabled={order.status === "posted"} value={sourceDocument.supplier_invoice_date} onChange={(e) => setSourceDocument({ ...sourceDocument, supplier_invoice_date: e.target.value })} /></div>
           <div><label className="label">Reference No.</label><input className="input" disabled={order.status === "posted"} value={sourceDocument.reference_no} onChange={(e) => setSourceDocument({ ...sourceDocument, reference_no: e.target.value })} /></div>
@@ -345,8 +357,8 @@ export default function PurchaseInvoiceDetail() {
 
       <div className="card mt-5 p-6">
         <div className="mb-4"><h2 className="font-bold text-slate-900">Main Purchase Invoice Items</h2><p className="text-xs text-slate-500">Direct items entered on this Main Invoice.</p></div>
-        <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-slate-500"><th className="py-2 text-left">Item</th><th className="text-left">Godown</th><th className="text-right">Qty</th><th className="text-right">Unit Cost</th>{isTax && <><th className="text-right">VAT %</th><th className="text-right">VAT Amount</th></>}<th className="text-right">Amount</th><th /></tr></thead><tbody>{directLines.length === 0 ? <tr><td colSpan={isTax ? 8 : 6} className="py-6 text-center text-slate-400">No direct items yet.</td></tr> : directLines.map((line) => <tr key={line.id} className="border-b border-slate-100"><td className="py-3"><div>{line.item?.name ?? "—"}</div>{(line.item?.hs_code || line.item?.unit) && <div className="text-[11px] text-slate-400">{[line.item?.hs_code ? `HS ${line.item.hs_code}` : "", line.item?.unit ? `UOM ${line.item.unit}` : ""].filter(Boolean).join(" · ")}</div>}</td><td>{line.godown?.name ?? "—"}</td><td className="text-right">{line.qty}</td><td className="text-right">{formatCurrency(n(line.unit_cost))}</td>{isTax && <><td className="text-right">{n(line.tax_percent)}%</td><td className="text-right">{formatCurrency(n(line.line_total) * n(line.tax_percent) / 100)}</td></>}<td className="text-right font-semibold">{formatCurrency(n(line.line_total) + (isTax ? n(line.line_total) * n(line.tax_percent) / 100 : 0))}</td><td className="text-right">{order.status !== "posted" && <button className="text-rose-600" onClick={() => void removeLine(line.id)}>Remove</button>}</td></tr>)}</tbody></table></div>
-        {order.status !== "posted" && <form onSubmit={addLine} className="mt-5 grid grid-cols-1 gap-3 border-t pt-5 md:grid-cols-6"><div className="md:col-span-2"><label className="label">Item</label><SearchableSelect className="input" required value={newLine.item_id} onChange={(e) => { const item = items.find((candidate) => candidate.id === e.target.value); setNewLine({ ...newLine, item_id: e.target.value, unit_cost: item ? String(n(item.cost)) : newLine.unit_cost }); }}><option value="">— Select item —</option>{items.map((item) => <option key={item.id} value={item.id}>{item.name}{item.sku ? ` (${item.sku})` : ""}</option>)}</SearchableSelect></div><div><label className="label">Godown</label><SearchableSelect className="input" required value={newLine.godown_id} onChange={(e) => setNewLine({ ...newLine, godown_id: e.target.value })}><option value="">— Select —</option>{godowns.map((godown) => <option key={godown.id} value={godown.id}>{godown.name}</option>)}</SearchableSelect></div><div><label className="label">Qty</label><input className="input text-right" type="number" step="0.01" min="0.01" required value={newLine.qty} onChange={(e) => setNewLine({ ...newLine, qty: e.target.value })} /></div><div><label className="label">Unit Cost</label><input className="input text-right" type="number" step="0.01" min="0" required value={newLine.unit_cost} onChange={(e) => setNewLine({ ...newLine, unit_cost: e.target.value })} /></div><div className="flex items-end"><button className="btn-primary w-full" type="submit">Add Line</button></div>{isTax && <div className="md:col-span-6 text-xs font-medium text-slate-500">VAT {n(order.tax_percent)}% Tax Settings se fixed hai; line par manually edit nahi hoga.</div>}</form>}
+        <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-slate-500"><th className="py-2 text-left">Item</th><th className="text-left">Description</th><th className="text-left">Godown</th><th className="text-right">Qty</th><th className="text-right">Unit Cost</th>{isTax && <><th className="text-right">VAT %</th><th className="text-right">VAT Amount</th></>}<th className="text-right">Amount</th><th /></tr></thead><tbody>{directLines.length === 0 ? <tr><td colSpan={isTax ? 9 : 7} className="py-6 text-center text-slate-400">No direct items yet.</td></tr> : directLines.map((line) => <tr key={line.id} className="border-b border-slate-100"><td className="py-3"><div>{line.item?.name ?? "—"}</div>{(line.item?.hs_code || line.item?.unit) && <div className="text-[11px] text-slate-400">{[line.item?.hs_code ? `HS ${line.item.hs_code}` : "", line.item?.unit ? `UOM ${line.item.unit}` : ""].filter(Boolean).join(" · ")}</div>}</td><td>{line.description || "—"}</td><td>{line.godown?.name ?? "—"}</td><td className="text-right">{line.qty}</td><td className="text-right">{formatCurrency(n(line.unit_cost))}</td>{isTax && <><td className="text-right">{n(line.tax_percent)}%</td><td className="text-right">{formatCurrency(n(line.line_total) * n(line.tax_percent) / 100)}</td></>}<td className="text-right font-semibold">{formatCurrency(n(line.line_total) + (isTax ? n(line.line_total) * n(line.tax_percent) / 100 : 0))}</td><td className="text-right">{order.status !== "posted" && <button className="text-rose-600" onClick={() => void removeLine(line.id)}>Remove</button>}</td></tr>)}</tbody></table></div>
+        {order.status !== "posted" && <form onSubmit={addLine} className="mt-5 grid grid-cols-1 gap-3 border-t pt-5 md:grid-cols-7"><div className="md:col-span-2"><label className="label">Item</label><SearchableSelect className="input" required value={newLine.item_id} onChange={(e) => { const item = items.find((candidate) => candidate.id === e.target.value); setNewLine({ ...newLine, item_id: e.target.value, unit_cost: item ? String(n(item.cost)) : newLine.unit_cost }); }}><option value="">— Select item —</option>{items.map((item) => <option key={item.id} value={item.id}>{item.name}{item.sku ? ` (${item.sku})` : ""}</option>)}</SearchableSelect></div><div><label className="label">Description</label><input className="input" value={newLine.description} onChange={(e) => setNewLine({ ...newLine, description: e.target.value })} /></div><div><label className="label">Godown</label><SearchableSelect className="input" required value={newLine.godown_id} onChange={(e) => setNewLine({ ...newLine, godown_id: e.target.value })}><option value="">— Select —</option>{godowns.map((godown) => <option key={godown.id} value={godown.id}>{godown.name}</option>)}</SearchableSelect></div><div><label className="label">Qty</label><input className="input text-right" type="number" step="0.01" min="0.01" required value={newLine.qty} onChange={(e) => setNewLine({ ...newLine, qty: e.target.value })} /></div><div><label className="label">Unit Cost</label><input className="input text-right" type="number" step="0.01" min="0" required value={newLine.unit_cost} onChange={(e) => setNewLine({ ...newLine, unit_cost: e.target.value })} /></div><div className="flex items-end"><button className="btn-primary w-full" type="submit">Add Line</button></div>{isTax && <div className="md:col-span-7 text-xs font-medium text-slate-500">VAT {n(order.tax_percent)}% Tax Settings se fixed hai; line par manually edit nahi hoga.</div>}</form>}
       </div>
 
       <div className="card mt-5 p-6">
@@ -366,7 +378,7 @@ export default function PurchaseInvoiceDetail() {
         voucherDate={order.order_date}
         company={{ name: companyPrint.company_name || undefined, address: companyPrint.address || undefined, phone: companyPrint.phone || undefined, email: companyPrint.email || undefined, taxId: [companyPrint.ntn, companyPrint.strn].filter(Boolean).join(" / ") || undefined, logoUrl: companyPrint.logo_url || undefined }}
         party={{ name: order.supplier?.name || "—", address: order.supplier?.address, phone: order.supplier?.phone, ntn: order.supplier?.ntn, strn: order.supplier?.strn, cnic: order.supplier?.cnic, taxRegistrationStatus: order.supplier?.tax_registration_status }}
-        items={lines.map((line) => ({ name: line.item?.name || "—", description: line.source_consolidated_purchase_invoice_id ? "Consolidated Purchase" : line.description || "Main Purchase", qty: n(line.qty), unitPrice: n(line.unit_cost), lineTotal: n(line.line_total) + (isTax ? n(line.line_total) * n(line.tax_percent) / 100 : 0), taxPercent: isTax ? n(line.tax_percent) : 0, taxAmount: isTax ? n(line.line_total) * n(line.tax_percent) / 100 : 0, hsCode: line.item?.hs_code, unit: line.item?.unit }))}
+        items={lines.map((line) => ({ name: line.item?.name || "—", description: line.description || (line.source_consolidated_purchase_invoice_id ? "Consolidated Purchase" : null), qty: n(line.qty), unitPrice: n(line.unit_cost), lineTotal: n(line.line_total) + (isTax ? n(line.line_total) * n(line.tax_percent) / 100 : 0), taxPercent: isTax ? n(line.tax_percent) : 0, taxAmount: isTax ? n(line.line_total) * n(line.tax_percent) / 100 : 0, hsCode: line.item?.hs_code, unit: line.item?.unit }))}
         chargeBreakdown={charges.map((charge) => ({ label: charge.charge_name, amount: n(charge.amount) }))}
         itemsTotal={directBase + linkedBase}
         chargesTotal={chargeTotal}
@@ -376,6 +388,7 @@ export default function PurchaseInvoiceDetail() {
         extraFields={[
           { label: "Status / حیثیت", value: order.status.toUpperCase() },
           { label: "Type / قسم", value: isTax ? "With Tax" : "Without Tax" },
+          ...(order.purchase_person ? [{ label: "Purchase Person / Buyer", value: order.purchase_person }] : []),
           ...(order.supplier_invoice_no ? [{ label: "Supplier Invoice No.", value: order.supplier_invoice_no }] : []),
           ...(order.supplier_invoice_date ? [{ label: "Supplier Invoice Date", value: formatDate(order.supplier_invoice_date) }] : []),
           ...(order.reference_no ? [{ label: "Reference No.", value: order.reference_no }] : []),

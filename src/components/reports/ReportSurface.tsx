@@ -21,9 +21,13 @@ export default function ReportSurface({ children }: ReportSurfaceProps) {
     void loadDocumentPrintSettings("reports").catch(() => undefined);
   }, []);
 
-  const scanColumns = useCallback(() => {
+  const reportContent = useCallback(() => {
     const root = rootRef.current;
-    const table = root?.querySelector("table");
+    return root?.querySelector<HTMLElement>("[data-report-content]") ?? root;
+  }, []);
+
+  const scanColumns = useCallback(() => {
+    const table = reportContent()?.querySelector("table");
     if (!table) { setColumns([]); return; }
     const headers = Array.from(table.querySelectorAll("thead th"));
     setColumns(prev => headers.map((cell, index) => ({
@@ -31,19 +35,19 @@ export default function ReportSurface({ children }: ReportSurfaceProps) {
       label: (cell.textContent || `Column ${index + 1}`).trim(),
       visible: prev.find(item => item.index === index)?.visible ?? true,
     })));
-  }, []);
+  }, [reportContent]);
 
   useEffect(() => {
     scanColumns();
-    const root = rootRef.current;
+    const root = reportContent();
     if (!root) return;
     const observer = new MutationObserver(() => scanColumns());
     observer.observe(root, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [scanColumns]);
+  }, [reportContent, scanColumns]);
 
   useEffect(() => {
-    const root = rootRef.current;
+    const root = reportContent();
     if (!root) return;
     const hidden = new Set(columns.filter(column => !column.visible).map(column => column.index));
     root.querySelectorAll("table").forEach(table => {
@@ -53,11 +57,10 @@ export default function ReportSurface({ children }: ReportSurfaceProps) {
         });
       });
     });
-  }, [columns]);
+  }, [columns, reportContent]);
 
   const exportExcel = () => {
-    const root = rootRef.current;
-    const table = root?.querySelector("table");
+    const table = reportContent()?.querySelector("table");
     if (!table) return;
     const hidden = new Set(columns.filter(column => !column.visible).map(column => column.index));
     const rows = Array.from(table.querySelectorAll("tr")).map(row =>
@@ -87,8 +90,10 @@ export default function ReportSurface({ children }: ReportSurfaceProps) {
         </div>}
       </div>}
       <button type="button" className="btn-secondary" onClick={exportExcel}><FileSpreadsheet className="h-4 w-4"/> Export Excel</button>
-      <button type="button" className="btn-secondary" onClick={() => triggerPrint("[data-report-root]")}><Printer className="h-4 w-4"/> Print Preview / PDF</button>
+      <button type="button" className="btn-primary" onClick={() => triggerPrint("[data-report-content]")}><Printer className="h-4 w-4"/> Print Preview / PDF</button>
     </div>
-    {children}
+    <div data-report-content className="report-print-content">
+      {children}
+    </div>
   </div>;
 }

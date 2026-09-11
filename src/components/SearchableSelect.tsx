@@ -56,6 +56,10 @@ function flattenOptions(children: ReactNode, group?: string): FlatOption[] {
   return out;
 }
 
+function stripLeadingAccountCode(label: string) {
+  return label.replace(/^\s*[A-Z]{0,4}[-/]?\d{2,10}(?:[./-]\d+)?\s*(?:[-–—:|]\s*)+/, "").trim() || label;
+}
+
 export default function SearchableSelect({
   children,
   value,
@@ -67,10 +71,13 @@ export default function SearchableSelect({
   emptyText = "No matching option",
   multiple,
   size,
+  name,
+  id,
+  "aria-label": ariaLabel,
   ...rest
 }: Props) {
   if (multiple || (typeof size === "number" && size > 1)) {
-    return <select {...rest} multiple={multiple} size={size} value={value} defaultValue={defaultValue} onChange={onChange} disabled={disabled} className={className}>{children}</select>;
+    return <select {...rest} name={name} id={id} aria-label={ariaLabel} multiple={multiple} size={size} value={value} defaultValue={defaultValue} onChange={onChange} disabled={disabled} className={className}>{children}</select>;
   }
 
   const options = useMemo(() => flattenOptions(children), [children]);
@@ -82,11 +89,31 @@ export default function SearchableSelect({
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
+  const [nearbyAccountContext, setNearbyAccountContext] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const selectRef = useRef<HTMLSelectElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const explicitAccountContext = useMemo(() => {
+    const hint = [name, id, ariaLabel, searchPlaceholder]
+      .filter(Boolean)
+      .join(" ")
+      .toLocaleLowerCase();
+    return hint.includes("account") || hint.includes("اکاؤنٹ");
+  }, [name, id, ariaLabel, searchPlaceholder]);
+
+  useEffect(() => {
+    const host = rootRef.current;
+    if (!host) return;
+    const parentText = host.parentElement?.querySelector("label")?.textContent ?? "";
+    const normalized = parentText.toLocaleLowerCase();
+    setNearbyAccountContext(normalized.includes("account") || normalized.includes("اکاؤنٹ"));
+  }, [children]);
+
+  const accountContext = explicitAccountContext || nearbyAccountContext;
+  const visibleLabel = (label: string) => accountContext ? stripLeadingAccountCode(label) : label;
 
   useEffect(() => {
     if (controlledValue !== undefined) setInternalValue(controlledValue);
@@ -142,9 +169,9 @@ export default function SearchableSelect({
     const q = query.trim().toLocaleLowerCase();
     return options
       .filter((option) => option.value !== "" || !q)
-      .filter((option) => !q || `${option.label} ${option.group ?? ""}`.toLocaleLowerCase().includes(q))
+      .filter((option) => !q || `${option.label} ${visibleLabel(option.label)} ${option.group ?? ""}`.toLocaleLowerCase().includes(q))
       .slice(0, 150);
-  }, [options, query]);
+  }, [options, query, accountContext]);
 
   const commit = (nextValue: string) => {
     const option = options.find((candidate) => candidate.value === nextValue);
@@ -218,7 +245,7 @@ export default function SearchableSelect({
     }
   };
 
-  const displayLabel = selected?.label || (selectedValue ? selectedValue : "Select...");
+  const displayLabel = selected ? visibleLabel(selected.label) : (selectedValue ? selectedValue : "Select...");
 
   const menu = open && menuPosition && typeof document !== "undefined" ? createPortal(
     <div
@@ -257,7 +284,7 @@ export default function SearchableSelect({
           >
             <span className="min-w-0 flex-1">
               {option.group && <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">{option.group} ·</span>}
-              <span className="break-words">{option.label || option.value || "—"}</span>
+              <span className="break-words">{visibleLabel(option.label) || option.value || "—"}</span>
             </span>
             {option.value === selectedValue && <Check className="h-3.5 w-3.5 shrink-0" />}
           </button>
@@ -271,6 +298,9 @@ export default function SearchableSelect({
     <div ref={rootRef} className="relative min-w-0 w-full">
       <select
         {...rest}
+        name={name}
+        id={id}
+        aria-label={ariaLabel}
         ref={selectRef}
         value={selectedValue}
         onChange={onChange}

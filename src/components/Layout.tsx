@@ -10,110 +10,40 @@ type NavNode={key:string;label:string;to?:string;end?:boolean;module?:ModuleKey;
 const navigation:NavNode[]=[
   {key:"dashboard",to:"/",label:"Dashboard / ڈیش بورڈ",icon:Lucide.LayoutDashboard,end:true,module:"dashboard"},
   {key:"master",label:"Master Data / ماسٹر ڈیٹا",icon:Lucide.Database,module:"master",children:[
-    {key:"items",to:"/master-data",label:"Items / آئٹمز",end:true,module:"master"},
-    {key:"categories",to:"/master-data/categories",label:"Categories / کیٹیگریز",module:"master"},
-    {key:"customers",to:"/master-data/customers",label:"Customers / گاہک",module:"master"},
-    {key:"suppliers",to:"/master-data/suppliers",label:"Suppliers / سپلائرز",module:"master"},
-    {key:"employees",to:"/master-data/employees",label:"Employees / ملازمین",module:"master"},
-    {key:"warehouses",to:"/master-data/warehouses",label:"Warehouses / ویئرہاؤسز",module:"master"},
-    {key:"godowns-master",to:"/godown/master",label:"Godowns / گودام",module:"inventory"},
-    {key:"uom",to:"/master-data/uom",label:"Units of Measure / پیمائشی اکائیاں",module:"master"},
-    {key:"transporters",to:"/master-data/transporters",label:"Transporters / ٹرانسپورٹرز",module:"master"},
-    {key:"charges",to:"/sales/charges",label:"Charge Master / چارج ماسٹر",module:"master"},
+    {key:"items",to:"/master-data",label:"Items / آئٹمز",end:true,module:"master"},{key:"categories",to:"/master-data/categories",label:"Categories / کیٹیگریز",module:"master"},{key:"customers",to:"/master-data/customers",label:"Customers / گاہک",module:"master"},{key:"suppliers",to:"/master-data/suppliers",label:"Suppliers / سپلائرز",module:"master"},{key:"employees",to:"/master-data/employees",label:"Employees / ملازمین",module:"master"},{key:"warehouses",to:"/master-data/warehouses",label:"Warehouses / ویئرہاؤسز",module:"master"},{key:"godowns-master",to:"/godown/master",label:"Godowns / گودام",module:"inventory"},{key:"uom",to:"/master-data/uom",label:"Units of Measure / پیمائشی اکائیاں",module:"master"},{key:"transporters",to:"/master-data/transporters",label:"Transporters / ٹرانسپورٹرز",module:"master"},{key:"charges",to:"/sales/charges",label:"Charge Master / چارج ماسٹر",module:"master"},
   ]},
-  {key:"sales",label:"Sales / سیلز",icon:Lucide.ShoppingCart,module:"sales",children:[
-    {key:"sales-invoices",to:"/sales",label:"Sales Invoices / سیلز انوائسز",end:true,module:"sales"},
-    {key:"sales-order-book",to:"/sales/order-book",label:"Sales Order Book / سیلز آرڈر بک",module:"sales"},
-    {key:"sales-consolidated",to:"/sales/consolidated",label:"Consolidated Invoices / مشترکہ انوائسز",module:"sales",steelOnly:true},
-  ]},
-  {key:"purchase",label:"Purchase / خریداری",icon:Lucide.Truck,module:"purchase",children:[
-    {key:"purchase-invoices",to:"/purchase",label:"Purchase Invoices / خریداری انوائسز",end:true,module:"purchase"},
-    {key:"purchase-consolidated",to:"/purchase/consolidated",label:"Consolidated Purchase / مشترکہ خریداری",module:"purchase"},
-    {key:"purchase-order-book",to:"/purchase/order-book",label:"Purchase Order Book / پرچیز آرڈر بک",module:"purchase"},
-  ]},
-  {key:"inventory",label:"Inventory / Stock / اسٹاک",icon:Lucide.Boxes,module:"inventory",children:[
-    {key:"current-stock",to:"/godown",label:"Current Stock / موجودہ اسٹاک",end:true,module:"inventory"},
-    {key:"stock-movements",to:"/godown/movements",label:"Stock Movements / اسٹاک موومنٹس",module:"inventory"},
-  ]},
-  {key:"production",label:"Production / Furnace & Mill",icon:Lucide.Factory,module:"production",steelOnly:true,children:[
-    {key:"work-orders",to:"/production",label:"Work Orders / ورک آرڈرز",end:true,module:"production",steelOnly:true},
-    {key:"furnace-yield",to:"/production/yields",label:"Furnace Yield / فرنس پیداوار",module:"production",steelOnly:true},
-  ]},
-  {key:"cutting",label:"Cutting & Loading / کٹنگ و لوڈنگ",icon:Lucide.Scissors,module:"production",steelOnly:true,children:[
-    {key:"cutting-orders",to:"/cutting",label:"Cutting Orders / کٹنگ آرڈرز",end:true,module:"production",steelOnly:true},
-    {key:"gate-pass",to:"/cutting/gate-pass",label:"Gate Pass & Weighbridge / گیٹ پاس و وزن کانٹا",module:"production",steelOnly:true},
-  ]},
+  {key:"sales",label:"Sales / سیلز",icon:Lucide.ShoppingCart,module:"sales",children:[{key:"sales-invoices",to:"/sales",label:"Sales Invoices / سیلز انوائسز",end:true,module:"sales"},{key:"sales-order-book",to:"/sales/order-book",label:"Sales Order Book / سیلز آرڈر بک",module:"sales"},{key:"sales-consolidated",to:"/sales/consolidated",label:"Consolidated Invoices / مشترکہ انوائسز",module:"sales",steelOnly:true}]},
+  {key:"purchase",label:"Purchase / خریداری",icon:Lucide.Truck,module:"purchase",children:[{key:"purchase-invoices",to:"/purchase",label:"Purchase Invoices / خریداری انوائسز",end:true,module:"purchase"},{key:"purchase-consolidated",to:"/purchase/consolidated",label:"Consolidated Purchase / مشترکہ خریداری",module:"purchase"},{key:"purchase-order-book",to:"/purchase/order-book",label:"Purchase Order Book / پرچیز آرڈر بک",module:"purchase"}]},
+  {key:"inventory",label:"Inventory / Stock / اسٹاک",icon:Lucide.Boxes,module:"inventory",children:[{key:"current-stock",to:"/godown",label:"Current Stock / موجودہ اسٹاک",end:true,module:"inventory"},{key:"stock-movements",to:"/godown/movements",label:"Stock Movements / اسٹاک موومنٹس",module:"inventory"}]},
+  {key:"production",label:"Production / Furnace & Mill",icon:Lucide.Factory,module:"production",steelOnly:true,children:[{key:"work-orders",to:"/production",label:"Work Orders / ورک آرڈرز",end:true,module:"production",steelOnly:true},{key:"furnace-yield",to:"/production/yields",label:"Furnace Yield / فرنس پیداوار",module:"production",steelOnly:true}]},
+  {key:"cutting",label:"Cutting & Loading / کٹنگ و لوڈنگ",icon:Lucide.Scissors,module:"production",steelOnly:true,children:[{key:"cutting-orders",to:"/cutting",label:"Cutting Orders / کٹنگ آرڈرز",end:true,module:"production",steelOnly:true},{key:"gate-pass",to:"/cutting/gate-pass",label:"Gate Pass & Weighbridge / گیٹ پاس و وزن کانٹا",module:"production",steelOnly:true}]},
   {key:"accounting",label:"Accounting / اکاؤنٹنگ",icon:Lucide.Calculator,module:"accounting",children:[
-    {key:"accounting-transactions",label:"Transactions / لین دین",module:"accounting",children:[
-      {key:"journal",to:"/accounting",label:"Journal Entries / جرنل اندراجات",end:true,module:"accounting"},
-      {key:"cash-counter",to:"/accounting/cash-counter",label:"Cash Counter / کیش کاؤنٹر",module:"accounting"},
-      {key:"payment-reversals",to:"/accounting/payment-reversals",label:"Payment Reversals / ادائیگی واپسی",module:"accounting"},
-      {key:"returns",to:"/accounting/returns",label:"Credit / Debit Notes / ریٹرن نوٹس",module:"accounting"},
-    ]},
-    {key:"accounting-books",label:"Books & Registers / بکس و رجسٹر",module:"accounting",children:[
-      {key:"vat-register",to:"/accounting/vat-register",label:"VAT Register / وی اے ٹی رجسٹر",module:"accounting"},
-      {key:"day-book",to:"/accounting/day-book",label:"Day Book / روزنامچہ",module:"accounting"},
-      {key:"ledgers",to:"/accounting/ledgers",label:"General Ledgers / جنرل لیجر",module:"accounting"},
-      {key:"bank-recon",to:"/accounting/bank-reconciliation",label:"Bank Reconciliation / بینک ریکنسیلی ایشن",module:"accounting"},
-    ]},
-    {key:"financial-statements",label:"Financial Statements / مالی بیانات",module:"accounting",children:[
-      {key:"trial-balance",to:"/accounting/trial-balance",label:"Trial Balance / ٹرائل بیلنس",module:"accounting"},
-      {key:"profit-loss",to:"/accounting/profit-loss",label:"Profit & Loss / نفع و نقصان",module:"accounting"},
-      {key:"balance-sheet",to:"/accounting/balance-sheet",label:"Balance Sheet / بیلنس شیٹ",module:"accounting"},
-      {key:"cash-flow",to:"/accounting/cash-flow",label:"Cash Flow / کیش فلو",module:"accounting"},
-    ]},
-    {key:"accounting-controls",label:"Controls & Closing / کنٹرول و کلوزنگ",module:"accounting",children:[
-      {key:"period-closing",to:"/accounting/periods",label:"Period Closing / پیریڈ کلوزنگ",module:"accounting"},
-      {key:"year-closing",to:"/accounting/year-closing",label:"Year Closing / سالانہ اختتام",module:"accounting"},
-      {key:"financial-controls",to:"/accounting/controls",label:"Financial Controls / مالی کنٹرولز",module:"accounting"},
-      {key:"audit-trail",to:"/accounting/audit-trail",label:"Audit Trail / آڈٹ ٹریل",module:"accounting"},
-    ]},
-    {key:"accounting-setup",label:"Accounting Setup / اکاؤنٹنگ سیٹ اپ",module:"accounting",children:[
-      {key:"coa",to:"/accounting/accounts",label:"Chart of Accounts / چارٹ آف اکاؤنٹس",module:"accounting"},
-      {key:"mapping",to:"/accounting/mappings",label:"Account Mapping / اکاؤنٹ میپنگ",module:"accounting"},
-    ]},
+    {key:"accounting-transactions",label:"Transactions / لین دین",module:"accounting",children:[{key:"journal",to:"/accounting",label:"Journal Entries / جرنل اندراجات",end:true,module:"accounting"},{key:"cash-counter",to:"/accounting/cash-counter",label:"Cash Counter / کیش کاؤنٹر",module:"accounting"},{key:"payment-reversals",to:"/accounting/payment-reversals",label:"Payment Reversals / ادائیگی واپسی",module:"accounting"},{key:"returns",to:"/accounting/returns",label:"Credit / Debit Notes / ریٹرن نوٹس",module:"accounting"}]},
+    {key:"accounting-books",label:"Books & Registers / بکس و رجسٹر",module:"accounting",children:[{key:"vat-register",to:"/accounting/vat-register",label:"VAT Register / وی اے ٹی رجسٹر",module:"accounting"},{key:"day-book",to:"/accounting/day-book",label:"Day Book / روزنامچہ",module:"accounting"},{key:"ledgers",to:"/accounting/ledgers",label:"General Ledgers / جنرل لیجر",module:"accounting"},{key:"bank-recon",to:"/accounting/bank-reconciliation",label:"Bank Reconciliation / بینک ریکنسیلی ایشن",module:"accounting"}]},
+    {key:"financial-statements",label:"Financial Statements / مالی بیانات",module:"accounting",children:[{key:"trial-balance",to:"/accounting/trial-balance",label:"Trial Balance / ٹرائل بیلنس",module:"accounting"},{key:"profit-loss",to:"/accounting/profit-loss",label:"Profit & Loss / نفع و نقصان",module:"accounting"},{key:"balance-sheet",to:"/accounting/balance-sheet",label:"Balance Sheet / بیلنس شیٹ",module:"accounting"},{key:"cash-flow",to:"/accounting/cash-flow",label:"Cash Flow / کیش فلو",module:"accounting"}]},
+    {key:"accounting-controls",label:"Controls & Closing / کنٹرول و کلوزنگ",module:"accounting",children:[{key:"period-closing",to:"/accounting/periods",label:"Period Closing / پیریڈ کلوزنگ",module:"accounting"},{key:"year-closing",to:"/accounting/year-closing",label:"Year Closing / سالانہ اختتام",module:"accounting"},{key:"financial-controls",to:"/accounting/controls",label:"Financial Controls / مالی کنٹرولز",module:"accounting"},{key:"audit-trail",to:"/accounting/audit-trail",label:"Audit Trail / آڈٹ ٹریل",module:"accounting"}]},
+    {key:"accounting-setup",label:"Accounting Setup / اکاؤنٹنگ سیٹ اپ",module:"accounting",children:[{key:"coa",to:"/accounting/accounts",label:"Chart of Accounts / چارٹ آف اکاؤنٹس",module:"accounting"},{key:"mapping",to:"/accounting/mappings",label:"Account Mapping / اکاؤنٹ میپنگ",module:"accounting"}]},
   ]},
   {key:"reports",label:"Reports / رپورٹس",icon:Lucide.ChartNoAxesCombined,module:"reports",children:[
     {key:"sales-customer-reports",label:"Sales & Customer / سیلز و گاہک",module:"reports",children:[
-      {key:"sales-margin-report",to:"/reports/sales-margin",label:"Sales & Margin / سیلز و مارجن",module:"reports"},
-      {key:"sales-register-report",to:"/reports/sales-register",label:"Sales Register / سیلز رجسٹر",module:"reports"},
-      {key:"customer-aging-report",to:"/reports/customer-aging",label:"Customer Aging / گاہک ایجنگ",module:"reports"},
-      {key:"customer-items-report",to:"/reports/customer-item-history",label:"Customer Item History / گاہک آئٹم ہسٹری",module:"reports"},
-      {key:"salesperson-report",to:"/sales/report",label:"Salesperson Performance / سیلز پرسن",module:"reports"},
-      {key:"customer-statement",to:"/accounting/customer-invoice-statement",label:"Customer Statement / گاہک اسٹیٹمنٹ",module:"accounting"},
+      {key:"sales-margin-report",to:"/reports/sales-margin",label:"Sales & Margin / سیلز و مارجن",module:"reports"},{key:"sales-register-report",to:"/reports/sales-register",label:"Sales Register / سیلز رجسٹر",module:"reports"},{key:"customer-aging-report",to:"/reports/customer-aging",label:"Customer Aging / گاہک ایجنگ",module:"reports"},{key:"customer-items-report",to:"/reports/customer-item-history",label:"Customer Item History / گاہک آئٹم ہسٹری",module:"reports"},{key:"customer-profitability-report",to:"/reports/customer-profitability",label:"Customer Profitability / گاہک منافع",module:"reports"},{key:"item-profitability-report",to:"/reports/item-profitability",label:"Item Profitability / آئٹم منافع",module:"reports"},{key:"salesperson-profitability-report",to:"/reports/salesperson-profitability",label:"Salesperson Profitability / سیلز پرسن منافع",module:"reports"},{key:"customer-collections-report",to:"/reports/customer-collections",label:"Customer Collections / وصولیاں",module:"reports"},{key:"salesperson-report",to:"/sales/report",label:"Salesperson Performance / سیلز پرسن",module:"reports"},{key:"customer-statement",to:"/accounting/customer-invoice-statement",label:"Customer Statement / گاہک اسٹیٹمنٹ",module:"accounting"},
     ]},
     {key:"purchase-supplier-reports",label:"Purchase & Supplier / خریداری و سپلائر",module:"reports",children:[
-      {key:"purchase-register-report",to:"/reports/purchase-register",label:"Purchase Register / پرچیز رجسٹر",module:"reports"},
-      {key:"supplier-aging-report",to:"/reports/supplier-aging",label:"Supplier Aging / سپلائر ایجنگ",module:"reports"},
-      {key:"supplier-items-report",to:"/reports/supplier-item-history",label:"Supplier Item History / سپلائر آئٹم ہسٹری",module:"reports"},
+      {key:"purchase-register-report",to:"/reports/purchase-register",label:"Purchase Register / پرچیز رجسٹر",module:"reports"},{key:"supplier-aging-report",to:"/reports/supplier-aging",label:"Supplier Aging / سپلائر ایجنگ",module:"reports"},{key:"supplier-items-report",to:"/reports/supplier-item-history",label:"Supplier Item History / سپلائر آئٹم ہسٹری",module:"reports"},{key:"supplier-performance-report",to:"/reports/supplier-performance",label:"Supplier Performance / سپلائر کارکردگی",module:"reports"},{key:"purchase-price-variance-report",to:"/reports/purchase-price-variance",label:"Purchase Price Variance / خریداری ریٹ فرق",module:"reports"},
     ]},
     {key:"inventory-reports",label:"Inventory / اسٹاک رپورٹس",module:"reports",children:[
-      {key:"stock-valuation-report",to:"/reports/stock-valuation",label:"Stock Valuation / اسٹاک ویلیو",module:"reports"},
-      {key:"stock-aging",to:"/godown/aging",label:"Stock Aging / اسٹاک ایجنگ",module:"reports"},
-      {key:"steel-stock",to:"/reports/steel-stock",label:"Steel Stock Control / اسٹیل اسٹاک کنٹرول",module:"reports",steelOnly:true},
+      {key:"stock-valuation-report",to:"/reports/stock-valuation",label:"Stock Valuation / اسٹاک ویلیو",module:"reports"},{key:"inventory-aging-report",to:"/reports/inventory-aging",label:"Inventory Aging / Slow Moving",module:"reports"},{key:"inventory-turnover-report",to:"/reports/inventory-turnover",label:"Inventory Turnover / اسٹاک ٹرن اوور",module:"reports"},{key:"stock-exceptions-report",to:"/reports/stock-exceptions",label:"Stock Exceptions / اسٹاک ایکسیپشنز",module:"reports"},{key:"stock-aging",to:"/godown/aging",label:"Stock Aging / اسٹاک ایجنگ",module:"reports"},{key:"steel-stock",to:"/reports/steel-stock",label:"Steel Stock Control / اسٹیل اسٹاک کنٹرول",module:"reports",steelOnly:true},
     ]},
-    {key:"control-reports",label:"Control & Reconciliation / کنٹرول رپورٹس",module:"reports",children:[
-      {key:"returns-register-report",to:"/reports/returns-register",label:"Returns Register / ریٹرنز رجسٹر",module:"reports"},
-      {key:"reconciliation-report",to:"/reports/ar-ap-reconciliation",label:"AR / AP Reconciliation / ریکنسیلی ایشن",module:"reports"},
-      {key:"exceptions-report",to:"/reports/exceptions",label:"Exceptions / ایکسیپشنز",module:"reports"},
-      {key:"service-charges-report",to:"/reports/service-charges",label:"Service Charges / سروس چارجز",module:"reports"},
-    ]},
-    {key:"operations-reports",label:"Operations / آپریشن رپورٹس",module:"reports",children:[
-      {key:"gate-pass-report",to:"/reports/gate-pass",label:"Gate Pass Report / گیٹ پاس رپورٹ",module:"reports"},
-    ]},
+    {key:"management-reports",label:"Management & MIS / مینجمنٹ",module:"reports",children:[{key:"business-unit-performance-report",to:"/reports/business-unit-performance",label:"Business Unit Performance / بزنس یونٹ",module:"reports"},{key:"monthly-mis-report",to:"/reports/monthly-mis",label:"Monthly Business MIS / ماہانہ ایم آئی ایس",module:"reports"}]},
+    {key:"control-reports",label:"Control & Reconciliation / کنٹرول رپورٹس",module:"reports",children:[{key:"returns-register-report",to:"/reports/returns-register",label:"Returns Register / ریٹرنز رجسٹر",module:"reports"},{key:"reconciliation-report",to:"/reports/ar-ap-reconciliation",label:"AR / AP Reconciliation / ریکنسیلی ایشن",module:"reports"},{key:"exceptions-report",to:"/reports/exceptions",label:"Exceptions / ایکسیپشنز",module:"reports"},{key:"service-charges-report",to:"/reports/service-charges",label:"Service Charges / سروس چارجز",module:"reports"}]},
+    {key:"operations-reports",label:"Operations / آپریشن رپورٹس",module:"reports",children:[{key:"gate-pass-report",to:"/reports/gate-pass",label:"Gate Pass Report / گیٹ پاس رپورٹ",module:"reports"}]},
   ]},
   {key:"owner",to:"/owner",label:"Owner Control / مالک کنٹرول",icon:Lucide.ShieldCheck,ownerOnly:true},
-  {key:"settings",label:"Settings / سیٹنگز",icon:Lucide.Settings,module:"settings",children:[
-    {key:"company-settings",to:"/settings",label:"Company / کمپنی",end:true,module:"settings"},
-    {key:"tax-settings",to:"/settings/tax",label:"Tax Settings / ٹیکس سیٹنگز",module:"settings"},
-    {key:"document-settings",to:"/settings/documents",label:"Document & Print / ڈاکومنٹ و پرنٹ",module:"settings"},
-    {key:"order-book-settings",to:"/settings/order-book",label:"Order Book Settings / آرڈر بک سیٹنگز",module:"settings"},
-    {key:"gate-pass-settings",to:"/settings/gate-pass",label:"Gate Pass & Weighbridge / گیٹ پاس و کانٹا",module:"settings"},
-  ]},
+  {key:"settings",label:"Settings / سیٹنگز",icon:Lucide.Settings,module:"settings",children:[{key:"company-settings",to:"/settings",label:"Company / کمپنی",end:true,module:"settings"},{key:"tax-settings",to:"/settings/tax",label:"Tax Settings / ٹیکس سیٹنگز",module:"settings"},{key:"document-settings",to:"/settings/documents",label:"Document & Print / ڈاکومنٹ و پرنٹ",module:"settings"},{key:"order-book-settings",to:"/settings/order-book",label:"Order Book Settings / آرڈر بک سیٹنگز",module:"settings"},{key:"gate-pass-settings",to:"/settings/gate-pass",label:"Gate Pass & Weighbridge / گیٹ پاس و کانٹا",module:"settings"}]},
 ];
 
 const labels:Record<string,string>={
-  "/":"Dashboard / ڈیش بورڈ","/owner":"Owner Control / مالک کنٹرول","/master-data":"Items / آئٹمز","/sales":"Sales Invoices / سیلز انوائسز","/sales/order-book":"Sales Order Book / سیلز آرڈر بک","/sales/consolidated":"Consolidated Invoices / مشترکہ انوائسز","/purchase":"Purchase / خریداری","/purchase/consolidated":"Consolidated Purchase / مشترکہ خریداری","/purchase/order-book":"Purchase Order Book / پرچیز آرڈر بک","/godown":"Current Stock / موجودہ اسٹاک","/godown/aging":"Stock Aging / اسٹاک ایجنگ","/production":"Work Orders / ورک آرڈرز","/cutting":"Cutting Orders / کٹنگ آرڈرز","/cutting/gate-pass":"Gate Pass & Weighbridge / گیٹ پاس و وزن کانٹا","/accounting":"Journal Entries / جرنل اندراجات","/accounting/payment-reversals":"Payment Reversals / ادائیگی واپسی","/accounting/vat-register":"VAT Register / وی اے ٹی رجسٹر","/reports/sales-margin":"Sales & Margin / سیلز و مارجن","/reports/sales-register":"Sales Register / سیلز رجسٹر","/reports/purchase-register":"Purchase Register / پرچیز رجسٹر","/reports/customer-aging":"Customer Aging / گاہک ایجنگ","/reports/supplier-aging":"Supplier Aging / سپلائر ایجنگ","/reports/customer-item-history":"Customer Item History / گاہک آئٹم ہسٹری","/reports/supplier-item-history":"Supplier Item History / سپلائر آئٹم ہسٹری","/reports/stock-valuation":"Stock Valuation / اسٹاک ویلیو","/reports/returns-register":"Returns Register / ریٹرنز رجسٹر","/reports/ar-ap-reconciliation":"AR / AP Reconciliation","/reports/exceptions":"Exceptions / ایکسیپشنز","/reports/service-charges":"Service Charges / سروس چارجز","/reports/gate-pass":"Gate Pass Report / گیٹ پاس رپورٹ","/reports":"Reports / رپورٹس","/settings":"Company Settings / کمپنی سیٹنگز","/settings/order-book":"Order Book Settings / آرڈر بک سیٹنگز","/settings/gate-pass":"Gate Pass & Weighbridge Settings / گیٹ پاس و کانٹا سیٹنگز"
+  "/":"Dashboard / ڈیش بورڈ","/owner":"Owner Control / مالک کنٹرول","/master-data":"Items / آئٹمز","/sales":"Sales Invoices / سیلز انوائسز","/sales/order-book":"Sales Order Book / سیلز آرڈر بک","/sales/consolidated":"Consolidated Invoices / مشترکہ انوائسز","/purchase":"Purchase / خریداری","/purchase/consolidated":"Consolidated Purchase / مشترکہ خریداری","/purchase/order-book":"Purchase Order Book / پرچیز آرڈر بک","/godown":"Current Stock / موجودہ اسٹاک","/godown/aging":"Stock Aging / اسٹاک ایجنگ","/production":"Work Orders / ورک آرڈرز","/cutting":"Cutting Orders / کٹنگ آرڈرز","/cutting/gate-pass":"Gate Pass & Weighbridge / گیٹ پاس و وزن کانٹا","/accounting":"Journal Entries / جرنل اندراجات","/accounting/payment-reversals":"Payment Reversals / ادائیگی واپسی","/accounting/vat-register":"VAT Register / وی اے ٹی رجسٹر","/reports/sales-margin":"Sales & Margin / سیلز و مارجن","/reports/sales-register":"Sales Register / سیلز رجسٹر","/reports/purchase-register":"Purchase Register / پرچیز رجسٹر","/reports/customer-aging":"Customer Aging / گاہک ایجنگ","/reports/supplier-aging":"Supplier Aging / سپلائر ایجنگ","/reports/customer-item-history":"Customer Item History / گاہک آئٹم ہسٹری","/reports/supplier-item-history":"Supplier Item History / سپلائر آئٹم ہسٹری","/reports/stock-valuation":"Stock Valuation / اسٹاک ویلیو","/reports/customer-profitability":"Customer Profitability / گاہک منافع","/reports/item-profitability":"Item Profitability / آئٹم منافع","/reports/salesperson-profitability":"Salesperson Profitability / سیلز پرسن منافع","/reports/customer-collections":"Customer Collections / وصولیاں","/reports/supplier-performance":"Supplier Performance / سپلائر کارکردگی","/reports/purchase-price-variance":"Purchase Price Variance / خریداری ریٹ فرق","/reports/inventory-aging":"Inventory Aging / Slow Moving","/reports/inventory-turnover":"Inventory Turnover / اسٹاک ٹرن اوور","/reports/stock-exceptions":"Stock Exceptions / اسٹاک ایکسیپشنز","/reports/business-unit-performance":"Business Unit Performance / بزنس یونٹ","/reports/monthly-mis":"Monthly Business MIS / ماہانہ ایم آئی ایس","/reports/returns-register":"Returns Register / ریٹرنز رجسٹر","/reports/ar-ap-reconciliation":"AR / AP Reconciliation","/reports/exceptions":"Exceptions / ایکسیپشنز","/reports/service-charges":"Service Charges / سروس چارجز","/reports/gate-pass":"Gate Pass Report / گیٹ پاس رپورٹ","/reports":"Reports / رپورٹس","/settings":"Company Settings / کمپنی سیٹنگز","/settings/order-book":"Order Book Settings / آرڈر بک سیٹنگز","/settings/gate-pass":"Gate Pass & Weighbridge Settings / گیٹ پاس و کانٹا سیٹنگز"
 };
 
 function matches(n:NavNode,p:string):boolean{return Boolean(n.to&&(p===n.to||(!n.end&&n.to!=="/"&&p.startsWith(n.to+"/"))))||Boolean(n.children?.some(c=>matches(c,p)))}

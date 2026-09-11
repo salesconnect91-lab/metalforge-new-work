@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { Columns3, FileSpreadsheet, Printer, X } from "lucide-react";
 import * as XLSX from "xlsx";
 import { triggerPrint } from "@/lib/exportUtils";
+import { loadDocumentPrintSettings } from "@/lib/documentPrintSettings";
 
 type ReportSurfaceProps = { children: ReactNode };
 
@@ -15,6 +16,10 @@ export default function ReportSurface({ children }: ReportSurfaceProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [columnsOpen, setColumnsOpen] = useState(false);
   const [columns, setColumns] = useState<ColumnChoice[]>([]);
+
+  useEffect(() => {
+    void loadDocumentPrintSettings("reports").catch(() => undefined);
+  }, []);
 
   const scanColumns = useCallback(() => {
     const root = rootRef.current;

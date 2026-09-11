@@ -9,19 +9,20 @@ const safeName = (value: string) => (value || "NAVILO_Report").replace(/[^a-z0-9
 
 function pageRoot() { return document.querySelector<HTMLElement>("#navilo-main-content"); }
 function buttonTexts(root: HTMLElement) { return Array.from(root.querySelectorAll<HTMLElement>("button,a")).map(el => clean(el.textContent).toLowerCase()); }
+function isGenericPrintLabel(t: string) { return t === "print" || t === "print / pdf" || t.startsWith("print / پرنٹ") || t.startsWith("print / pdf /"); }
 function hasCompleteNativeTools(root: HTMLElement) {
   if (root.querySelector("[data-native-export],[data-report-root]")) return true;
   const texts = buttonTexts(root);
   const hasExcel = texts.some(t => /(^|\s)excel(\s|$)|export excel/.test(t));
   const hasCsv = texts.some(t => /(^|\s)csv(\s|$)/.test(t));
   const hasWord = texts.some(t => /(^|\s)word(\s|$)/.test(t));
-  const hasPrint = texts.some(t => /^print(\s*\/\s*pdf)?$|^print\s*\/\s*pdf/.test(t));
+  const hasPrint = texts.some(isGenericPrintLabel);
   return hasExcel && hasCsv && hasWord && hasPrint;
 }
 function isLegacyExportControl(el: HTMLElement) {
   if (el.closest("table,[role=dialog],.modal")) return false;
   const t = clean(el.textContent).toLowerCase();
-  return /^export excel\b/.test(t) || /^excel(?:\s|$)/.test(t) || /^export csv\b/.test(t) || /^csv(?:\s|$)/.test(t) || /^word(?:\s|$)/.test(t) || /^print(?:\s*\/\s*pdf)?(?:\s|$)/.test(t);
+  return /^export excel\b/.test(t) || /^excel(?:\s|$)/.test(t) || /^export csv\b/.test(t) || /^csv(?:\s|$)/.test(t) || /^word(?:\s|$)/.test(t) || isGenericPrintLabel(t);
 }
 
 export default function UniversalDataTools() {

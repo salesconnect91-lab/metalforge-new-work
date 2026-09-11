@@ -103,6 +103,7 @@ export default function SupplierPaymentPanel() {
           .eq("is_active", true)
           .eq("is_group", false)
           .eq("allow_manual_entries", true)
+          .in("detail_type", ["Cash on Hand", "Bank Account"])
           .order("code"),
       ]);
 
@@ -464,7 +465,7 @@ export default function SupplierPaymentPanel() {
 
                 <div>
                   <div class="label">
-                    Cash / Bank Account
+                    Payment Account
                   </div>
 
                   <div class="value">
@@ -756,7 +757,7 @@ export default function SupplierPaymentPanel() {
           receipt.payment_method,
         ],
         [
-          "Cash / Bank Account",
+          "Payment Account",
           receipt.account,
         ],
       ];
@@ -947,7 +948,7 @@ export default function SupplierPaymentPanel() {
     }
 
     if (!accountId) {
-      setError("Select Cash / Bank account.");
+      setError("Select Payment Account.");
       return;
     }
 
@@ -1075,7 +1076,7 @@ export default function SupplierPaymentPanel() {
             New Supplier Payment / نئی سپلائر ادائیگی
           </h2>
           <p className="mt-0.5 text-xs text-slate-500">
-            Supplier → Purchase Invoice → Cash/Bank → Pay & Post
+            Supplier → Purchase Invoice → Payment Account → Pay & Post
           </p>
         </div>
 
@@ -1163,14 +1164,14 @@ export default function SupplierPaymentPanel() {
 
           <div>
             <label className="mb-1.5 block text-xs font-semibold">
-              Cash / Bank Account
+              Payment Account / ادائیگی اکاؤنٹ
             </label>
             <SearchableSelect
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
               className="h-10 w-full rounded-lg border border-slate-200 px-3"
             >
-              <option value="">Select account</option>
+              <option value="">Select payment account</option>
               {accounts.map((account) => (
                 <option key={account.id} value={account.id}>
                   {account.code} — {account.name}

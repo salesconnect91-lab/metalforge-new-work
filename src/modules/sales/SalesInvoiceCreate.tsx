@@ -38,7 +38,7 @@ type Item = {
 };
 
 type Godown = { id: string; name: string; name_urdu?: string | null };
-type SalesPerson = { id: string; name: string; code?: string | null };
+type SalesPerson = { id: string; name: string; employee_code?: string | null; designation?: string | null; department?: string | null };
 
 type ChargeMaster = {
   id: string;
@@ -150,7 +150,7 @@ export default function SalesInvoiceCreate() {
       supabase.from("customers").select("id,name,name_urdu,address,phone,email,ntn,strn,cnic,tax_registration_status").eq("is_active", true).order("name"),
       supabase.from("items").select("id,name,name_urdu,sku,grade,size,unit,price,weight_per_piece").order("name"),
       supabase.from("godowns").select("id,name,name_urdu").order("name"),
-      supabase.from("chart_of_accounts").select("id,name,code").eq("account_role", "sales_person").eq("is_active", true).eq("is_group", false).order("name"),
+      supabase.from("employees").select("id,name,employee_code,designation,department").eq("is_active", true).order("name"),
       supabase.from("charge_master").select("id,charge_key,charge_name,default_rate,unit,tax_applicable,is_fixed,revenue_account_id,cost_account_id").eq("is_active", true).in("applies_to", ["sales", "both"]).order("charge_name"),
       supabase.from("tax_rates").select("rate").eq("is_active", true).eq("is_fixed", true).in("applies_to", ["sales", "both"]).order("created_at").limit(1).maybeSingle(),
       supabase.from("company_settings").select("*").maybeSingle(),
@@ -198,7 +198,7 @@ export default function SalesInvoiceCreate() {
     setInvoiceDate(header.order_date || today());
     setInvoiceType(canonicalType);
     setCustomerId(header.customer_id || "");
-    setSalesPersonId(header.sales_person_account_id || "");
+    setSalesPersonId("");
     setSalesPerson(header.sales_person || "");
     setReferenceName(header.reference_name || "");
     setReferenceNo(header.reference_no || "");
@@ -237,6 +237,12 @@ export default function SalesInvoiceCreate() {
       }
     })();
   }, [loadBaseData, loadEditingInvoice]);
+
+  useEffect(() => {
+    if (!salesPerson || salesPersonId || !salesPersons.length) return;
+    const match = salesPersons.find((row) => row.name.trim().toLowerCase() === salesPerson.trim().toLowerCase());
+    if (match) setSalesPersonId(match.id);
+  }, [salesPerson, salesPersonId, salesPersons]);
 
   useEffect(() => {
     if (!customerId) {
@@ -336,6 +342,7 @@ export default function SalesInvoiceCreate() {
       return;
     }
     if (!customerId) return setError("Select a customer.");
+    if (!salesPersonId || !salesPerson) return setError("Select a sales person from Employee Master.");
     if (invoiceType === "Tax Invoice" && !configuredTaxRate) return setError("Configure one active fixed Sales/Both tax rate in Tax Settings before using With Tax.");
 
     const validRows = rows.filter((row) => row.item_id && Number(row.qty) > 0);
@@ -347,8 +354,8 @@ export default function SalesInvoiceCreate() {
     try {
       const headerPayload = {
         customer_id: customerId,
-        sales_person: salesPerson || null,
-        sales_person_account_id: salesPersonId || null,
+        sales_person: salesPerson,
+        sales_person_account_id: null,
         order_date: invoiceDate,
         status: "draft",
         total: Number(grandTotal.toFixed(2)),
@@ -491,7 +498,7 @@ export default function SalesInvoiceCreate() {
           <div><label className="label">Invoice Date</label><input className="input" type="date" disabled={isLocked} value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} /></div>
           <div><label className="label">Fixed VAT %</label><input className="input bg-slate-50 text-right" readOnly value={invoiceType === "Tax Invoice" ? configuredTaxRate || "Not configured" : "0"} /></div>
           <div><label className="label">Customer</label><SearchableSelect className="input" disabled={isLocked} value={customerId} onChange={(e) => setCustomerId(e.target.value)}><option value="">— Select customer —</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}{customer.name_urdu ? ` / ${customer.name_urdu}` : ""}</option>)}</SearchableSelect></div>
-          <div><label className="label">Sales Person</label><SearchableSelect className="input" disabled={isLocked} value={salesPersonId} onChange={(e) => { const nextId = e.target.value; setSalesPersonId(nextId); setSalesPerson(salesPersons.find((row) => row.id === nextId)?.name || ""); }}><option value="">— Select sales person —</option>{salesPersons.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</SearchableSelect></div>
+          <div><label className="label">Sales Person</label><SearchableSelect className="input" disabled={isLocked} value={salesPersonId} onChange={(e) => { const nextId = e.target.value; const selected = salesPersons.find((row) => row.id === nextId); setSalesPersonId(nextId); setSalesPerson(selected?.name || ""); }}><option value="">— Select sales person —</option>{salesPersons.map((person) => <option key={person.id} value={person.id}>{person.name}{person.employee_code ? ` · ${person.employee_code}` : ""}{person.designation ? ` · ${person.designation}` : ""}</option>)}</SearchableSelect></div>
           <div><label className="label">Reference Name</label><input className="input" disabled={isLocked} value={referenceName} onChange={(e) => setReferenceName(e.target.value)} /></div>
           <div><label className="label">Reference No.</label><input className="input" disabled={isLocked} value={referenceNo} onChange={(e) => setReferenceNo(e.target.value)} /></div>
           <div className="sm:col-span-2 xl:col-span-4"><label className="label">Remarks</label><input className="input" disabled={isLocked} value={referenceNotes} onChange={(e) => setReferenceNotes(e.target.value)} /></div>
@@ -532,7 +539,7 @@ export default function SalesInvoiceCreate() {
             normalInvoiceTotal={normalInvoiceTotal}
             hawalaDocuments={selectedHawalaInvoices.map((row) => ({ id: row.id, invoiceNo: row.invoice_no, invoiceDate: row.invoice_date, referenceName: row.reference_name, referenceNo: row.reference_no, referenceNotes: row.reference_notes, amount: Number(row.total) || 0 }))}
             grandTotal={grandTotal}
-            extraFields={[{ label: "Sales Person", value: salesPerson || "—" }, { label: "Reference", value: [referenceName, referenceNo].filter(Boolean).join(" · ") || "—" }]}
+            extraFields={[{ label: "Sales Person / سیلز مین", value: salesPerson || "—" }, { label: "Reference", value: [referenceName, referenceNo].filter(Boolean).join(" · ") || "—" }]}
             documentHeader={companyPrint.document_header || undefined}
             documentHeaderUrdu={companyPrint.document_header_urdu || undefined}
             documentFooter={companyPrint.document_footer || undefined}

@@ -12,7 +12,6 @@ type RuntimeLanguage = {
 };
 
 type Translation = { ur?: string; ar?: string };
-
 type UiLanguage = "en" | "ur" | "ar";
 
 const ENGLISH_ONLY: RuntimeLanguage = {
@@ -24,295 +23,289 @@ const ENGLISH_ONLY: RuntimeLanguage = {
   documentSecondary: null,
 };
 
-const UI_TRANSLATIONS: Record<string, Translation> = {
-  "Dashboard": { ur: "ڈیش بورڈ", ar: "لوحة التحكم" },
-  "Business Overview": { ur: "کاروباری خلاصہ", ar: "نظرة عامة على الأعمال" },
-  "Master Data": { ur: "ماسٹر ڈیٹا", ar: "البيانات الأساسية" },
-  "Items": { ur: "آئٹمز", ar: "الأصناف" },
-  "Item": { ur: "آئٹم", ar: "الصنف" },
-  "Categories": { ur: "کیٹیگریز", ar: "الفئات" },
-  "Category": { ur: "کیٹیگری", ar: "الفئة" },
-  "Customers": { ur: "گاہک", ar: "العملاء" },
-  "Customer": { ur: "گاہک", ar: "العميل" },
-  "Suppliers": { ur: "سپلائرز", ar: "الموردون" },
-  "Supplier": { ur: "سپلائر", ar: "المورد" },
-  "Employees": { ur: "ملازمین", ar: "الموظفون" },
-  "Employee": { ur: "ملازم", ar: "الموظف" },
-  "Warehouses": { ur: "ویئرہاؤسز", ar: "المستودعات" },
-  "Warehouse": { ur: "ویئرہاؤس", ar: "المستودع" },
-  "Godowns": { ur: "گودام", ar: "المخازن" },
-  "Godown": { ur: "گودام", ar: "المخزن" },
-  "Units of Measure": { ur: "پیمائشی اکائیاں", ar: "وحدات القياس" },
-  "Unit of Measure": { ur: "پیمائشی اکائی", ar: "وحدة القياس" },
-  "Transporters": { ur: "ٹرانسپورٹرز", ar: "الناقلون" },
-  "Transporter": { ur: "ٹرانسپورٹر", ar: "الناقل" },
-  "Charge Master": { ur: "چارج ماسٹر", ar: "دليل الرسوم" },
-  "Sales": { ur: "سیلز", ar: "المبيعات" },
-  "Sales Invoices": { ur: "سیلز انوائسز", ar: "فواتير المبيعات" },
-  "Sales Invoice": { ur: "سیلز انوائس", ar: "فاتورة المبيعات" },
-  "New Sales Invoice": { ur: "نئی سیلز انوائس", ar: "فاتورة مبيعات جديدة" },
-  "Sales Order Book": { ur: "سیلز آرڈر بک", ar: "سجل أوامر المبيعات" },
-  "Consolidated Invoices": { ur: "مشترکہ انوائسز", ar: "الفواتير المجمعة" },
-  "Purchase": { ur: "خریداری", ar: "المشتريات" },
-  "Purchases": { ur: "خریداریاں", ar: "المشتريات" },
-  "Purchase Invoices": { ur: "خریداری انوائسز", ar: "فواتير المشتريات" },
-  "Purchase Invoice": { ur: "خریداری انوائس", ar: "فاتورة المشتريات" },
-  "New Purchase": { ur: "نئی خریداری", ar: "عملية شراء جديدة" },
-  "Consolidated Purchase": { ur: "مشترکہ خریداری", ar: "المشتريات المجمعة" },
-  "Purchase Order Book": { ur: "پرچیز آرڈر بک", ar: "سجل أوامر الشراء" },
-  "Inventory": { ur: "اسٹاک", ar: "المخزون" },
-  "Inventory / Stock": { ur: "اسٹاک", ar: "المخزون" },
-  "Current Stock": { ur: "موجودہ اسٹاک", ar: "المخزون الحالي" },
-  "Stock Movements": { ur: "اسٹاک موومنٹس", ar: "حركات المخزون" },
-  "Stock Movement": { ur: "اسٹاک موومنٹ", ar: "حركة المخزون" },
-  "Production": { ur: "پیداوار", ar: "الإنتاج" },
-  "Production / Furnace & Mill": { ur: "پیداوار / فرنس و مل", ar: "الإنتاج / الفرن والدرفلة" },
-  "Work Orders": { ur: "ورک آرڈرز", ar: "أوامر العمل" },
-  "Work Order": { ur: "ورک آرڈر", ar: "أمر العمل" },
-  "Furnace Yield": { ur: "فرنس پیداوار", ar: "إنتاجية الفرن" },
-  "Cutting & Loading": { ur: "کٹنگ و لوڈنگ", ar: "القطع والتحميل" },
-  "Cutting Orders": { ur: "کٹنگ آرڈرز", ar: "أوامر القطع" },
-  "Cutting Order": { ur: "کٹنگ آرڈر", ar: "أمر القطع" },
-  "Gate Pass & Weighbridge": { ur: "گیٹ پاس و وزن کانٹا", ar: "تصريح البوابة والميزان" },
-  "Gate Pass": { ur: "گیٹ پاس", ar: "تصريح البوابة" },
-  "Accounting": { ur: "اکاؤنٹنگ", ar: "المحاسبة" },
-  "Transactions": { ur: "لین دین", ar: "المعاملات" },
-  "Journal Entries": { ur: "جرنل اندراجات", ar: "قيود اليومية" },
-  "Journal Entry": { ur: "جرنل اندراج", ar: "قيد اليومية" },
-  "Cash Counter": { ur: "کیش کاؤنٹر", ar: "الصندوق النقدي" },
-  "Payment Reversals": { ur: "ادائیگی واپسی", ar: "عكس المدفوعات" },
-  "Credit / Debit Notes": { ur: "کریڈٹ / ڈیبٹ نوٹس", ar: "إشعارات الدائن / المدين" },
-  "Return Notes": { ur: "ریٹرن نوٹس", ar: "إشعارات المرتجعات" },
-  "Return Note": { ur: "ریٹرن نوٹ", ar: "إشعار مرتجع" },
-  "Books & Registers": { ur: "بکس و رجسٹر", ar: "الدفاتر والسجلات" },
-  "VAT Register": { ur: "وی اے ٹی رجسٹر", ar: "سجل ضريبة القيمة المضافة" },
-  "Day Book": { ur: "روزنامچہ", ar: "دفتر اليومية" },
-  "General Ledgers": { ur: "جنرل لیجر", ar: "دفاتر الأستاذ العام" },
-  "General Ledger": { ur: "جنرل لیجر", ar: "دفتر الأستاذ العام" },
-  "Bank Reconciliation": { ur: "بینک ریکنسیلی ایشن", ar: "تسوية البنك" },
-  "Financial Statements": { ur: "مالی بیانات", ar: "القوائم المالية" },
-  "Trial Balance": { ur: "ٹرائل بیلنس", ar: "ميزان المراجعة" },
-  "Profit & Loss": { ur: "نفع و نقصان", ar: "الأرباح والخسائر" },
-  "Balance Sheet": { ur: "بیلنس شیٹ", ar: "الميزانية العمومية" },
-  "Cash Flow": { ur: "کیش فلو", ar: "التدفق النقدي" },
-  "Controls & Closing": { ur: "کنٹرول و کلوزنگ", ar: "الضوابط والإقفال" },
-  "Period Closing": { ur: "پیریڈ کلوزنگ", ar: "إقفال الفترة" },
-  "Year Closing": { ur: "سالانہ اختتام", ar: "الإقفال السنوي" },
-  "Financial Controls": { ur: "مالی کنٹرولز", ar: "الضوابط المالية" },
-  "Audit Trail": { ur: "آڈٹ ٹریل", ar: "سجل التدقيق" },
-  "Accounting Setup": { ur: "اکاؤنٹنگ سیٹ اپ", ar: "إعداد المحاسبة" },
-  "Chart of Accounts": { ur: "چارٹ آف اکاؤنٹس", ar: "دليل الحسابات" },
-  "Account Mapping": { ur: "اکاؤنٹ میپنگ", ar: "ربط الحسابات" },
-  "Reports": { ur: "رپورٹس", ar: "التقارير" },
-  "Sales & Customer": { ur: "سیلز و گاہک", ar: "المبيعات والعملاء" },
-  "Sales & Margin": { ur: "سیلز و مارجن", ar: "المبيعات والهامش" },
-  "Sales Register": { ur: "سیلز رجسٹر", ar: "سجل المبيعات" },
-  "Customer Aging": { ur: "گاہک ایجنگ", ar: "أعمار ديون العملاء" },
-  "Customer Item History": { ur: "گاہک آئٹم ہسٹری", ar: "سجل أصناف العميل" },
-  "Salesperson Performance": { ur: "سیلز پرسن کارکردگی", ar: "أداء مندوب المبيعات" },
-  "Customer Statement": { ur: "گاہک اسٹیٹمنٹ", ar: "كشف حساب العميل" },
-  "Purchase & Supplier": { ur: "خریداری و سپلائر", ar: "المشتريات والموردون" },
-  "Purchase Register": { ur: "پرچیز رجسٹر", ar: "سجل المشتريات" },
-  "Supplier Aging": { ur: "سپلائر ایجنگ", ar: "أعمار ديون الموردين" },
-  "Supplier Item History": { ur: "سپلائر آئٹم ہسٹری", ar: "سجل أصناف المورد" },
-  "Inventory Reports": { ur: "اسٹاک رپورٹس", ar: "تقارير المخزون" },
-  "Stock Valuation": { ur: "اسٹاک ویلیو", ar: "تقييم المخزون" },
-  "Stock Aging": { ur: "اسٹاک ایجنگ", ar: "أعمار المخزون" },
-  "Steel Stock Control": { ur: "اسٹیل اسٹاک کنٹرول", ar: "التحكم في مخزون الحديد" },
-  "Customer Profitability": { ur: "گاہک منافع", ar: "ربحية العملاء" },
-  "Item Profitability": { ur: "آئٹم منافع", ar: "ربحية الأصناف" },
-  "Salesperson Profitability": { ur: "سیلز پرسن منافع", ar: "ربحية مندوب المبيعات" },
-  "Customer Collection Performance": { ur: "گاہک وصولی کارکردگی", ar: "أداء تحصيل العملاء" },
-  "Supplier Performance": { ur: "سپلائر کارکردگی", ar: "أداء الموردين" },
-  "Purchase Price Variance": { ur: "پرچیز ریٹ فرق", ar: "انحراف سعر الشراء" },
-  "Inventory Aging / Slow Moving": { ur: "اسٹاک ایجنگ / سست رفتار", ar: "أعمار المخزون / بطيء الحركة" },
-  "Inventory Turnover": { ur: "اسٹاک ٹرن اوور", ar: "دوران المخزون" },
-  "Stock Exceptions": { ur: "اسٹاک مسائل", ar: "استثناءات المخزون" },
-  "Business Unit Performance": { ur: "بزنس یونٹ کارکردگی", ar: "أداء وحدة الأعمال" },
-  "Monthly Business Performance / MIS": { ur: "ماہانہ کاروباری کارکردگی / MIS", ar: "الأداء الشهري للأعمال / MIS" },
-  "Control & Reconciliation": { ur: "کنٹرول و ریکنسیلی ایشن", ar: "الرقابة والتسويات" },
-  "Returns Register": { ur: "ریٹرنز رجسٹر", ar: "سجل المرتجعات" },
-  "AR / AP Reconciliation": { ur: "اے آر / اے پی ریکنسیلی ایشن", ar: "تسوية العملاء / الموردين" },
-  "Exceptions": { ur: "ایکسیپشنز", ar: "الاستثناءات" },
-  "Service Charges": { ur: "سروس چارجز", ar: "رسوم الخدمات" },
-  "Operations": { ur: "آپریشنز", ar: "العمليات" },
-  "Gate Pass Report": { ur: "گیٹ پاس رپورٹ", ar: "تقرير تصريح البوابة" },
-  "Owner Control": { ur: "مالک کنٹرول", ar: "تحكم المالك" },
-  "Settings": { ur: "سیٹنگز", ar: "الإعدادات" },
-  "Company": { ur: "کمپنی", ar: "الشركة" },
-  "Company Settings": { ur: "کمپنی سیٹنگز", ar: "إعدادات الشركة" },
-  "Tax Settings": { ur: "ٹیکس سیٹنگز", ar: "إعدادات الضريبة" },
-  "Document & Print": { ur: "ڈاکومنٹ و پرنٹ", ar: "المستندات والطباعة" },
-  "Document & Print Settings": { ur: "ڈاکومنٹ و پرنٹ سیٹنگز", ar: "إعدادات المستندات والطباعة" },
-  "Order Book Settings": { ur: "آرڈر بک سیٹنگز", ar: "إعدادات سجل الطلبات" },
-  "Language Settings": { ur: "زبان کی سیٹنگز", ar: "إعدادات اللغة" },
-  "Screen Language": { ur: "اسکرین زبان", ar: "لغة الشاشة" },
-  "Document Language": { ur: "دستاویز کی زبان", ar: "لغة المستند" },
-  "Single Language": { ur: "ایک زبان", ar: "لغة واحدة" },
-  "Bilingual": { ur: "دو زبانیں", ar: "ثنائي اللغة" },
-  "Primary Language": { ur: "بنیادی زبان", ar: "اللغة الأساسية" },
-  "Secondary Language": { ur: "ثانوی زبان", ar: "اللغة الثانوية" },
-  "English": { ur: "انگریزی", ar: "الإنجليزية" },
-  "Urdu": { ur: "اردو", ar: "الأردية" },
-  "Arabic": { ur: "عربی", ar: "العربية" },
-  "Back": { ur: "واپس", ar: "رجوع" },
-  "Sign out": { ur: "لاگ آؤٹ", ar: "تسجيل الخروج" },
-  "Active Company": { ur: "فعال کمپنی", ar: "الشركة النشطة" },
-  "Refresh": { ur: "تازہ کریں", ar: "تحديث" },
-  "Reset": { ur: "ری سیٹ", ar: "إعادة ضبط" },
-  "Search": { ur: "تلاش", ar: "بحث" },
-  "Save": { ur: "محفوظ کریں", ar: "حفظ" },
-  "Save Settings": { ur: "سیٹنگز محفوظ کریں", ar: "حفظ الإعدادات" },
-  "Loading…": { ur: "لوڈ ہو رہا ہے…", ar: "جارٍ التحميل…" },
-  "Loading...": { ur: "لوڈ ہو رہا ہے...", ar: "جارٍ التحميل..." },
-  "Saving...": { ur: "محفوظ ہو رہا ہے...", ar: "جارٍ الحفظ..." },
-  "No data found": { ur: "کوئی ڈیٹا نہیں ملا", ar: "لم يتم العثور على بيانات" },
-  "No records found": { ur: "کوئی ریکارڈ نہیں ملا", ar: "لم يتم العثور على سجلات" },
-  "No result found": { ur: "کوئی نتیجہ نہیں ملا", ar: "لم يتم العثور على نتيجة" },
-  "Are you sure?": { ur: "کیا آپ کو یقین ہے؟", ar: "هل أنت متأكد؟" },
-  "Add": { ur: "شامل کریں", ar: "إضافة" },
-  "Edit": { ur: "ترمیم", ar: "تعديل" },
-  "Delete": { ur: "حذف کریں", ar: "حذف" },
-  "Cancel": { ur: "منسوخ", ar: "إلغاء" },
-  "Close": { ur: "بند کریں", ar: "إغلاق" },
-  "Create": { ur: "بنائیں", ar: "إنشاء" },
-  "Update": { ur: "اپ ڈیٹ", ar: "تحديث" },
-  "Apply": { ur: "لاگو کریں", ar: "تطبيق" },
-  "Clear": { ur: "صاف کریں", ar: "مسح" },
-  "Export": { ur: "ایکسپورٹ", ar: "تصدير" },
-  "Print": { ur: "پرنٹ", ar: "طباعة" },
-  "Print Preview": { ur: "پرنٹ پیش نظارہ", ar: "معاينة الطباعة" },
-  "PDF": { ur: "پی ڈی ایف", ar: "PDF" },
-  "Excel": { ur: "ایکسل", ar: "Excel" },
-  "New": { ur: "نیا", ar: "جديد" },
-  "View": { ur: "دیکھیں", ar: "عرض" },
-  "Details": { ur: "تفصیلات", ar: "التفاصيل" },
-  "Actions": { ur: "کارروائیاں", ar: "الإجراءات" },
-  "Status": { ur: "حالت", ar: "الحالة" },
-  "Draft": { ur: "مسودہ", ar: "مسودة" },
-  "Posted": { ur: "پوسٹ شدہ", ar: "مرحّل" },
-  "Pending": { ur: "زیر التوا", ar: "قيد الانتظار" },
-  "Approved": { ur: "منظور شدہ", ar: "معتمد" },
-  "Rejected": { ur: "مسترد", ar: "مرفوض" },
-  "Completed": { ur: "مکمل", ar: "مكتمل" },
-  "Closed": { ur: "بند", ar: "مغلق" },
-  "Active": { ur: "فعال", ar: "نشط" },
-  "Inactive": { ur: "غیر فعال", ar: "غير نشط" },
-  "Date": { ur: "تاریخ", ar: "التاريخ" },
-  "From Date": { ur: "تاریخ سے", ar: "من تاريخ" },
-  "To Date": { ur: "تاریخ تک", ar: "إلى تاريخ" },
-  "Reference": { ur: "حوالہ", ar: "المرجع" },
-  "Description": { ur: "تفصیل", ar: "الوصف" },
-  "Notes": { ur: "نوٹس", ar: "ملاحظات" },
-  "Amount": { ur: "رقم", ar: "المبلغ" },
-  "Total": { ur: "کل", ar: "الإجمالي" },
-  "Grand Total": { ur: "مجموعی کل", ar: "الإجمالي العام" },
-  "Subtotal": { ur: "ذیلی کل", ar: "المجموع الفرعي" },
-  "Tax": { ur: "ٹیکس", ar: "الضريبة" },
-  "VAT": { ur: "وی اے ٹی", ar: "ضريبة القيمة المضافة" },
-  "Discount": { ur: "رعایت", ar: "الخصم" },
-  "Charges": { ur: "چارجز", ar: "الرسوم" },
-  "Quantity": { ur: "مقدار", ar: "الكمية" },
-  "Qty": { ur: "مقدار", ar: "الكمية" },
-  "Rate": { ur: "ریٹ", ar: "السعر" },
-  "Price": { ur: "قیمت", ar: "السعر" },
-  "Cost": { ur: "لاگت", ar: "التكلفة" },
-  "Unit": { ur: "اکائی", ar: "الوحدة" },
-  "Name": { ur: "نام", ar: "الاسم" },
-  "Code": { ur: "کوڈ", ar: "الرمز" },
-  "SKU": { ur: "ایس کے یو", ar: "SKU" },
-  "Grade": { ur: "گریڈ", ar: "الدرجة" },
-  "Size": { ur: "سائز", ar: "المقاس" },
-  "Weight": { ur: "وزن", ar: "الوزن" },
-  "Vehicle": { ur: "گاڑی", ar: "المركبة" },
-  "Vehicle No": { ur: "گاڑی نمبر", ar: "رقم المركبة" },
-  "Driver": { ur: "ڈرائیور", ar: "السائق" },
-  "Salesperson": { ur: "سیلز پرسن", ar: "مندوب المبيعات" },
-  "Payment": { ur: "ادائیگی", ar: "الدفع" },
-  "Receipt": { ur: "وصولی", ar: "الإيصال" },
-  "Payment Method": { ur: "ادائیگی کا طریقہ", ar: "طريقة الدفع" },
-  "Cash": { ur: "نقد", ar: "نقد" },
-  "Bank": { ur: "بینک", ar: "البنك" },
-  "Credit": { ur: "کریڈٹ", ar: "دائن" },
-  "Debit": { ur: "ڈیبٹ", ar: "مدين" },
-  "Balance": { ur: "بیلنس", ar: "الرصيد" },
-  "Opening Balance": { ur: "ابتدائی بیلنس", ar: "الرصيد الافتتاحي" },
-  "Closing Balance": { ur: "اختتامی بیلنس", ar: "الرصيد الختامي" },
-  "Outstanding": { ur: "بقایا", ar: "المستحق" },
-  "Due Date": { ur: "واجب الادا تاریخ", ar: "تاريخ الاستحقاق" },
-  "Invoice": { ur: "انوائس", ar: "الفاتورة" },
-  "Invoice No": { ur: "انوائس نمبر", ar: "رقم الفاتورة" },
-  "Order No": { ur: "آرڈر نمبر", ar: "رقم الطلب" },
-  "Purchase Order": { ur: "پرچیز آرڈر", ar: "أمر الشراء" },
-  "Account": { ur: "اکاؤنٹ", ar: "الحساب" },
-  "Accounts": { ur: "اکاؤنٹس", ar: "الحسابات" },
-  "Debit Balance": { ur: "ڈیبٹ بیلنس", ar: "الرصيد المدين" },
-  "Credit Balance": { ur: "کریڈٹ بیلنس", ar: "الرصيد الدائن" },
-  "Phone": { ur: "فون", ar: "الهاتف" },
-  "Email": { ur: "ای میل", ar: "البريد الإلكتروني" },
-  "Address": { ur: "پتہ", ar: "العنوان" },
-  "Location": { ur: "مقام", ar: "الموقع" },
-  "Branch": { ur: "برانچ", ar: "الفرع" },
-  "Business Unit": { ur: "بزنس یونٹ", ar: "وحدة الأعمال" },
-  "Search results": { ur: "تلاش کے نتائج", ar: "نتائج البحث" },
-  "Show": { ur: "دکھائیں", ar: "إظهار" },
-  "Hide": { ur: "چھپائیں", ar: "إخفاء" },
-  "Show All": { ur: "سب دکھائیں", ar: "إظهار الكل" },
-  "Customize": { ur: "ترتیب", ar: "تخصيص" },
-  "Filters": { ur: "فلٹرز", ar: "عوامل التصفية" },
-  "Filter": { ur: "فلٹر", ar: "تصفية" },
-  "All": { ur: "سب", ar: "الكل" },
-  "Yes": { ur: "ہاں", ar: "نعم" },
-  "No": { ur: "نہیں", ar: "لا" },
-  "Required": { ur: "ضروری", ar: "مطلوب" },
-  "Optional": { ur: "اختیاری", ar: "اختياري" },
-  "Type": { ur: "قسم", ar: "النوع" },
-  "Mode": { ur: "موڈ", ar: "الوضع" },
-  "Currency": { ur: "کرنسی", ar: "العملة" },
-  "Print Date": { ur: "پرنٹ تاریخ", ar: "تاريخ الطباعة" },
-  "Page": { ur: "صفحہ", ar: "الصفحة" },
-  "Page Size": { ur: "صفحہ سائز", ar: "حجم الصفحة" },
-  "Orientation": { ur: "سمت", ar: "الاتجاه" },
-  "Portrait": { ur: "عمودی", ar: "عمودي" },
-  "Landscape": { ur: "افقی", ar: "أفقي" },
-  "Logo": { ur: "لوگو", ar: "الشعار" },
-  "Header": { ur: "ہیڈر", ar: "الرأس" },
-  "Footer": { ur: "فوٹر", ar: "التذييل" },
-  "Signature": { ur: "دستخط", ar: "التوقيع" },
-  "Prepared By": { ur: "تیار کردہ", ar: "أعده" },
-  "Checked By": { ur: "جانچ کردہ", ar: "راجعه" },
-  "Approved By": { ur: "منظور کردہ", ar: "اعتمده" },
-};
+const phrase = (en: string, ur: string, ar: string): [string, Translation] => [en, { ur, ar }];
 
-const WORD_TRANSLATIONS: Record<string, Translation> = {
-  add:{ur:"شامل",ar:"إضافة"}, edit:{ur:"ترمیم",ar:"تعديل"}, delete:{ur:"حذف",ar:"حذف"}, remove:{ur:"ہٹائیں",ar:"إزالة"}, save:{ur:"محفوظ",ar:"حفظ"}, cancel:{ur:"منسوخ",ar:"إلغاء"}, close:{ur:"بند",ar:"إغلاق"}, open:{ur:"کھولیں",ar:"فتح"}, create:{ur:"بنائیں",ar:"إنشاء"}, update:{ur:"اپ ڈیٹ",ar:"تحديث"}, apply:{ur:"لاگو",ar:"تطبيق"}, clear:{ur:"صاف",ar:"مسح"}, reset:{ur:"ری سیٹ",ar:"إعادة ضبط"}, refresh:{ur:"تازہ کریں",ar:"تحديث"}, search:{ur:"تلاش",ar:"بحث"}, select:{ur:"منتخب",ar:"اختيار"}, choose:{ur:"منتخب کریں",ar:"اختيار"}, view:{ur:"دیکھیں",ar:"عرض"}, details:{ur:"تفصیلات",ar:"التفاصيل"}, print:{ur:"پرنٹ",ar:"طباعة"}, preview:{ur:"پیش نظارہ",ar:"معاينة"}, export:{ur:"ایکسپورٹ",ar:"تصدير"}, download:{ur:"ڈاؤن لوڈ",ar:"تنزيل"}, upload:{ur:"اپ لوڈ",ar:"رفع"}, import:{ur:"امپورٹ",ar:"استيراد"}, duplicate:{ur:"نقل",ar:"تكرار"}, copy:{ur:"کاپی",ar:"نسخ"}, confirm:{ur:"تصدیق",ar:"تأكيد"}, approve:{ur:"منظور",ar:"اعتماد"}, post:{ur:"پوسٹ",ar:"ترحيل"}, reverse:{ur:"واپس",ar:"عكس"}, continue:{ur:"جاری",ar:"متابعة"}, submit:{ur:"جمع",ar:"إرسال"},
-  new:{ur:"نیا",ar:"جديد"}, all:{ur:"سب",ar:"الكل"}, active:{ur:"فعال",ar:"نشط"}, inactive:{ur:"غیر فعال",ar:"غير نشط"}, draft:{ur:"مسودہ",ar:"مسودة"}, posted:{ur:"پوسٹ شدہ",ar:"مرحّل"}, pending:{ur:"زیر التوا",ar:"قيد الانتظار"}, completed:{ur:"مکمل",ar:"مكتمل"}, closed:{ur:"بند",ar:"مغلق"}, cancelled:{ur:"منسوخ",ar:"ملغى"}, approved:{ur:"منظور شدہ",ar:"معتمد"}, rejected:{ur:"مسترد",ar:"مرفوض"}, status:{ur:"حالت",ar:"الحالة"}, type:{ur:"قسم",ar:"النوع"}, mode:{ur:"موڈ",ar:"الوضع"}, required:{ur:"ضروری",ar:"مطلوب"}, optional:{ur:"اختیاری",ar:"اختياري"},
-  name:{ur:"نام",ar:"الاسم"}, code:{ur:"کوڈ",ar:"الرمز"}, number:{ur:"نمبر",ar:"الرقم"}, no:{ur:"نمبر",ar:"رقم"}, date:{ur:"تاریخ",ar:"التاريخ"}, time:{ur:"وقت",ar:"الوقت"}, from:{ur:"سے",ar:"من"}, to:{ur:"تک",ar:"إلى"}, reference:{ur:"حوالہ",ar:"المرجع"}, description:{ur:"تفصیل",ar:"الوصف"}, note:{ur:"نوٹ",ar:"ملاحظة"}, notes:{ur:"نوٹس",ar:"ملاحظات"}, reason:{ur:"وجہ",ar:"السبب"}, remarks:{ur:"ریمارکس",ar:"ملاحظات"},
-  item:{ur:"آئٹم",ar:"الصنف"}, items:{ur:"آئٹمز",ar:"الأصناف"}, customer:{ur:"گاہک",ar:"العميل"}, customers:{ur:"گاہک",ar:"العملاء"}, supplier:{ur:"سپلائر",ar:"المورد"}, suppliers:{ur:"سپلائرز",ar:"الموردون"}, employee:{ur:"ملازم",ar:"الموظف"}, employees:{ur:"ملازمین",ar:"الموظفون"}, warehouse:{ur:"ویئرہاؤس",ar:"المستودع"}, warehouses:{ur:"ویئرہاؤسز",ar:"المستودعات"}, godown:{ur:"گودام",ar:"المخزن"}, godowns:{ur:"گودام",ar:"المخازن"}, branch:{ur:"برانچ",ar:"الفرع"}, company:{ur:"کمپنی",ar:"الشركة"}, business:{ur:"کاروبار",ar:"الأعمال"}, unit:{ur:"اکائی",ar:"الوحدة"}, location:{ur:"مقام",ar:"الموقع"}, category:{ur:"کیٹیگری",ar:"الفئة"}, grade:{ur:"گریڈ",ar:"الدرجة"}, size:{ur:"سائز",ar:"المقاس"}, sku:{ur:"ایس کے یو",ar:"SKU"},
-  sales:{ur:"سیلز",ar:"المبيعات"}, sale:{ur:"فروخت",ar:"بيع"}, purchase:{ur:"خریداری",ar:"الشراء"}, purchases:{ur:"خریداریاں",ar:"المشتريات"}, invoice:{ur:"انوائس",ar:"فاتورة"}, invoices:{ur:"انوائسز",ar:"فواتير"}, order:{ur:"آرڈر",ar:"طلب"}, orders:{ur:"آرڈرز",ar:"طلبات"}, consolidated:{ur:"مشترکہ",ar:"مجمعة"}, return:{ur:"واپسی",ar:"مرتجع"}, returns:{ur:"واپسیاں",ar:"مرتجعات"}, charge:{ur:"چارج",ar:"رسم"}, charges:{ur:"چارجز",ar:"رسوم"},
-  stock:{ur:"اسٹاک",ar:"المخزون"}, inventory:{ur:"اسٹاک",ar:"المخزون"}, movement:{ur:"موومنٹ",ar:"حركة"}, movements:{ur:"موومنٹس",ar:"حركات"}, quantity:{ur:"مقدار",ar:"الكمية"}, qty:{ur:"مقدار",ar:"الكمية"}, rate:{ur:"ریٹ",ar:"السعر"}, price:{ur:"قیمت",ar:"السعر"}, cost:{ur:"لاگت",ar:"التكلفة"}, value:{ur:"مالیت",ar:"القيمة"}, weight:{ur:"وزن",ar:"الوزن"}, opening:{ur:"ابتدائی",ar:"افتتاحي"}, closing:{ur:"اختتامی",ar:"ختامي"}, current:{ur:"موجودہ",ar:"الحالي"}, available:{ur:"دستیاب",ar:"متاح"}, transfer:{ur:"منتقلی",ar:"تحويل"}, adjustment:{ur:"ایڈجسٹمنٹ",ar:"تسوية"},
-  production:{ur:"پیداوار",ar:"الإنتاج"}, furnace:{ur:"فرنس",ar:"الفرن"}, mill:{ur:"مل",ar:"الدرفلة"}, work:{ur:"کام",ar:"عمل"}, cutting:{ur:"کٹنگ",ar:"القطع"}, loading:{ur:"لوڈنگ",ar:"التحميل"}, unloading:{ur:"ان لوڈنگ",ar:"التفريغ"}, gate:{ur:"گیٹ",ar:"البوابة"}, pass:{ur:"پاس",ar:"تصريح"}, vehicle:{ur:"گاڑی",ar:"المركبة"}, driver:{ur:"ڈرائیور",ar:"السائق"}, tare:{ur:"خالی وزن",ar:"الوزن الفارغ"}, gross:{ur:"مجموعی",ar:"الإجمالي"}, net:{ur:"خالص",ar:"الصافي"},
-  accounting:{ur:"اکاؤنٹنگ",ar:"المحاسبة"}, account:{ur:"اکاؤنٹ",ar:"الحساب"}, accounts:{ur:"اکاؤنٹس",ar:"الحسابات"}, journal:{ur:"جرنل",ar:"اليومية"}, entry:{ur:"اندراج",ar:"قيد"}, entries:{ur:"اندراجات",ar:"قيود"}, ledger:{ur:"لیجر",ar:"دفتر الأستاذ"}, ledgers:{ur:"لیجرز",ar:"دفاتر الأستاذ"}, debit:{ur:"ڈیبٹ",ar:"مدين"}, credit:{ur:"کریڈٹ",ar:"دائن"}, cash:{ur:"نقد",ar:"نقد"}, bank:{ur:"بینک",ar:"البنك"}, payment:{ur:"ادائیگی",ar:"الدفع"}, payments:{ur:"ادائیگیاں",ar:"المدفوعات"}, receipt:{ur:"وصولی",ar:"الإيصال"}, receipts:{ur:"وصولیاں",ar:"الإيصالات"}, balance:{ur:"بیلنس",ar:"الرصيد"}, balances:{ur:"بیلنس",ar:"الأرصدة"}, amount:{ur:"رقم",ar:"المبلغ"}, total:{ur:"کل",ar:"الإجمالي"}, subtotal:{ur:"ذیلی کل",ar:"المجموع الفرعي"}, outstanding:{ur:"بقایا",ar:"المستحق"}, receivable:{ur:"قابل وصول",ar:"مستحق القبض"}, receivables:{ur:"قابل وصول",ar:"الذمم المدينة"}, payable:{ur:"قابل ادائیگی",ar:"مستحق الدفع"}, payables:{ur:"قابل ادائیگی",ar:"الذمم الدائنة"}, profit:{ur:"منافع",ar:"الربح"}, loss:{ur:"نقصان",ar:"الخسارة"}, margin:{ur:"مارجن",ar:"الهامش"}, revenue:{ur:"آمدنی",ar:"الإيراد"}, expense:{ur:"خرچ",ar:"المصروف"}, expenses:{ur:"اخراجات",ar:"المصروفات"}, tax:{ur:"ٹیکس",ar:"الضريبة"}, vat:{ur:"وی اے ٹی",ar:"ضريبة القيمة المضافة"}, discount:{ur:"رعایت",ar:"الخصم"}, mapping:{ur:"میپنگ",ar:"الربط"}, reconciliation:{ur:"ریکَنسیلی ایشن",ar:"التسوية"}, period:{ur:"پیریڈ",ar:"الفترة"}, year:{ur:"سال",ar:"السنة"}, audit:{ur:"آڈٹ",ar:"التدقيق"}, trail:{ur:"ٹریل",ar:"السجل"},
-  report:{ur:"رپورٹ",ar:"تقرير"}, reports:{ur:"رپورٹس",ar:"التقارير"}, summary:{ur:"خلاصہ",ar:"ملخص"}, performance:{ur:"کارکردگی",ar:"الأداء"}, aging:{ur:"ایجنگ",ar:"الأعمار"}, history:{ur:"ہسٹری",ar:"السجل"}, profitability:{ur:"منافع",ar:"الربحية"}, collection:{ur:"وصولی",ar:"التحصيل"}, turnover:{ur:"ٹرن اوور",ar:"الدوران"}, valuation:{ur:"مالیت",ar:"التقييم"}, exception:{ur:"مسئلہ",ar:"استثناء"}, exceptions:{ur:"مسائل",ar:"الاستثناءات"}, control:{ur:"کنٹرول",ar:"الرقابة"}, controls:{ur:"کنٹرولز",ar:"الضوابط"}, settings:{ur:"سیٹنگز",ar:"الإعدادات"}, setup:{ur:"سیٹ اپ",ar:"الإعداد"}, document:{ur:"دستاویز",ar:"المستند"}, documents:{ur:"دستاویزات",ar:"المستندات"}, language:{ur:"زبان",ar:"اللغة"}, screen:{ur:"اسکرین",ar:"الشاشة"}, primary:{ur:"بنیادی",ar:"أساسية"}, secondary:{ur:"ثانوی",ar:"ثانوية"}, single:{ur:"ایک",ar:"واحدة"}, bilingual:{ur:"دو زبانیں",ar:"ثنائي اللغة"}, logo:{ur:"لوگو",ar:"الشعار"}, header:{ur:"ہیڈر",ar:"الرأس"}, footer:{ur:"فوٹر",ar:"التذييل"}, page:{ur:"صفحہ",ar:"الصفحة"}, pages:{ur:"صفحات",ar:"الصفحات"}, orientation:{ur:"سمت",ar:"الاتجاه"}, portrait:{ur:"عمودی",ar:"عمودي"}, landscape:{ur:"افقی",ar:"أفقي"}, signature:{ur:"دستخط",ar:"التوقيع"}, signatures:{ur:"دستخط",ar:"التوقيعات"},
-  filter:{ur:"فلٹر",ar:"تصفية"}, filters:{ur:"فلٹرز",ar:"عوامل التصفية"}, show:{ur:"دکھائیں",ar:"إظهار"}, hide:{ur:"چھپائیں",ar:"إخفاء"}, selected:{ur:"منتخب",ar:"محدد"}, visible:{ur:"ظاہر",ar:"ظاهر"}, hidden:{ur:"چھپا",ar:"مخفي"}, column:{ur:"کالم",ar:"عمود"}, columns:{ur:"کالمز",ar:"أعمدة"}, row:{ur:"قطار",ar:"صف"}, rows:{ur:"قطاریں",ar:"صفوف"}, result:{ur:"نتیجہ",ar:"نتيجة"}, results:{ur:"نتائج",ar:"نتائج"}, found:{ur:"ملا",ar:"موجود"}, loading:{ur:"لوڈنگ",ar:"تحميل"}, saving:{ur:"محفوظ",ar:"حفظ"}, live:{ur:"لائیو",ar:"مباشر"}, data:{ur:"ڈیٹا",ar:"بيانات"}, details:{ur:"تفصیلات",ar:"التفاصيل"}, information:{ur:"معلومات",ar:"معلومات"}, alert:{ur:"الرٹ",ar:"تنبيه"}, alerts:{ur:"الرٹس",ar:"تنبيهات"}, quick:{ur:"فوری",ar:"سريع"}, links:{ur:"روابط",ar:"روابط"},
-  phone:{ur:"فون",ar:"الهاتف"}, email:{ur:"ای میل",ar:"البريد الإلكتروني"}, address:{ur:"پتہ",ar:"العنوان"}, website:{ur:"ویب سائٹ",ar:"الموقع الإلكتروني"}, currency:{ur:"کرنسی",ar:"العملة"}, salesperson:{ur:"سیلز پرسن",ar:"مندوب المبيعات"}, method:{ur:"طریقہ",ar:"الطريقة"}, prepared:{ur:"تیار",ar:"أعد"}, checked:{ur:"جانچ",ar:"راجع"}, by:{ur:"بذریعہ",ar:"بواسطة"}, approved:{ur:"منظور",ar:"معتمد"},
-  with:{ur:"کے ساتھ",ar:"مع"}, without:{ur:"کے بغیر",ar:"بدون"}, and:{ur:"اور",ar:"و"}, or:{ur:"یا",ar:"أو"}, only:{ur:"صرف",ar:"فقط"}, this:{ur:"یہ",ar:"هذا"}, month:{ur:"مہینہ",ar:"الشهر"}, months:{ur:"مہینے",ar:"أشهر"}, today:{ur:"آج",ar:"اليوم"}, previous:{ur:"پچھلا",ar:"السابق"}, next:{ur:"اگلا",ar:"التالي"}, first:{ur:"پہلا",ar:"الأول"}, last:{ur:"آخری",ar:"الأخير"},
-};
+const UI_TRANSLATIONS = Object.fromEntries([
+  phrase("Dashboard", "ڈیش بورڈ", "لوحة التحكم"),
+  phrase("Business Overview", "کاروباری خلاصہ", "نظرة عامة على الأعمال"),
+  phrase("Master Data", "ماسٹر ڈیٹا", "البيانات الأساسية"),
+  phrase("Items", "آئٹمز", "الأصناف"),
+  phrase("Item", "آئٹم", "الصنف"),
+  phrase("Categories", "کیٹیگریز", "الفئات"),
+  phrase("Category", "کیٹیگری", "الفئة"),
+  phrase("Customers", "گاہک", "العملاء"),
+  phrase("Customer", "گاہک", "العميل"),
+  phrase("Suppliers", "سپلائرز", "الموردون"),
+  phrase("Supplier", "سپلائر", "المورد"),
+  phrase("Employees", "ملازمین", "الموظفون"),
+  phrase("Employee", "ملازم", "الموظف"),
+  phrase("Warehouses", "ویئرہاؤسز", "المستودعات"),
+  phrase("Warehouse", "ویئرہاؤس", "المستودع"),
+  phrase("Godowns", "گودام", "المخازن"),
+  phrase("Godown", "گودام", "المخزن"),
+  phrase("Units of Measure", "پیمائشی اکائیاں", "وحدات القياس"),
+  phrase("Unit of Measure", "پیمائشی اکائی", "وحدة القياس"),
+  phrase("Transporters", "ٹرانسپورٹرز", "الناقلون"),
+  phrase("Transporter", "ٹرانسپورٹر", "الناقل"),
+  phrase("Charge Master", "چارج ماسٹر", "دليل الرسوم"),
+  phrase("Sales", "سیلز", "المبيعات"),
+  phrase("Sales Invoices", "سیلز انوائسز", "فواتير المبيعات"),
+  phrase("Sales Invoice", "سیلز انوائس", "فاتورة المبيعات"),
+  phrase("New Sales Invoice", "نئی سیلز انوائس", "فاتورة مبيعات جديدة"),
+  phrase("Sales Order Book", "سیلز آرڈر بک", "سجل أوامر المبيعات"),
+  phrase("Consolidated Invoices", "مشترکہ انوائسز", "الفواتير المجمعة"),
+  phrase("Purchase", "خریداری", "المشتريات"),
+  phrase("Purchases", "خریداریاں", "المشتريات"),
+  phrase("Purchase Invoices", "خریداری انوائسز", "فواتير المشتريات"),
+  phrase("Purchase Invoice", "خریداری انوائس", "فاتورة المشتريات"),
+  phrase("New Purchase", "نئی خریداری", "عملية شراء جديدة"),
+  phrase("Consolidated Purchase", "مشترکہ خریداری", "المشتريات المجمعة"),
+  phrase("Purchase Order Book", "پرچیز آرڈر بک", "سجل أوامر الشراء"),
+  phrase("Inventory", "اسٹاک", "المخزون"),
+  phrase("Inventory / Stock", "اسٹاک", "المخزون"),
+  phrase("Current Stock", "موجودہ اسٹاک", "المخزون الحالي"),
+  phrase("Stock Movements", "اسٹاک موومنٹس", "حركات المخزون"),
+  phrase("Stock Movement", "اسٹاک موومنٹ", "حركة المخزون"),
+  phrase("Production", "پیداوار", "الإنتاج"),
+  phrase("Production / Furnace & Mill", "پیداوار / فرنس و مل", "الإنتاج / الفرن والدرفلة"),
+  phrase("Work Orders", "ورک آرڈرز", "أوامر العمل"),
+  phrase("Work Order", "ورک آرڈر", "أمر العمل"),
+  phrase("Furnace Yield", "فرنس پیداوار", "إنتاجية الفرن"),
+  phrase("Cutting & Loading", "کٹنگ و لوڈنگ", "القطع والتحميل"),
+  phrase("Cutting Orders", "کٹنگ آرڈرز", "أوامر القطع"),
+  phrase("Cutting Order", "کٹنگ آرڈر", "أمر القطع"),
+  phrase("Gate Pass & Weighbridge", "گیٹ پاس و وزن کانٹا", "تصريح البوابة والميزان"),
+  phrase("Gate Pass", "گیٹ پاس", "تصريح البوابة"),
+  phrase("Accounting", "اکاؤنٹنگ", "المحاسبة"),
+  phrase("Transactions", "لین دین", "المعاملات"),
+  phrase("Journal Entries", "جرنل اندراجات", "قيود اليومية"),
+  phrase("Journal Entry", "جرنل اندراج", "قيد اليومية"),
+  phrase("Cash Counter", "کیش کاؤنٹر", "الصندوق النقدي"),
+  phrase("Payment Reversals", "ادائیگی واپسی", "عكس المدفوعات"),
+  phrase("Credit / Debit Notes", "کریڈٹ / ڈیبٹ نوٹس", "إشعارات الدائن / المدين"),
+  phrase("Return Notes", "ریٹرن نوٹس", "إشعارات المرتجعات"),
+  phrase("Return Note", "ریٹرن نوٹ", "إشعار مرتجع"),
+  phrase("Books & Registers", "بکس و رجسٹر", "الدفاتر والسجلات"),
+  phrase("VAT Register", "وی اے ٹی رجسٹر", "سجل ضريبة القيمة المضافة"),
+  phrase("Day Book", "روزنامچہ", "دفتر اليومية"),
+  phrase("General Ledgers", "جنرل لیجر", "دفاتر الأستاذ العام"),
+  phrase("General Ledger", "جنرل لیجر", "دفتر الأستاذ العام"),
+  phrase("Bank Reconciliation", "بینک ریکنسیلی ایشن", "تسوية البنك"),
+  phrase("Financial Statements", "مالی بیانات", "القوائم المالية"),
+  phrase("Trial Balance", "ٹرائل بیلنس", "ميزان المراجعة"),
+  phrase("Profit & Loss", "نفع و نقصان", "الأرباح والخسائر"),
+  phrase("Balance Sheet", "بیلنس شیٹ", "الميزانية العمومية"),
+  phrase("Cash Flow", "کیش فلو", "التدفق النقدي"),
+  phrase("Controls & Closing", "کنٹرول و کلوزنگ", "الضوابط والإقفال"),
+  phrase("Period Closing", "پیریڈ کلوزنگ", "إقفال الفترة"),
+  phrase("Year Closing", "سالانہ اختتام", "الإقفال السنوي"),
+  phrase("Financial Controls", "مالی کنٹرولز", "الضوابط المالية"),
+  phrase("Audit Trail", "آڈٹ ٹریل", "سجل التدقيق"),
+  phrase("Accounting Setup", "اکاؤنٹنگ سیٹ اپ", "إعداد المحاسبة"),
+  phrase("Chart of Accounts", "چارٹ آف اکاؤنٹس", "دليل الحسابات"),
+  phrase("Account Mapping", "اکاؤنٹ میپنگ", "ربط الحسابات"),
+  phrase("Reports", "رپورٹس", "التقارير"),
+  phrase("Sales & Customer", "سیلز و گاہک", "المبيعات والعملاء"),
+  phrase("Sales & Margin", "سیلز و مارجن", "المبيعات والهامش"),
+  phrase("Sales Register", "سیلز رجسٹر", "سجل المبيعات"),
+  phrase("Customer Aging", "گاہک ایجنگ", "أعمار ديون العملاء"),
+  phrase("Customer Item History", "گاہک آئٹم ہسٹری", "سجل أصناف العميل"),
+  phrase("Salesperson Performance", "سیلز پرسن کارکردگی", "أداء مندوب المبيعات"),
+  phrase("Customer Statement", "گاہک اسٹیٹمنٹ", "كشف حساب العميل"),
+  phrase("Purchase & Supplier", "خریداری و سپلائر", "المشتريات والموردون"),
+  phrase("Purchase Register", "پرچیز رجسٹر", "سجل المشتريات"),
+  phrase("Supplier Aging", "سپلائر ایجنگ", "أعمار ديون الموردين"),
+  phrase("Supplier Item History", "سپلائر آئٹم ہسٹری", "سجل أصناف المورد"),
+  phrase("Inventory Reports", "اسٹاک رپورٹس", "تقارير المخزون"),
+  phrase("Stock Valuation", "اسٹاک ویلیو", "تقييم المخزون"),
+  phrase("Stock Aging", "اسٹاک ایجنگ", "أعمار المخزون"),
+  phrase("Steel Stock Control", "اسٹیل اسٹاک کنٹرول", "التحكم في مخزون الحديد"),
+  phrase("Customer Profitability", "گاہک منافع", "ربحية العملاء"),
+  phrase("Item Profitability", "آئٹم منافع", "ربحية الأصناف"),
+  phrase("Salesperson Profitability", "سیلز پرسن منافع", "ربحية مندوب المبيعات"),
+  phrase("Customer Collection Performance", "گاہک وصولی کارکردگی", "أداء تحصيل العملاء"),
+  phrase("Supplier Performance", "سپلائر کارکردگی", "أداء الموردين"),
+  phrase("Purchase Price Variance", "پرچیز ریٹ فرق", "انحراف سعر الشراء"),
+  phrase("Inventory Aging / Slow Moving", "اسٹاک ایجنگ / سست رفتار", "أعمار المخزون / بطيء الحركة"),
+  phrase("Inventory Turnover", "اسٹاک ٹرن اوور", "دوران المخزون"),
+  phrase("Stock Exceptions", "اسٹاک مسائل", "استثناءات المخزون"),
+  phrase("Business Unit Performance", "بزنس یونٹ کارکردگی", "أداء وحدة الأعمال"),
+  phrase("Monthly Business Performance / MIS", "ماہانہ کاروباری کارکردگی / MIS", "الأداء الشهري للأعمال / MIS"),
+  phrase("Control & Reconciliation", "کنٹرول و ریکنسیلی ایشن", "الرقابة والتسويات"),
+  phrase("Returns Register", "ریٹرنز رجسٹر", "سجل المرتجعات"),
+  phrase("AR / AP Reconciliation", "اے آر / اے پی ریکنسیلی ایشن", "تسوية العملاء / الموردين"),
+  phrase("Exceptions", "ایکسیپشنز", "الاستثناءات"),
+  phrase("Service Charges", "سروس چارجز", "رسوم الخدمات"),
+  phrase("Operations", "آپریشنز", "العمليات"),
+  phrase("Gate Pass Report", "گیٹ پاس رپورٹ", "تقرير تصريح البوابة"),
+  phrase("Owner Control", "مالک کنٹرول", "تحكم المالك"),
+  phrase("Settings", "سیٹنگز", "الإعدادات"),
+  phrase("Company", "کمپنی", "الشركة"),
+  phrase("Company Settings", "کمپنی سیٹنگز", "إعدادات الشركة"),
+  phrase("Tax Settings", "ٹیکس سیٹنگز", "إعدادات الضريبة"),
+  phrase("Document & Print", "ڈاکومنٹ و پرنٹ", "المستندات والطباعة"),
+  phrase("Document & Print Settings", "ڈاکومنٹ و پرنٹ سیٹنگز", "إعدادات المستندات والطباعة"),
+  phrase("Order Book Settings", "آرڈر بک سیٹنگز", "إعدادات سجل الطلبات"),
+  phrase("Language Settings", "زبان کی سیٹنگز", "إعدادات اللغة"),
+  phrase("Screen Language", "اسکرین زبان", "لغة الشاشة"),
+  phrase("Document Language", "دستاویز کی زبان", "لغة المستند"),
+  phrase("Single Language", "ایک زبان", "لغة واحدة"),
+  phrase("Bilingual", "دو زبانیں", "ثنائي اللغة"),
+  phrase("Primary Language", "بنیادی زبان", "اللغة الأساسية"),
+  phrase("Secondary Language", "ثانوی زبان", "اللغة الثانوية"),
+  phrase("English", "انگریزی", "الإنجليزية"),
+  phrase("Urdu", "اردو", "الأردية"),
+  phrase("Arabic", "عربی", "العربية"),
+  phrase("Back", "واپس", "رجوع"),
+  phrase("Sign out", "لاگ آؤٹ", "تسجيل الخروج"),
+  phrase("Active Company", "فعال کمپنی", "الشركة النشطة"),
+  phrase("Refresh", "تازہ کریں", "تحديث"),
+  phrase("Reset", "ری سیٹ", "إعادة ضبط"),
+  phrase("Search", "تلاش", "بحث"),
+  phrase("Save", "محفوظ کریں", "حفظ"),
+  phrase("Save Settings", "سیٹنگز محفوظ کریں", "حفظ الإعدادات"),
+  phrase("Loading…", "لوڈ ہو رہا ہے…", "جارٍ التحميل…"),
+  phrase("Loading...", "لوڈ ہو رہا ہے...", "جارٍ التحميل..."),
+  phrase("Saving...", "محفوظ ہو رہا ہے...", "جارٍ الحفظ..."),
+  phrase("No data found", "کوئی ڈیٹا نہیں ملا", "لم يتم العثور على بيانات"),
+  phrase("No records found", "کوئی ریکارڈ نہیں ملا", "لم يتم العثور على سجلات"),
+  phrase("No result found", "کوئی نتیجہ نہیں ملا", "لم يتم العثور على نتيجة"),
+  phrase("Are you sure?", "کیا آپ کو یقین ہے؟", "هل أنت متأكد؟"),
+  phrase("Add", "شامل کریں", "إضافة"),
+  phrase("Edit", "ترمیم", "تعديل"),
+  phrase("Delete", "حذف کریں", "حذف"),
+  phrase("Cancel", "منسوخ", "إلغاء"),
+  phrase("Close", "بند کریں", "إغلاق"),
+  phrase("Create", "بنائیں", "إنشاء"),
+  phrase("Update", "اپ ڈیٹ", "تحديث"),
+  phrase("Apply", "لاگو کریں", "تطبيق"),
+  phrase("Clear", "صاف کریں", "مسح"),
+  phrase("Export", "ایکسپورٹ", "تصدير"),
+  phrase("Print", "پرنٹ", "طباعة"),
+  phrase("Print Preview", "پرنٹ پیش نظارہ", "معاينة الطباعة"),
+  phrase("New", "نیا", "جديد"),
+  phrase("View", "دیکھیں", "عرض"),
+  phrase("Details", "تفصیلات", "التفاصيل"),
+  phrase("Actions", "کارروائیاں", "الإجراءات"),
+  phrase("Status", "حالت", "الحالة"),
+  phrase("Draft", "مسودہ", "مسودة"),
+  phrase("Posted", "پوسٹ شدہ", "مرحّل"),
+  phrase("Pending", "زیر التوا", "قيد الانتظار"),
+  phrase("Approved", "منظور شدہ", "معتمد"),
+  phrase("Rejected", "مسترد", "مرفوض"),
+  phrase("Completed", "مکمل", "مكتمل"),
+  phrase("Closed", "بند", "مغلق"),
+  phrase("Active", "فعال", "نشط"),
+  phrase("Inactive", "غیر فعال", "غير نشط"),
+  phrase("Date", "تاریخ", "التاريخ"),
+  phrase("From Date", "تاریخ سے", "من تاريخ"),
+  phrase("To Date", "تاریخ تک", "إلى تاريخ"),
+  phrase("Reference", "حوالہ", "المرجع"),
+  phrase("Description", "تفصیل", "الوصف"),
+  phrase("Notes", "نوٹس", "ملاحظات"),
+  phrase("Amount", "رقم", "المبلغ"),
+  phrase("Total", "کل", "الإجمالي"),
+  phrase("Grand Total", "مجموعی کل", "الإجمالي العام"),
+  phrase("Subtotal", "ذیلی کل", "المجموع الفرعي"),
+  phrase("Tax", "ٹیکس", "الضريبة"),
+  phrase("VAT", "وی اے ٹی", "ضريبة القيمة المضافة"),
+  phrase("Discount", "رعایت", "الخصم"),
+  phrase("Charges", "چارجز", "الرسوم"),
+  phrase("Quantity", "مقدار", "الكمية"),
+  phrase("Qty", "مقدار", "الكمية"),
+  phrase("Rate", "ریٹ", "السعر"),
+  phrase("Price", "قیمت", "السعر"),
+  phrase("Cost", "لاگت", "التكلفة"),
+  phrase("Unit", "اکائی", "الوحدة"),
+  phrase("Name", "نام", "الاسم"),
+  phrase("Code", "کوڈ", "الرمز"),
+  phrase("Grade", "گریڈ", "الدرجة"),
+  phrase("Size", "سائز", "المقاس"),
+  phrase("Weight", "وزن", "الوزن"),
+  phrase("Vehicle", "گاڑی", "المركبة"),
+  phrase("Vehicle No", "گاڑی نمبر", "رقم المركبة"),
+  phrase("Driver", "ڈرائیور", "السائق"),
+  phrase("Salesperson", "سیلز پرسن", "مندوب المبيعات"),
+  phrase("Payment", "ادائیگی", "الدفع"),
+  phrase("Receipt", "وصولی", "الإيصال"),
+  phrase("Payment Method", "ادائیگی کا طریقہ", "طريقة الدفع"),
+  phrase("Cash", "نقد", "نقد"),
+  phrase("Bank", "بینک", "البنك"),
+  phrase("Credit", "کریڈٹ", "دائن"),
+  phrase("Debit", "ڈیبٹ", "مدين"),
+  phrase("Balance", "بیلنس", "الرصيد"),
+  phrase("Opening Balance", "ابتدائی بیلنس", "الرصيد الافتتاحي"),
+  phrase("Closing Balance", "اختتامی بیلنس", "الرصيد الختامي"),
+  phrase("Outstanding", "بقایا", "المستحق"),
+  phrase("Due Date", "واجب الادا تاریخ", "تاريخ الاستحقاق"),
+  phrase("Invoice", "انوائس", "الفاتورة"),
+  phrase("Invoice No", "انوائس نمبر", "رقم الفاتورة"),
+  phrase("Order No", "آرڈر نمبر", "رقم الطلب"),
+  phrase("Purchase Order", "پرچیز آرڈر", "أمر الشراء"),
+  phrase("Account", "اکاؤنٹ", "الحساب"),
+  phrase("Accounts", "اکاؤنٹس", "الحسابات"),
+  phrase("Debit Balance", "ڈیبٹ بیلنس", "الرصيد المدين"),
+  phrase("Credit Balance", "کریڈٹ بیلنس", "الرصيد الدائن"),
+  phrase("Phone", "فون", "الهاتف"),
+  phrase("Email", "ای میل", "البريد الإلكتروني"),
+  phrase("Address", "پتہ", "العنوان"),
+  phrase("Location", "مقام", "الموقع"),
+  phrase("Branch", "برانچ", "الفرع"),
+  phrase("Business Unit", "بزنس یونٹ", "وحدة الأعمال"),
+  phrase("Search results", "تلاش کے نتائج", "نتائج البحث"),
+  phrase("Show", "دکھائیں", "إظهار"),
+  phrase("Hide", "چھپائیں", "إخفاء"),
+  phrase("Show All", "سب دکھائیں", "إظهار الكل"),
+  phrase("Customize", "ترتیب", "تخصيص"),
+  phrase("Filters", "فلٹرز", "عوامل التصفية"),
+  phrase("Filter", "فلٹر", "تصفية"),
+  phrase("All", "سب", "الكل"),
+  phrase("Yes", "ہاں", "نعم"),
+  phrase("No", "نہیں", "لا"),
+  phrase("Required", "ضروری", "مطلوب"),
+  phrase("Optional", "اختیاری", "اختياري"),
+  phrase("Page Size", "صفحہ سائز", "حجم الصفحة"),
+  phrase("Orientation", "سمت", "الاتجاه"),
+  phrase("Portrait", "عمودی", "عمودي"),
+  phrase("Landscape", "افقی", "أفقي"),
+  phrase("Logo", "لوگو", "الشعار"),
+  phrase("Header", "ہیڈر", "الرأس"),
+  phrase("Footer", "فوٹر", "التذييل"),
+  phrase("Signature", "دستخط", "التوقيع"),
+  phrase("Prepared By", "تیار کردہ", "أعده"),
+  phrase("Checked By", "جانچ کردہ", "راجعه"),
+  phrase("Approved By", "منظور کردہ", "اعتمده"),
+]) as Record<string, Translation>;
+
+const word = (en: string, ur: string, ar: string): [string, Translation] => [en, { ur, ar }];
+
+const WORD_TRANSLATIONS = Object.fromEntries([
+  word("add","شامل","إضافة"), word("edit","ترمیم","تعديل"), word("delete","حذف","حذف"), word("remove","ہٹائیں","إزالة"), word("save","محفوظ","حفظ"), word("cancel","منسوخ","إلغاء"), word("close","بند","إغلاق"), word("open","کھولیں","فتح"), word("create","بنائیں","إنشاء"), word("update","اپ ڈیٹ","تحديث"), word("apply","لاگو","تطبيق"), word("clear","صاف","مسح"), word("reset","ری سیٹ","إعادة ضبط"), word("refresh","تازہ کریں","تحديث"), word("search","تلاش","بحث"), word("select","منتخب","اختيار"), word("choose","منتخب کریں","اختيار"), word("view","دیکھیں","عرض"), word("details","تفصیلات","التفاصيل"), word("print","پرنٹ","طباعة"), word("preview","پیش نظارہ","معاينة"), word("export","ایکسپورٹ","تصدير"), word("download","ڈاؤن لوڈ","تنزيل"), word("upload","اپ لوڈ","رفع"), word("import","امپورٹ","استيراد"), word("duplicate","نقل","تكرار"), word("copy","کاپی","نسخ"), word("confirm","تصدیق","تأكيد"), word("approve","منظور","اعتماد"), word("post","پوسٹ","ترحيل"), word("reverse","واپس","عكس"), word("continue","جاری","متابعة"), word("submit","جمع","إرسال"),
+  word("new","نیا","جديد"), word("all","سب","الكل"), word("active","فعال","نشط"), word("inactive","غیر فعال","غير نشط"), word("draft","مسودہ","مسودة"), word("posted","پوسٹ شدہ","مرحّل"), word("pending","زیر التوا","قيد الانتظار"), word("completed","مکمل","مكتمل"), word("closed","بند","مغلق"), word("cancelled","منسوخ","ملغى"), word("approved","منظور شدہ","معتمد"), word("rejected","مسترد","مرفوض"), word("status","حالت","الحالة"), word("type","قسم","النوع"), word("mode","موڈ","الوضع"), word("required","ضروری","مطلوب"), word("optional","اختیاری","اختياري"),
+  word("name","نام","الاسم"), word("code","کوڈ","الرمز"), word("number","نمبر","الرقم"), word("date","تاریخ","التاريخ"), word("time","وقت","الوقت"), word("from","سے","من"), word("to","تک","إلى"), word("reference","حوالہ","المرجع"), word("description","تفصیل","الوصف"), word("note","نوٹ","ملاحظة"), word("notes","نوٹس","ملاحظات"), word("reason","وجہ","السبب"), word("remarks","ریمارکس","ملاحظات"),
+  word("item","آئٹم","الصنف"), word("items","آئٹمز","الأصناف"), word("customer","گاہک","العميل"), word("customers","گاہک","العملاء"), word("supplier","سپلائر","المورد"), word("suppliers","سپلائرز","الموردون"), word("employee","ملازم","الموظف"), word("employees","ملازمین","الموظفون"), word("warehouse","ویئرہاؤس","المستودع"), word("warehouses","ویئرہاؤسز","المستودعات"), word("godown","گودام","المخزن"), word("godowns","گودام","المخازن"), word("branch","برانچ","الفرع"), word("company","کمپنی","الشركة"), word("business","کاروبار","الأعمال"), word("unit","اکائی","الوحدة"), word("location","مقام","الموقع"), word("category","کیٹیگری","الفئة"), word("grade","گریڈ","الدرجة"), word("size","سائز","المقاس"),
+  word("sales","سیلز","المبيعات"), word("sale","فروخت","بيع"), word("purchase","خریداری","الشراء"), word("purchases","خریداریاں","المشتريات"), word("invoice","انوائس","فاتورة"), word("invoices","انوائسز","فواتير"), word("order","آرڈر","طلب"), word("orders","آرڈرز","طلبات"), word("consolidated","مشترکہ","مجمعة"), word("return","واپسی","مرتجع"), word("returns","واپسیاں","مرتجعات"), word("charge","چارج","رسم"), word("charges","چارجز","رسوم"),
+  word("stock","اسٹاک","المخزون"), word("inventory","اسٹاک","المخزون"), word("movement","موومنٹ","حركة"), word("movements","موومنٹس","حركات"), word("quantity","مقدار","الكمية"), word("qty","مقدار","الكمية"), word("rate","ریٹ","السعر"), word("price","قیمت","السعر"), word("cost","لاگت","التكلفة"), word("value","مالیت","القيمة"), word("weight","وزن","الوزن"), word("opening","ابتدائی","افتتاحي"), word("closing","اختتامی","ختامي"), word("current","موجودہ","الحالي"), word("available","دستیاب","متاح"), word("transfer","منتقلی","تحويل"), word("adjustment","ایڈجسٹمنٹ","تسوية"),
+  word("production","پیداوار","الإنتاج"), word("furnace","فرنس","الفرن"), word("mill","مل","الدرفلة"), word("work","کام","عمل"), word("cutting","کٹنگ","القطع"), word("loading","لوڈنگ","التحميل"), word("unloading","ان لوڈنگ","التفريغ"), word("gate","گیٹ","البوابة"), word("pass","پاس","تصريح"), word("vehicle","گاڑی","المركبة"), word("driver","ڈرائیور","السائق"), word("tare","خالی وزن","الوزن الفارغ"), word("gross","مجموعی","الإجمالي"), word("net","خالص","الصافي"),
+  word("accounting","اکاؤنٹنگ","المحاسبة"), word("account","اکاؤنٹ","الحساب"), word("accounts","اکاؤنٹس","الحسابات"), word("journal","جرنل","اليومية"), word("entry","اندراج","قيد"), word("entries","اندراجات","قيود"), word("ledger","لیجر","دفتر الأستاذ"), word("ledgers","لیجرز","دفاتر الأستاذ"), word("debit","ڈیبٹ","مدين"), word("credit","کریڈٹ","دائن"), word("cash","نقد","نقد"), word("bank","بینک","البنك"), word("payment","ادائیگی","الدفع"), word("payments","ادائیگیاں","المدفوعات"), word("receipt","وصولی","الإيصال"), word("receipts","وصولیاں","الإيصالات"), word("balance","بیلنس","الرصيد"), word("balances","بیلنس","الأرصدة"), word("amount","رقم","المبلغ"), word("total","کل","الإجمالي"), word("subtotal","ذیلی کل","المجموع الفرعي"), word("outstanding","بقایا","المستحق"), word("receivable","قابل وصول","مستحق القبض"), word("receivables","قابل وصول","الذمم المدينة"), word("payable","قابل ادائیگی","مستحق الدفع"), word("payables","قابل ادائیگی","الذمم الدائنة"), word("profit","منافع","الربح"), word("loss","نقصان","الخسارة"), word("margin","مارجن","الهامش"), word("revenue","آمدنی","الإيراد"), word("expense","خرچ","المصروف"), word("expenses","اخراجات","المصروفات"), word("tax","ٹیکس","الضريبة"), word("vat","وی اے ٹی","ضريبة القيمة المضافة"), word("discount","رعایت","الخصم"), word("mapping","میپنگ","الربط"), word("reconciliation","ریکَنسیلی ایشن","التسوية"), word("period","پیریڈ","الفترة"), word("year","سال","السنة"), word("audit","آڈٹ","التدقيق"), word("trail","ٹریل","السجل"),
+  word("report","رپورٹ","تقرير"), word("reports","رپورٹس","التقارير"), word("summary","خلاصہ","ملخص"), word("performance","کارکردگی","الأداء"), word("aging","ایجنگ","الأعمار"), word("history","ہسٹری","السجل"), word("profitability","منافع","الربحية"), word("collection","وصولی","التحصيل"), word("turnover","ٹرن اوور","الدوران"), word("valuation","مالیت","التقييم"), word("exception","مسئلہ","استثناء"), word("exceptions","مسائل","الاستثناءات"), word("control","کنٹرول","الرقابة"), word("controls","کنٹرولز","الضوابط"), word("settings","سیٹنگز","الإعدادات"), word("setup","سیٹ اپ","الإعداد"), word("document","دستاویز","المستند"), word("documents","دستاویزات","المستندات"), word("language","زبان","اللغة"), word("screen","اسکرین","الشاشة"), word("primary","بنیادی","أساسية"), word("secondary","ثانوی","ثانوية"), word("single","ایک","واحدة"), word("bilingual","دو زبانیں","ثنائي اللغة"), word("logo","لوگو","الشعار"), word("header","ہیڈر","الرأس"), word("footer","فوٹر","التذييل"), word("page","صفحہ","الصفحة"), word("pages","صفحات","الصفحات"), word("orientation","سمت","الاتجاه"), word("portrait","عمودی","عمودي"), word("landscape","افقی","أفقي"), word("signature","دستخط","التوقيع"), word("signatures","دستخط","التوقيعات"),
+  word("filter","فلٹر","تصفية"), word("filters","فلٹرز","عوامل التصفية"), word("show","دکھائیں","إظهار"), word("hide","چھپائیں","إخفاء"), word("selected","منتخب","محدد"), word("visible","ظاہر","ظاهر"), word("hidden","چھپا","مخفي"), word("column","کالم","عمود"), word("columns","کالمز","أعمدة"), word("row","قطار","صف"), word("rows","قطاریں","صفوف"), word("result","نتیجہ","نتيجة"), word("results","نتائج","نتائج"), word("found","ملا","موجود"), word("loading","لوڈنگ","تحميل"), word("saving","محفوظ","حفظ"), word("live","لائیو","مباشر"), word("data","ڈیٹا","بيانات"), word("information","معلومات","معلومات"), word("alert","الرٹ","تنبيه"), word("alerts","الرٹس","تنبيهات"), word("quick","فوری","سريع"), word("links","روابط","روابط"),
+  word("phone","فون","الهاتف"), word("email","ای میل","البريد الإلكتروني"), word("address","پتہ","العنوان"), word("website","ویب سائٹ","الموقع الإلكتروني"), word("currency","کرنسی","العملة"), word("salesperson","سیلز پرسن","مندوب المبيعات"), word("method","طریقہ","الطريقة"), word("prepared","تیار","أعد"), word("checked","جانچ","راجع"), word("by","بذریعہ","بواسطة"), word("with","کے ساتھ","مع"), word("without","کے بغیر","بدون"), word("and","اور","و"), word("or","یا","أو"), word("only","صرف","فقط"), word("this","یہ","هذا"), word("month","مہینہ","الشهر"), word("months","مہینے","أشهر"), word("today","آج","اليوم"), word("previous","پچھلا","السابق"), word("next","اگلا","التالي"), word("first","پہلا","الأول"), word("last","آخری","الأخير"),
+]) as Record<string, Translation>;
 
 const PHRASE_REPLACEMENTS: Array<[string, Translation]> = [
-  ["click to view details", { ur: "تفصیلات دیکھنے کے لیے کلک کریں", ar: "انقر لعرض التفاصيل" }],
-  ["posted documents", { ur: "پوسٹ شدہ دستاویزات", ar: "المستندات المرحلة" }],
-  ["current stock quantity", { ur: "موجودہ اسٹاک مقدار", ar: "كمية المخزون الحالية" }],
-  ["stock items need attention", { ur: "اسٹاک آئٹمز توجہ چاہتے ہیں", ar: "أصناف المخزون تحتاج إلى مراجعة" }],
-  ["work orders pending", { ur: "ورک آرڈرز زیر التوا", ar: "أوامر العمل قيد الانتظار" }],
-  ["posted ledger balance", { ur: "پوسٹ شدہ لیجر بیلنس", ar: "رصيد دفتر الأستاذ المرحّل" }],
-  ["mapped cash account", { ur: "میپ شدہ کیش اکاؤنٹ", ar: "حساب النقد المرتبط" }],
-  ["mapped bank account", { ur: "میپ شدہ بینک اکاؤنٹ", ar: "حساب البنك المرتبط" }],
-  ["auto refreshes every minute", { ur: "ہر منٹ خودکار تازہ ہوتا ہے", ar: "يتم التحديث تلقائياً كل دقيقة" }],
-  ["no balances for this period", { ur: "اس مدت کے لیے کوئی بیلنس نہیں", ar: "لا توجد أرصدة لهذه الفترة" }],
-  ["from date cannot be after to date", { ur: "شروع کی تاریخ اختتامی تاریخ کے بعد نہیں ہو سکتی", ar: "لا يمكن أن يكون تاريخ البداية بعد تاريخ النهاية" }],
-  ["unable to load", { ur: "لوڈ نہیں ہو سکا", ar: "تعذر التحميل" }],
-  ["search invoice, party, item, payment, journal, work order, gate pass", { ur: "انوائس، پارٹی، آئٹم، ادائیگی، جرنل، ورک آرڈر، گیٹ پاس تلاش کریں", ar: "ابحث عن فاتورة أو طرف أو صنف أو دفعة أو قيد أو أمر عمل أو تصريح بوابة" }],
+  phrase("click to view details", "تفصیلات دیکھنے کے لیے کلک کریں", "انقر لعرض التفاصيل"),
+  phrase("posted documents", "پوسٹ شدہ دستاویزات", "المستندات المرحلة"),
+  phrase("current stock quantity", "موجودہ اسٹاک مقدار", "كمية المخزون الحالية"),
+  phrase("stock items need attention", "اسٹاک آئٹمز توجہ چاہتے ہیں", "أصناف المخزون تحتاج إلى مراجعة"),
+  phrase("work orders pending", "ورک آرڈرز زیر التوا", "أوامر العمل قيد الانتظار"),
+  phrase("posted ledger balance", "پوسٹ شدہ لیجر بیلنس", "رصيد دفتر الأستاذ المرحّل"),
+  phrase("mapped cash account", "میپ شدہ کیش اکاؤنٹ", "حساب النقد المرتبط"),
+  phrase("mapped bank account", "میپ شدہ بینک اکاؤنٹ", "حساب البنك المرتبط"),
+  phrase("auto refreshes every minute", "ہر منٹ خودکار تازہ ہوتا ہے", "يتم التحديث تلقائياً كل دقيقة"),
+  phrase("no balances for this period", "اس مدت کے لیے کوئی بیلنس نہیں", "لا توجد أرصدة لهذه الفترة"),
+  phrase("from date cannot be after to date", "شروع کی تاریخ اختتامی تاریخ کے بعد نہیں ہو سکتی", "لا يمكن أن يكون تاريخ البداية بعد تاريخ النهاية"),
+  phrase("unable to load", "لوڈ نہیں ہو سکا", "تعذر التحميل"),
 ];
 
 const originalText = new WeakMap<Text, string>();
@@ -327,7 +320,6 @@ async function loadRuntimeLanguage(): Promise<RuntimeLanguage> {
     .select("screen_language_mode,screen_primary_language,screen_secondary_language,document_language_mode,document_primary_language,document_secondary_language")
     .maybeSingle();
   if (result.error) throw result.error;
-
   const mode = (result.data?.screen_language_mode || "single") as LanguageMode;
   const documentMode = (result.data?.document_language_mode || "single") as LanguageMode;
   return {
@@ -348,24 +340,15 @@ function applyDocumentLanguage(language: RuntimeLanguage) {
   document.documentElement.dataset.primaryLanguage = language.primary;
   if (language.secondary) document.documentElement.dataset.secondaryLanguage = language.secondary;
   else delete document.documentElement.dataset.secondaryLanguage;
-
   document.documentElement.dataset.documentLanguageMode = language.documentMode;
   document.documentElement.dataset.documentPrimaryLanguage = language.documentPrimary;
   if (language.documentSecondary) document.documentElement.dataset.documentSecondaryLanguage = language.documentSecondary;
   else delete document.documentElement.dataset.documentSecondaryLanguage;
 }
 
-function hasRtlScript(value: string) {
-  return /[\u0600-\u06FF]/.test(value);
-}
-
-function hasLatinLetters(value: string) {
-  return /[A-Za-z]/.test(value);
-}
-
-function normalizePhrase(value: string) {
-  return value.trim().replace(/\s+/g, " ");
-}
+function hasRtlScript(value: string) { return /[\u0600-\u06FF]/.test(value); }
+function hasLatinLetters(value: string) { return /[A-Za-z]/.test(value); }
+function normalizePhrase(value: string) { return value.trim().replace(/\s+/g, " "); }
 
 function splitLegacyLabel(value: string) {
   const parts = value.trim().split("/").map((part) => normalizePhrase(part)).filter(Boolean);
@@ -374,25 +357,16 @@ function splitLegacyLabel(value: string) {
   return { english, urdu, isLegacyBilingual: parts.length > 1 && Boolean(urdu) };
 }
 
-function normalizeLookup(value: string) {
-  return normalizePhrase(value).replace(/\s*([:;,.!?()])\s*/g, "$1 ").trim().toLowerCase();
-}
-
 function translateWords(value: string, languageCode: UiLanguage) {
   if (languageCode === "en" || !hasLatinLetters(value)) return value;
   let output = value;
-  for (const [phrase, translation] of PHRASE_REPLACEMENTS) {
+  for (const [source, translation] of PHRASE_REPLACEMENTS) {
     const translated = translation[languageCode];
     if (!translated) continue;
-    const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const escaped = source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     output = output.replace(new RegExp(escaped, "gi"), translated);
   }
-  output = output.replace(/[A-Za-z]+(?:'[A-Za-z]+)?/g, (token) => {
-    const lower = token.toLowerCase();
-    const translated = WORD_TRANSLATIONS[lower]?.[languageCode];
-    return translated || token;
-  });
-  return output;
+  return output.replace(/[A-Za-z]+(?:'[A-Za-z]+)?/g, (token) => WORD_TRANSLATIONS[token.toLowerCase()]?.[languageCode] || token);
 }
 
 function translateExact(english: string, languageCode: UiLanguage, embeddedUrdu: string | null, allowGeneric: boolean) {
@@ -410,8 +384,7 @@ function isGenericUiText(node: Text) {
   if (parent.closest("input, textarea, script, style, code, pre")) return false;
   if (GENERIC_UI_TAGS.has(parent.tagName)) return true;
   if (parent.closest("button, label, nav, [role='button'], [role='menuitem'], [role='tab'], [role='alert'], [role='dialog'] h1, [role='dialog'] h2, [role='dialog'] h3")) return true;
-  if (UI_CLASS_HINT.test(parent.className || "")) return true;
-  return false;
+  return UI_CLASS_HINT.test(parent.className || "");
 }
 
 function selectLanguageText(value: string, language: RuntimeLanguage, allowGeneric = false) {
@@ -420,12 +393,8 @@ function selectLanguageText(value: string, language: RuntimeLanguage, allowGener
   const trailing = value.match(/\s*$/)?.[0] || "";
   const { english, urdu, isLegacyBilingual } = splitLegacyLabel(value);
   const known = Boolean(UI_TRANSLATIONS[normalizePhrase(english)]);
-  const shouldTranslate = isLegacyBilingual || known || allowGeneric;
-  if (!shouldTranslate) return value;
-
-  const requested = language.mode === "bilingual" && language.secondary
-    ? [language.primary, language.secondary]
-    : [language.primary];
+  if (!isLegacyBilingual && !known && !allowGeneric) return value;
+  const requested = language.mode === "bilingual" && language.secondary ? [language.primary, language.secondary] : [language.primary];
   const supported = requested.filter((code): code is UiLanguage => code === "en" || code === "ur" || code === "ar");
   const safeRequested: UiLanguage[] = supported.length ? supported : ["en"];
   const rendered = safeRequested
@@ -441,7 +410,6 @@ function processTextNode(node: Text, language: RuntimeLanguage) {
   if (!previousSource) originalText.set(node, current);
   const source = originalText.get(node) || current;
   const expected = selectLanguageText(source, language, isGenericUiText(node));
-
   if (previousSource && current !== source && current !== expected) {
     originalText.set(node, current);
     const next = selectLanguageText(current, language, isGenericUiText(node));
@@ -468,11 +436,8 @@ function processElementAttributes(element: Element, language: RuntimeLanguage) {
     const next = selectLanguageText(source, language, true);
     if (current !== next) element.setAttribute(attribute, next);
   }
-
   if (language.mode === "single" && (language.primary === "ur" || language.primary === "ar")) {
     if (element.matches("button, label, h1, h2, h3, h4, h5, h6, th, option, [role='button'], [role='menuitem'], [role='tab']")) element.setAttribute("dir", "rtl");
-  } else if (element.hasAttribute("dir") && element.getAttribute("dir") === "rtl" && !element.matches("input[dir='rtl'], textarea[dir='rtl']")) {
-    element.removeAttribute("dir");
   }
 }
 
@@ -482,7 +447,6 @@ function translateTree(root: Node, language: RuntimeLanguage) {
     return;
   }
   if (root.nodeType === Node.ELEMENT_NODE) processElementAttributes(root as Element, language);
-
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
   while (walker.nextNode()) {
     const node = walker.currentNode;
@@ -497,7 +461,6 @@ export default function LanguageRuntime() {
     let language: RuntimeLanguage = ENGLISH_ONLY;
     let frame = 0;
     let applying = false;
-
     const apply = () => {
       if (!active) return;
       cancelAnimationFrame(frame);
@@ -508,44 +471,26 @@ export default function LanguageRuntime() {
         queueMicrotask(() => { applying = false; });
       });
     };
-
     const refresh = async () => {
-      try {
-        language = await loadRuntimeLanguage();
-      } catch {
-        language = ENGLISH_ONLY;
-      }
+      try { language = await loadRuntimeLanguage(); }
+      catch { language = ENGLISH_ONLY; }
       apply();
     };
-
     const observer = new MutationObserver((mutations) => {
       if (!active || applying) return;
       for (const mutation of mutations) {
         mutation.addedNodes.forEach((node) => {
           if (node.nodeType === Node.TEXT_NODE || node.nodeType === Node.ELEMENT_NODE) translateTree(node, language);
         });
-        if (mutation.type === "characterData" && mutation.target.nodeType === Node.TEXT_NODE) {
-          processTextNode(mutation.target as Text, language);
-        }
-        if (mutation.type === "attributes" && mutation.target.nodeType === Node.ELEMENT_NODE) {
-          processElementAttributes(mutation.target as Element, language);
-        }
+        if (mutation.type === "characterData" && mutation.target.nodeType === Node.TEXT_NODE) processTextNode(mutation.target as Text, language);
+        if (mutation.type === "attributes" && mutation.target.nodeType === Node.ELEMENT_NODE) processElementAttributes(mutation.target as Element, language);
       }
     });
-
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: [...TRANSLATABLE_ATTRIBUTES],
-    });
-
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: [...TRANSLATABLE_ATTRIBUTES] });
     void refresh();
     const handleChange = () => void refresh();
     window.addEventListener("navilo-language-changed", handleChange);
     window.addEventListener("navilo-workspace-changed", handleChange);
-
     return () => {
       active = false;
       observer.disconnect();
@@ -554,6 +499,5 @@ export default function LanguageRuntime() {
       window.removeEventListener("navilo-workspace-changed", handleChange);
     };
   }, []);
-
   return null;
 }

@@ -1,8 +1,9 @@
 import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, FileText, Loader2, Save, X } from "lucide-react";
+import { Check, FileText, LayoutTemplate, Loader2, Save, X } from "lucide-react";
 import { ErrorBanner, PageHeader } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
+import { PRINT_TEMPLATES, normalizePrintTemplate, type PrintTemplateKey } from "@/lib/documentPrintSettings";
 
 type DocumentType =
   | "sales_invoice"
@@ -30,6 +31,7 @@ type VisibilityRow = {
   id?: string;
   company_id?: string;
   document_type: DocumentType;
+  template_key: PrintTemplateKey;
   show_company_name: boolean;
   show_logo: boolean;
   show_address: boolean;
@@ -71,6 +73,7 @@ const ELEMENTS: Array<{ key: VisibilityKey; label: string }> = [
 function defaultVisibility(documentType: DocumentType): VisibilityRow {
   return {
     document_type: documentType,
+    template_key: "standard",
     show_company_name: true,
     show_logo: true,
     show_address: true,
@@ -141,7 +144,10 @@ export default function DocumentPrintSettings() {
         setOrientation(company.page_orientation || "portrait");
       }
 
-      let existing = (visibilityResult.data || []) as VisibilityRow[];
+      let existing = (visibilityResult.data || []).map((row: any) => ({
+        ...row,
+        template_key: normalizePrintTemplate(row.template_key),
+      })) as VisibilityRow[];
       const missingRows = DOCUMENTS
         .filter(({ type }) => !existing.some((row) => row.document_type === type))
         .map(({ type }) => ({ ...defaultVisibility(type), company_id: companyId, updated_at: new Date().toISOString() }));
@@ -152,7 +158,10 @@ export default function DocumentPrintSettings() {
           .upsert(missingRows, { onConflict: "company_id,document_type" })
           .select("*");
         if (createError) throw createError;
-        existing = [...existing, ...((createdRows || []) as VisibilityRow[])];
+        existing = [
+          ...existing,
+          ...((createdRows || []).map((row: any) => ({ ...row, template_key: normalizePrintTemplate(row.template_key) })) as VisibilityRow[]),
+        ];
       }
 
       setMatrix(DOCUMENTS.map(({ type }) => existing.find((row) => row.document_type === type) || defaultVisibility(type)));
@@ -169,6 +178,10 @@ export default function DocumentPrintSettings() {
 
   const toggleMatrix = (documentType: DocumentType, key: VisibilityKey) => {
     setMatrix((current) => current.map((row) => row.document_type === documentType ? { ...row, [key]: !row[key] } : row));
+  };
+
+  const setTemplateForDocument = (documentType: DocumentType, template: PrintTemplateKey) => {
+    setMatrix((current) => current.map((row) => row.document_type === documentType ? { ...row, template_key: template } : row));
   };
 
   const setAllForElement = (key: VisibilityKey, value: boolean) => {
@@ -206,6 +219,7 @@ export default function DocumentPrintSettings() {
       const visibilityPayload = matrix.map((row) => ({
         company_id: companyId,
         document_type: row.document_type,
+        template_key: row.template_key,
         show_company_name: row.show_company_name,
         show_logo: row.show_logo,
         show_address: row.show_address,
@@ -248,7 +262,7 @@ export default function DocumentPrintSettings() {
 
   return (
     <div>
-      <PageHeader title="Document & Print Settings / ڈاکومنٹ اور پرنٹ سیٹنگز" subtitle="Control what appears on each ERP document / ہر ERP ڈاکومنٹ پر دکھائی جانے والی معلومات کنٹرول کریں" />
+      <PageHeader title="Document & Print Settings / ڈاکومنٹ اور پرنٹ سیٹنگز" subtitle="Control content and design without changing transaction or accounting data / مواد اور ڈیزائن تبدیل کریں، کاروباری ڈیٹا نہیں" />
       {error && <div className="mt-4"><ErrorBanner message={error} /></div>}
       {saved && <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">Document & print settings saved successfully / ڈاکومنٹ اور پرنٹ سیٹنگز کامیابی سے محفوظ ہوگئیں۔</div>}
 
@@ -260,6 +274,23 @@ export default function DocumentPrintSettings() {
             <Area label="Urdu Header / اردو ہیڈر" value={headerUrdu} setValue={setHeaderUrdu} />
             <Area label="Footer / فوٹر" value={footer} setValue={setFooter} />
             <Area label="Urdu Footer / اردو فوٹر" value={footerUrdu} setValue={setFooterUrdu} />
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center gap-2"><LayoutTemplate className="h-5 w-5 text-violet-600" /><div><h2 className="font-bold">Print Design by Document / ہر ڈاکومنٹ کا پرنٹ ڈیزائن</h2><p className="mt-1 text-xs text-slate-500">Changing a template only changes appearance. Invoice amounts, tax, stock and accounting postings are never changed.</p></div></div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {DOCUMENTS.map((doc) => {
+              const row = matrixByType[doc.type] || defaultVisibility(doc.type);
+              const selected = PRINT_TEMPLATES.find((item) => item.key === row.template_key) || PRINT_TEMPLATES[0];
+              return <div key={doc.type} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="text-sm font-bold text-slate-900">{doc.label}</div>
+                <SearchableSelect className="input mt-3 w-full" value={row.template_key} onChange={(e) => setTemplateForDocument(doc.type, e.target.value as PrintTemplateKey)}>
+                  {PRINT_TEMPLATES.map((template) => <option key={template.key} value={template.key}>{template.label}</option>)}
+                </SearchableSelect>
+                <p className="mt-2 text-xs leading-5 text-slate-500">{selected.description}</p>
+              </div>;
+            })}
           </div>
         </section>
 
@@ -291,6 +322,11 @@ export default function DocumentPrintSettings() {
             </table>
           </div>
         </section>
+
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+          <div className="font-bold">Safe design architecture</div>
+          <p className="mt-1 text-xs leading-5">Templates, show/hide options, language, header/footer and page setup are presentation settings only. Posted accounting, VAT, stock movements and document values remain controlled by the transaction data.</p>
+        </div>
 
         <div className="flex justify-end"><button type="button" onClick={() => void save()} disabled={saving} className="btn btn-primary">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Save Document Settings / محفوظ کریں</button></div>
       </div>

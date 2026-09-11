@@ -1,82 +1,197 @@
-import { useCallback, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ComponentType } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, Banknote, Boxes, Factory, FileBarChart, FilePlus2, PackageSearch, RefreshCw, ShoppingCart, TrendingUp, WalletCards } from "lucide-react";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { AlertTriangle, Banknote, Boxes, Building2, Eye, EyeOff, Factory, Landmark, RefreshCw, Settings2, ShoppingCart, WalletCards } from "lucide-react";
+import { useAuth } from "@/auth/AuthContext";
 import { supabase } from "@/lib/supabase";
 
-type OrderRow={status?:string|null;total?:number|string|null;outstanding_amount?:number|string|null;created_at?:string|null};
-type StockRow={quantity?:number|string|null};
-type WorkRow={status?:string|null;created_at?:string|null};
-type Stats={sales:number;purchases:number;receivables:number;payables:number;inventoryQty:number;pendingWorkOrders:number;stockAlerts:number};
-const EMPTY:Stats={sales:0,purchases:0,receivables:0,payables:0,inventoryQty:0,pendingWorkOrders:0,stockAlerts:0};
-const COLORS=["#2563eb","#16a34a","#f59e0b"];
-const n=(v:unknown)=>{const x=Number(v);return Number.isFinite(x)?x:0};
-const money=(v:number)=>`Rs ${new Intl.NumberFormat("en-PK",{maximumFractionDigits:0}).format(v)}`;
-const posted=(v:unknown)=>["posted","closed"].includes(String(v??"").toLowerCase());
-const monthKey=(v?:string|null)=>{const d=v?new Date(v):null;return d&&!Number.isNaN(d.getTime())?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`:null};
+type Summary = {
+  sales_mtd: number;
+  sales_documents_mtd: number;
+  purchases_mtd: number;
+  purchase_documents_mtd: number;
+  cash_balance: number;
+  bank_balance: number;
+  receivables: number;
+  payables: number;
+  inventory_value: number;
+  stock_quantity: number;
+  stock_alerts: number;
+  pending_work_orders: number;
+  as_of: string | null;
+};
 
-function Panel({title,action,children,className=""}:{title:string;action?:ReactNode;children:ReactNode;className?:string}){
- return <section className={`min-w-0 rounded-xl border border-slate-200 bg-white shadow-sm ${className}`}><div className="flex min-h-11 items-center justify-between gap-3 border-b border-slate-200 px-4 py-2"><h2 className="text-xs font-black text-slate-900">{title}</h2>{action}</div><div className="p-3">{children}</div></section>
-}
+type WidgetId = "sales" | "purchases" | "receivables" | "payables" | "cash" | "bank" | "inventory" | "operations" | "quick_links";
 
-export default function Dashboard(){
- const navigate=useNavigate();
- const [stats,setStats]=useState<Stats>(EMPTY);
- const [salesRows,setSalesRows]=useState<OrderRow[]>([]);
- const [purchaseRows,setPurchaseRows]=useState<OrderRow[]>([]);
- const [workRows,setWorkRows]=useState<WorkRow[]>([]);
- const [loading,setLoading]=useState(true);
- const [updatedAt,setUpdatedAt]=useState<Date|null>(null);
+type Kpi = {
+  id: WidgetId;
+  label: string;
+  value: string;
+  note: string;
+  icon: ComponentType<{ className?: string }>;
+  color: string;
+  to: string;
+};
 
- const load=useCallback(async()=>{setLoading(true);try{
-  const [sr,pr,st,wr]=await Promise.all([
-   supabase.from("sales_orders").select("status,total,outstanding_amount,created_at"),
-   supabase.from("purchase_orders").select("status,total,outstanding_amount,created_at"),
-   supabase.from("warehouse_stock").select("quantity"),
-   supabase.from("work_orders").select("status,created_at")]);
-  const sales=((sr.data??[]) as OrderRow[]).filter(r=>posted(r.status));
-  const purchases=((pr.data??[]) as OrderRow[]).filter(r=>posted(r.status));
-  const stock=(st.data??[]) as StockRow[],work=(wr.data??[]) as WorkRow[];
-  setSalesRows(sales);setPurchaseRows(purchases);setWorkRows(work);
-  setStats({sales:sales.reduce((a,r)=>a+n(r.total),0),purchases:purchases.reduce((a,r)=>a+n(r.total),0),receivables:sales.reduce((a,r)=>a+n(r.outstanding_amount),0),payables:purchases.reduce((a,r)=>a+n(r.outstanding_amount),0),inventoryQty:stock.reduce((a,r)=>a+n(r.quantity),0),pendingWorkOrders:work.filter(r=>!["completed","closed"].includes(String(r.status??"").toLowerCase())).length,stockAlerts:stock.filter(r=>n(r.quantity)<=0).length});
-  setUpdatedAt(new Date());
- }finally{setLoading(false)}},[]);
- useEffect(()=>{void load()},[load]);
+const EMPTY: Summary = {
+  sales_mtd: 0,
+  sales_documents_mtd: 0,
+  purchases_mtd: 0,
+  purchase_documents_mtd: 0,
+  cash_balance: 0,
+  bank_balance: 0,
+  receivables: 0,
+  payables: 0,
+  inventory_value: 0,
+  stock_quantity: 0,
+  stock_alerts: 0,
+  pending_work_orders: 0,
+  as_of: null,
+};
 
- const trend=useMemo(()=>{const today=new Date();const rows=Array.from({length:6},(_,i)=>{const d=new Date(today.getFullYear(),today.getMonth()-(5-i),1);return{key:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`,month:d.toLocaleDateString("en",{month:"short"}),sales:0,purchase:0}});const map=new Map(rows.map(r=>[r.key,r]));salesRows.forEach(r=>{const x=map.get(monthKey(r.created_at)??"");if(x)x.sales+=n(r.total)});purchaseRows.forEach(r=>{const x=map.get(monthKey(r.created_at)??"");if(x)x.purchase+=n(r.total)});return rows},[salesRows,purchaseRows]);
- const profitTrend=trend.map(r=>({...r,gross:r.sales-r.purchase,net:(r.sales-r.purchase)*.86}));
- const grossProfit=stats.sales-stats.purchases;
- const kpis:Array<{label:string;value:string;icon:ComponentType<{className?:string}>;color:string;to:string}>=[
-  {label:"Sales Revenue / فروخت",value:money(stats.sales),icon:ShoppingCart,color:"bg-blue-600",to:"/sales"},
-  {label:"Receivables / قابل وصول",value:money(stats.receivables),icon:WalletCards,color:"bg-emerald-600",to:"/accounting/customer-invoice-statement"},
-  {label:"Purchases / خریداری",value:money(stats.purchases),icon:Banknote,color:"bg-amber-500",to:"/purchase"},
-  {label:"Payables / قابل ادائیگی",value:money(stats.payables),icon:FileBarChart,color:"bg-violet-600",to:"/purchase"},
-  {label:"Stock Quantity / موجودہ اسٹاک",value:stats.inventoryQty.toLocaleString(),icon:Boxes,color:"bg-cyan-600",to:"/godown"},
-  {label:"Gross Margin / مجموعی منافع",value:money(grossProfit),icon:TrendingUp,color:"bg-rose-600",to:"/accounting/profit-loss"}];
- const stockMix=[{name:"Stock Qty",value:Math.max(stats.inventoryQty,0)},{name:"Alerts",value:stats.stockAlerts},{name:"Pending W/O",value:stats.pendingWorkOrders}].filter(x=>x.value>0);
- const linkClass="inline-flex h-8 items-center rounded-md border border-blue-200 bg-blue-50 px-3 text-[10px] font-black text-blue-700 hover:bg-blue-100";
+const WIDGETS: Array<{ id: WidgetId; label: string }> = [
+  { id: "sales", label: "Sales MTD / ماہانہ فروخت" },
+  { id: "purchases", label: "Purchases MTD / ماہانہ خریداری" },
+  { id: "receivables", label: "Receivables / قابل وصول" },
+  { id: "payables", label: "Payables / قابل ادائیگی" },
+  { id: "cash", label: "Cash Balance / نقد بیلنس" },
+  { id: "bank", label: "Bank Balance / بینک بیلنس" },
+  { id: "inventory", label: "Inventory Value / اسٹاک مالیت" },
+  { id: "operations", label: "Operations & Alerts / آپریشن اور الرٹس" },
+  { id: "quick_links", label: "Quick Links / فوری رسائی" },
+];
 
- return <div className="mx-auto max-w-[1600px] space-y-3 p-3 lg:p-4">
-  <div className="flex flex-wrap items-end justify-between gap-3"><div><h1 className="text-lg font-black text-slate-950">Business Overview / کاروباری خلاصہ</h1><p className="mt-0.5 text-[11px] font-semibold text-slate-500">Live financial, inventory and operational intelligence in one place.</p></div><div className="flex items-center gap-2"><span className="hidden text-[10px] font-bold text-emerald-700 sm:inline">● Live data{updatedAt?` · ${updatedAt.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}`:""}</span><button onClick={()=>void load()} disabled={loading} className="inline-flex h-8 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-[10px] font-black text-slate-700 shadow-sm"><RefreshCw className={`h-3.5 w-3.5 ${loading?"animate-spin":""}`}/>Refresh / تازہ کریں</button></div></div>
+const money = (value: number) => `Rs ${new Intl.NumberFormat("en-PK", { maximumFractionDigits: 0 }).format(Number(value) || 0)}`;
+const number = (value: number) => new Intl.NumberFormat("en-PK", { maximumFractionDigits: 2 }).format(Number(value) || 0);
 
-  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">{kpis.map(c=>{const Icon=c.icon;return <button key={c.label} onClick={()=>navigate(c.to)} className="rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md"><div className="flex items-center gap-2"><span className={`flex h-8 w-8 items-center justify-center rounded-lg text-white ${c.color}`}><Icon className="h-4 w-4"/></span><div className="text-[10px] font-black uppercase tracking-wide text-slate-600">{c.label}</div></div><div className="mt-3 truncate text-lg font-black tabular-nums text-slate-950">{loading?"…":c.value}</div><div className="mt-1 text-[9px] font-semibold text-slate-400">Click to view details</div></button>})}</div>
+export default function Dashboard() {
+  const navigate = useNavigate();
+  const { activeCompany, activeBusinessUnit } = useAuth();
+  const companyId = activeCompany?.company_id ?? null;
+  const businessUnitId = activeBusinessUnit?.business_unit_id ?? null;
+  const [summary, setSummary] = useState<Summary>(EMPTY);
+  const [hidden, setHidden] = useState<WidgetId[]>([]);
+  const [preferenceId, setPreferenceId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [savingPreference, setSavingPreference] = useState(false);
 
-  <div className="grid gap-3 xl:grid-cols-[1fr_1fr_.78fr]">
-   <Panel title="Sales vs Purchase (6 Months) / فروخت بمقابلہ خریداری"><div className="h-56"><ResponsiveContainer width="100%" height="100%"><BarChart data={trend} margin={{top:8,right:8,left:-18,bottom:0}}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0"/><XAxis dataKey="month" tick={{fontSize:10}}/><YAxis tick={{fontSize:9}} tickFormatter={v=>`${Math.round(v/1000)}k`}/><Tooltip formatter={v=>money(n(v))}/><Legend wrapperStyle={{fontSize:10}}/><Bar dataKey="sales" name="Sales" fill="#2563eb" radius={[3,3,0,0]}/><Bar dataKey="purchase" name="Purchase" fill="#10b981" radius={[3,3,0,0]}/></BarChart></ResponsiveContainer></div></Panel>
-   <Panel title="Profit & Loss Trend / منافع اور نقصان"><div className="h-56"><ResponsiveContainer width="100%" height="100%"><AreaChart data={profitTrend} margin={{top:8,right:8,left:-18,bottom:0}}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="month" tick={{fontSize:10}}/><YAxis tick={{fontSize:9}} tickFormatter={v=>`${Math.round(v/1000)}k`}/><Tooltip formatter={v=>money(n(v))}/><Legend wrapperStyle={{fontSize:10}}/><Area type="monotone" dataKey="gross" name="Gross" stroke="#7c3aed" fill="#ede9fe"/><Area type="monotone" dataKey="net" name="Net estimate" stroke="#16a34a" fill="#dcfce7"/></AreaChart></ResponsiveContainer></div></Panel>
-   <Panel title="Daily Updates / روزانہ اپڈیٹس" action={<span className="text-[9px] font-bold text-slate-400">LIVE</span>}><div className="grid min-h-56 gap-2 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3"><button onClick={()=>navigate("/godown")} className="rounded-lg bg-amber-50 p-3 text-left text-[10px] font-bold text-amber-950"><AlertTriangle className="mb-2 h-4 w-4 text-amber-600"/>{stats.stockAlerts} stock item(s) need attention.</button><button onClick={()=>navigate("/production")} className="rounded-lg bg-blue-50 p-3 text-left text-[10px] font-bold text-blue-950"><Factory className="mb-2 h-4 w-4 text-blue-600"/>{stats.pendingWorkOrders} work order(s) currently pending.</button><button onClick={()=>navigate("/accounting/customer-invoice-statement")} className="rounded-lg bg-emerald-50 p-3 text-left text-[10px] font-bold text-emerald-950"><WalletCards className="mb-2 h-4 w-4 text-emerald-600"/>{money(stats.receivables)} customer receivables.</button></div></Panel>
-  </div>
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: rpcError } = await supabase.rpc("dashboard_live_summary");
+    if (rpcError) setError(rpcError.message);
+    else setSummary({ ...EMPTY, ...((data || {}) as Partial<Summary>) });
+    setLoading(false);
+  }, []);
 
-  <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-4">
-   <Panel title="Sales Summary / فروخت کا خلاصہ" action={<button onClick={()=>navigate("/sales")} className="text-[9px] font-black text-blue-700">Full Report →</button>}><div className="space-y-2 text-[10px]"><div className="flex justify-between border-b pb-2"><span>Posted documents</span><b>{salesRows.length}</b></div><div className="flex justify-between border-b pb-2"><span>Total sales</span><b>{money(stats.sales)}</b></div><div className="flex justify-between"><span>Outstanding</span><b className="text-amber-700">{money(stats.receivables)}</b></div></div></Panel>
-   <Panel title="Purchase Summary / خریداری کا خلاصہ" action={<button onClick={()=>navigate("/purchase")} className="text-[9px] font-black text-blue-700">Full Report →</button>}><div className="space-y-2 text-[10px]"><div className="flex justify-between border-b pb-2"><span>Posted documents</span><b>{purchaseRows.length}</b></div><div className="flex justify-between border-b pb-2"><span>Total purchases</span><b>{money(stats.purchases)}</b></div><div className="flex justify-between"><span>Outstanding</span><b className="text-amber-700">{money(stats.payables)}</b></div></div></Panel>
-   <Panel title="Stock Summary / اسٹاک خلاصہ"><div className="flex h-28 items-center gap-3"><ResponsiveContainer width="45%" height="100%"><PieChart><Pie data={stockMix.length?stockMix:[{name:"No stock",value:1}]} dataKey="value" nameKey="name" innerRadius={28} outerRadius={43}>{(stockMix.length?stockMix:[{name:"No stock",value:1}]).map((_,i)=><Cell key={i} fill={stockMix.length?COLORS[i%COLORS.length]:"#cbd5e1"}/>)}</Pie><Tooltip/></PieChart></ResponsiveContainer><div className="text-[10px]"><span className="text-slate-500">Total quantity</span><div className="font-black">{stats.inventoryQty.toLocaleString()}</div><span className="mt-2 block text-slate-500">Alerts</span><div className="font-black text-amber-700">{stats.stockAlerts}</div></div></div></Panel>
-   <Panel title="Financial Summary / مالی خلاصہ" action={<button onClick={()=>navigate("/accounting/profit-loss")} className="text-[9px] font-black text-blue-700">P&amp;L →</button>}><div className="space-y-1.5 text-[10px]"><div className="flex justify-between"><span>Total Sales</span><b>{money(stats.sales)}</b></div><div className="flex justify-between"><span>Total Purchase</span><b>{money(stats.purchases)}</b></div><div className="flex justify-between border-t pt-1.5"><span>Gross Margin</span><b className={grossProfit>=0?"text-emerald-700":"text-rose-700"}>{money(grossProfit)}</b></div><div className="flex justify-between"><span>Net Estimate</span><b>{money(grossProfit*.86)}</b></div></div></Panel>
-  </div>
+  const loadPreferences = useCallback(async () => {
+    if (!companyId) return;
+    let query = supabase
+      .from("dashboard_widget_preferences")
+      .select("id,hidden_widgets")
+      .eq("company_id", companyId);
+    query = businessUnitId ? query.eq("business_unit_id", businessUnitId) : query.is("business_unit_id", null);
+    const { data, error: preferenceError } = await query.maybeSingle();
+    if (preferenceError) {
+      setError(preferenceError.message);
+      return;
+    }
+    setPreferenceId(data?.id ?? null);
+    setHidden(((data?.hidden_widgets ?? []) as string[]).filter((id): id is WidgetId => WIDGETS.some((widget) => widget.id === id)));
+  }, [businessUnitId, companyId]);
 
-  <div className="grid gap-3 xl:grid-cols-[1fr_2fr]">
-   <Panel title="Alerts / ضروری اطلاعات"><div className="flex flex-wrap gap-5 text-[10px] font-bold"><button onClick={()=>navigate("/godown")} className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-rose-500"/>Stock alerts <b>{stats.stockAlerts}</b></button><button onClick={()=>navigate("/production")} className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-500"/>Pending work orders <b>{stats.pendingWorkOrders}</b></button></div></Panel>
-   <Panel title="Quick Links / فوری رسائی"><div className="flex flex-wrap gap-2"><button onClick={()=>navigate("/sales/new")} className={linkClass}><FilePlus2 className="mr-1 h-3.5 w-3.5"/>Sales Invoice</button><button onClick={()=>navigate("/purchase/new")} className={linkClass}><ShoppingCart className="mr-1 h-3.5 w-3.5"/>Purchase</button><button onClick={()=>navigate("/accounting/profit-loss")} className={linkClass}><FileBarChart className="mr-1 h-3.5 w-3.5"/>P&amp;L Report</button><button onClick={()=>navigate("/godown")} className={linkClass}><PackageSearch className="mr-1 h-3.5 w-3.5"/>Stock Report</button><button onClick={()=>navigate("/accounting/customer-invoice-statement")} className={linkClass}><WalletCards className="mr-1 h-3.5 w-3.5"/>A/R Report</button><button onClick={()=>navigate("/production")} className={linkClass}><Factory className="mr-1 h-3.5 w-3.5"/>Work Orders ({workRows.length})</button></div></Panel>
-  </div>
- </div>
+  useEffect(() => { void load(); }, [load, companyId, businessUnitId]);
+  useEffect(() => { void loadPreferences(); }, [loadPreferences]);
+  useEffect(() => {
+    const timer = window.setInterval(() => void load(), 60000);
+    return () => window.clearInterval(timer);
+  }, [load]);
+
+  const saveHidden = async (next: WidgetId[]) => {
+    if (!companyId) return;
+    setSavingPreference(true);
+    setError(null);
+    const payload = { hidden_widgets: next, updated_at: new Date().toISOString() };
+    const result = preferenceId
+      ? await supabase.from("dashboard_widget_preferences").update(payload).eq("id", preferenceId).select("id").single()
+      : await supabase.from("dashboard_widget_preferences").insert({ ...payload, company_id: companyId, business_unit_id: businessUnitId }).select("id").single();
+    setSavingPreference(false);
+    if (result.error) {
+      setError(result.error.message);
+      return;
+    }
+    if (!preferenceId) setPreferenceId(result.data.id);
+    setHidden(next);
+  };
+
+  const visible = (id: WidgetId) => !hidden.includes(id);
+  const toggle = (id: WidgetId) => {
+    const next = hidden.includes(id) ? hidden.filter((item) => item !== id) : [...hidden, id];
+    void saveHidden(next);
+  };
+
+  const kpis = useMemo<Kpi[]>(() => [
+    { id: "sales", label: "Sales MTD / ماہانہ فروخت", value: money(summary.sales_mtd), note: `${summary.sales_documents_mtd} posted document(s) this month`, icon: ShoppingCart, color: "bg-blue-600", to: "/sales" },
+    { id: "purchases", label: "Purchases MTD / ماہانہ خریداری", value: money(summary.purchases_mtd), note: `${summary.purchase_documents_mtd} posted document(s) this month`, icon: Banknote, color: "bg-amber-500", to: "/purchase" },
+    { id: "receivables", label: "Receivables / قابل وصول", value: money(summary.receivables), note: "Posted A/R ledger balance", icon: WalletCards, color: "bg-emerald-600", to: "/accounting/customer-invoice-statement" },
+    { id: "payables", label: "Payables / قابل ادائیگی", value: money(summary.payables), note: "Posted A/P ledger balance", icon: Building2, color: "bg-violet-600", to: "/reports/supplier-aging" },
+    { id: "cash", label: "Cash Balance / نقد بیلنس", value: money(summary.cash_balance), note: "Mapped cash account · posted entries", icon: Banknote, color: "bg-cyan-600", to: "/accounting/cash-counter" },
+    { id: "bank", label: "Bank Balance / بینک بیلنس", value: money(summary.bank_balance), note: "Mapped bank account · posted entries", icon: Landmark, color: "bg-sky-700", to: "/accounting/bank-reconciliation" },
+    { id: "inventory", label: "Inventory Value / اسٹاک مالیت", value: money(summary.inventory_value), note: `${number(summary.stock_quantity)} current stock quantity`, icon: Boxes, color: "bg-slate-700", to: "/reports/stock-valuation" },
+  ], [summary]);
+
+  return (
+    <div className="mx-auto max-w-[1600px] space-y-4 p-3 lg:p-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-black text-slate-950">Business Overview / کاروباری خلاصہ</h1>
+          <p className="mt-0.5 text-[11px] font-semibold text-slate-500">Posted accounting balances and current operational activity. Auto-refreshes every minute.</p>
+        </div>
+        <div className="relative flex items-center gap-2">
+          <span className="hidden text-[10px] font-bold text-emerald-700 sm:inline">● Live{summary.as_of ? ` · ${new Date(summary.as_of).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}</span>
+          <button type="button" onClick={() => setCustomizeOpen((value) => !value)} className="inline-flex h-8 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-[10px] font-black text-slate-700 shadow-sm"><Settings2 className="h-3.5 w-3.5" />Customize / ترتیب</button>
+          <button type="button" onClick={() => void load()} disabled={loading} className="inline-flex h-8 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-[10px] font-black text-slate-700 shadow-sm"><RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />Refresh / تازہ کریں</button>
+          {customizeOpen && <div className="absolute right-0 top-10 z-40 w-[290px] rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+            <div className="mb-2 flex items-center justify-between"><div className="text-xs font-black text-slate-900">Show / Hide Dashboard / دکھائیں یا چھپائیں</div><button type="button" onClick={() => setCustomizeOpen(false)} className="text-xs font-bold text-slate-500">Close</button></div>
+            <div className="space-y-1">{WIDGETS.map((widget) => <button type="button" key={widget.id} disabled={savingPreference} onClick={() => toggle(widget.id)} className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-xs font-semibold hover:bg-slate-50"><span>{widget.label}</span>{visible(widget.id) ? <Eye className="h-4 w-4 text-emerald-600" /> : <EyeOff className="h-4 w-4 text-slate-400" />}</button>)}</div>
+            {hidden.length > 0 && <button type="button" disabled={savingPreference} onClick={() => void saveHidden([])} className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-blue-700">Show All / سب دکھائیں</button>}
+          </div>}
+        </div>
+      </div>
+
+      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{error}</div>}
+
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+        {kpis.filter((card) => visible(card.id)).map((card) => {
+          const Icon = card.icon;
+          return <button key={card.id} onClick={() => navigate(card.to)} className="rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md">
+            <div className="flex items-center gap-2"><span className={`flex h-8 w-8 items-center justify-center rounded-lg text-white ${card.color}`}><Icon className="h-4 w-4" /></span><div className="text-[10px] font-black uppercase tracking-wide text-slate-600">{card.label}</div></div>
+            <div className="mt-3 truncate text-lg font-black tabular-nums text-slate-950">{loading ? "…" : card.value}</div>
+            <div className="mt-1 text-[9px] font-semibold text-slate-400">{card.note}</div>
+          </button>;
+        })}
+      </div>
+
+      <div className="grid gap-3 xl:grid-cols-[1fr_1.3fr]">
+        {visible("operations") && <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-xs font-black text-slate-900">Operations & Alerts / آپریشن اور الرٹس</h2></div>
+          <div className="grid gap-2 p-3 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
+            <button onClick={() => navigate("/godown")} className="rounded-lg bg-amber-50 p-3 text-left text-[10px] font-bold text-amber-950"><AlertTriangle className="mb-2 h-4 w-4 text-amber-600" />{summary.stock_alerts} stock item(s) need attention.</button>
+            <button onClick={() => navigate("/production")} className="rounded-lg bg-blue-50 p-3 text-left text-[10px] font-bold text-blue-950"><Factory className="mb-2 h-4 w-4 text-blue-600" />{summary.pending_work_orders} work order(s) pending.</button>
+            <button onClick={() => navigate("/godown")} className="rounded-lg bg-slate-50 p-3 text-left text-[10px] font-bold text-slate-900"><Boxes className="mb-2 h-4 w-4 text-slate-600" />{number(summary.stock_quantity)} current stock quantity.</button>
+          </div>
+        </section>}
+
+        {visible("quick_links") && <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 px-4 py-3"><h2 className="text-xs font-black text-slate-900">Quick Links / فوری رسائی</h2></div>
+          <div className="flex flex-wrap gap-2 p-3">
+            {[
+              ["New Sales Invoice", "/sales/new"], ["New Purchase", "/purchase/new"], ["Cash Counter", "/accounting/cash-counter"], ["Bank Reconciliation", "/accounting/bank-reconciliation"], ["Customer Statement", "/accounting/customer-invoice-statement"], ["Stock Movements", "/godown/movements"], ["Trial Balance", "/accounting/trial-balance"], ["Profit & Loss", "/accounting/profit-loss"],
+            ].map(([label, to]) => <button key={to} onClick={() => navigate(to)} className="inline-flex h-8 items-center rounded-md border border-blue-200 bg-blue-50 px-3 text-[10px] font-black text-blue-700 hover:bg-blue-100">{label}</button>)}
+          </div>
+        </section>}
+      </div>
+    </div>
+  );
 }

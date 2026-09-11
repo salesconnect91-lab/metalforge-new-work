@@ -49,6 +49,7 @@ export default function SupplierAgingReport() {
   const summary = useMemo(() => rows.reduce((a, r) => { a.invoiced += num(r.invoice_amount); a.paid += num(r.paid_amount); a.outstanding += num(r.outstanding_amount); if (num(r.overdue_days) > 0 && num(r.outstanding_amount) > 0) a.overdue += num(r.outstanding_amount); return a; }, { invoiced: 0, paid: 0, outstanding: 0, overdue: 0 }), [rows]);
   const bucketTotals = useMemo(() => Object.fromEntries(AGING_BUCKETS.map(bucket => [bucket, rows.filter(r => r.aging_bucket === bucket).reduce((s, r) => s + num(r.outstanding_amount), 0)])), [rows]);
   const reset = () => { setQ(""); setFrom(""); setTo(""); setSupplier(""); setPaymentStatus(""); setAgingBucket(""); };
+  const toggleBucket = (bucket: string) => setAgingBucket(v => v === bucket ? "" : bucket);
 
   return <div className="space-y-4 pb-12 print-report" data-print-root>
     <section className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -63,7 +64,7 @@ export default function SupplierAgingReport() {
       <div className="summary-card"><div className="summary-label">Overdue Amount</div><div className="summary-value">{formatCurrency(summary.overdue)}</div></div>
     </section>
     <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7" data-export-summary data-print-summary>
-      {AGING_BUCKETS.map(bucket => <button type="button" key={bucket} className={`rounded-xl border bg-white p-3 text-left ${agingBucket === bucket ? "ring-2 ring-blue-500" : ""}`} onClick={() => setAgingBucket(v => v === bucket ? "" : bucket)}><div className="text-xs font-bold text-slate-500">{bucket}</div><div className="mt-1 text-sm font-black">{formatCurrency(num(bucketTotals[bucket]))}</div></button>)}
+      {AGING_BUCKETS.map(bucket => <div key={bucket} role="button" tabIndex={0} data-print-keep className={`rounded-xl border bg-white p-3 text-left ${agingBucket === bucket ? "ring-2 ring-blue-500" : ""}`} onClick={() => toggleBucket(bucket)} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleBucket(bucket); } }}><div className="text-xs font-bold text-slate-500">{bucket}</div><div className="mt-1 text-sm font-black">{formatCurrency(num(bucketTotals[bucket]))}</div></div>)}
     </section>
     <section className="no-print rounded-xl border border-slate-200 bg-white p-3" data-report-filters>
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-7">

@@ -16,7 +16,7 @@ const DEFAULT_HIDDEN:WidgetId[]=[];
 const WIDGETS:Array<{id:WidgetId;label:string}>=[{id:"sales",label:"Sales"},{id:"purchases",label:"Purchases"},{id:"receivables",label:"Receivables"},{id:"payables",label:"Payables"},{id:"cash",label:"Cash Balance"},{id:"bank",label:"Bank Balance"},{id:"inventory",label:"Inventory Value"},{id:"sales_purchase",label:"Sales vs Purchase Trend"},{id:"cash_flow",label:"Cash In vs Cash Out"},{id:"profit",label:"Gross Profit & Margin"},{id:"operations",label:"Operations & Alerts"}];
 const money=(v:number)=>`Rs ${new Intl.NumberFormat("en-PK",{maximumFractionDigits:0}).format(Number(v)||0)}`;
 const qty=(v:number)=>new Intl.NumberFormat("en-PK",{maximumFractionDigits:2}).format(Number(v)||0);
-const iso=(d:Date)=>d.toISOString().slice(0,10);
+const iso=(d:Date)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 const startOfWeek=(d:Date)=>{const x=new Date(d);const day=(x.getDay()+6)%7;x.setDate(x.getDate()-day);return x};
 const startOfMonth=(d:Date)=>new Date(d.getFullYear(),d.getMonth(),1);
 const startOfFY=(d:Date)=>new Date(d.getFullYear(),0,1);

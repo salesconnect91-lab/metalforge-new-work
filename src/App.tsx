@@ -29,6 +29,7 @@ import CustomerInvoiceStatement from "@/modules/accounting/CustomerInvoiceStatem
 import Settings from "@/modules/settings/Settings";
 import Reports from "@/modules/reports/Reports";
 import SteelStockControl from "@/modules/reports/SteelStockControl";
+import SupplierAgingReport from "@/modules/reports/SupplierAgingReport";
 import ConsolidatedInvoices from "@/modules/sales/ConsolidatedInvoices";
 import OrderBook from "@/modules/orders/OrderBook";
 import OwnerPanel from "@/modules/platform/OwnerPanel";
@@ -116,6 +117,7 @@ export default function App() {
       <Route path="/accounting/customer-invoice-statement" element={<ModuleOnly module="accounting"><CustomerInvoiceStatement /></ModuleOnly>} />
       <Route path="/accounting/*" element={<ModuleOnly module="accounting"><Accounting /></ModuleOnly>} />
       <Route path="/reports/steel-stock" element={<BusinessTypeOnly type="steel"><ModuleOnly module="reports"><ReportSurface><SteelStockControl /></ReportSurface></ModuleOnly></BusinessTypeOnly>} />
+      <Route path="/reports/supplier-aging" element={<ModuleOnly module="reports"><ReportSurface><SupplierAgingReport /></ReportSurface></ModuleOnly>} />
       <Route path="/reports/*" element={<ModuleOnly module="reports"><ReportSurface><Reports /></ReportSurface></ModuleOnly>} />
       <Route path="/settings/*" element={<ModuleOnly module="settings"><Settings /></ModuleOnly>} />
       <Route path="*" element={<Navigate to="/" replace />} />

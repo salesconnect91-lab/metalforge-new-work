@@ -44,6 +44,19 @@ function markPrimaryTarget(target: HTMLElement) {
   target.setAttribute("data-navilo-primary-print-target", "true");
 }
 
+function isCashCounterVoucherPrint(button: HTMLButtonElement, label: string) {
+  if (window.location.pathname !== "/accounting/cash-counter") return false;
+  if (!/\bprint\b|پرنٹ/.test(label)) return false;
+  const text = (button.closest("section,div")?.textContent || "").replace(/\s+/g, " ").toLowerCase();
+  return (
+    text.includes("payment received successfully") ||
+    text.includes("posted successfully") ||
+    text.includes("general transaction history") ||
+    text.includes("posted customer receipt history") ||
+    text.includes("supplier payment")
+  );
+}
+
 function preparePrintTarget(event: MouseEvent) {
   const button = (event.target as Element | null)?.closest("button");
   if (!(button instanceof HTMLButtonElement)) return;
@@ -53,6 +66,13 @@ function preparePrintTarget(event: MouseEvent) {
   const label = (button.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
   if (!/\bprint\b|پرنٹ/.test(label)) return;
   if (/\bprint loading worksheet\b|\bprint final gp\b|\bprint token\b/.test(label)) return;
+
+  // Cash Counter already builds transaction-specific customer, supplier and general cash vouchers.
+  // Do not let the generic page-preview interceptor replace those vouchers with a snapshot of the form/history screen.
+  if (isCashCounterVoucherPrint(button, label)) {
+    button.setAttribute("data-direct-print", "true");
+    return;
+  }
 
   const explicitSelector = button.dataset.printSelector;
   const explicit = explicitSelector ? document.querySelector<HTMLElement>(explicitSelector) : null;

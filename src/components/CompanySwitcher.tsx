@@ -34,6 +34,7 @@ export default function CompanySwitcher() {
                   setError(switchError);
                   return;
                 }
+                window.dispatchEvent(new Event("navilo-workspace-changed"));
                 navigate("/");
               });
             }}

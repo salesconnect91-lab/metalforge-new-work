@@ -1,22 +1,13 @@
 import { Download, FileSpreadsheet, FileText, Printer } from "lucide-react";
-import { exportMatrixToCSV, exportMatrixToExcel, exportMatrixToWord, triggerPrint } from "@/lib/exportUtils";
+import { exportDomReportToCSV, exportDomReportToExcel, exportDomReportToWord, triggerPrint } from "@/lib/exportUtils";
 
-function tableData(table: HTMLTableElement) {
-  const headers = [...table.tHead?.rows?.[0]?.cells || []].map((cell) => (cell.textContent || "").replace(/\s+/g, " ").trim());
-  const rows = [...table.tBodies[0]?.rows || []].map((row) => [...row.cells].map((cell) => (cell.textContent || "").replace(/\s+/g, " ").trim()));
-  return [headers, ...rows];
-}
-
-export default function OrderBookExportToolbar({ tableId, fileBase }: { tableId: string; fileBase: string }) {
-  const matrix = () => {
-    const table = document.getElementById(tableId) as HTMLTableElement | null;
-    return table ? tableData(table) : [[]];
-  };
-
+export default function OrderBookExportToolbar({ fileBase }: { tableId?: string; fileBase: string }) {
+  const root = () => document.getElementById("order-book-report");
+  const title = () => document.querySelector<HTMLElement>("#order-book-report h1,#order-book-report h2")?.textContent?.replace(/\s+/g, " ").trim() || "NAVILO Order Book";
   return <div className="flex flex-wrap items-center gap-1.5 print:hidden">
     <button type="button" className="btn" onClick={() => triggerPrint("#order-book-report")} title="Print or Save as PDF"><Printer size={14}/> Print / PDF</button>
-    <button type="button" className="btn" onClick={() => exportMatrixToExcel(fileBase, matrix(), "Order Book")}><FileSpreadsheet size={14}/> Excel</button>
-    <button type="button" className="btn" onClick={() => exportMatrixToCSV(fileBase, matrix())}><Download size={14}/> CSV</button>
-    <button type="button" className="btn" onClick={() => exportMatrixToWord(fileBase, matrix(), "NAVILO Order Book")}><FileText size={14}/> Word</button>
+    <button type="button" className="btn" onClick={() => { const el=root(); if(el) exportDomReportToExcel(fileBase,el,title()); }}><FileSpreadsheet size={14}/> Excel</button>
+    <button type="button" className="btn" onClick={() => { const el=root(); if(el) exportDomReportToCSV(fileBase,el,title()); }}><Download size={14}/> CSV</button>
+    <button type="button" className="btn" onClick={() => { const el=root(); if(el) exportDomReportToWord(fileBase,el,title()); }}><FileText size={14}/> Word</button>
   </div>;
 }

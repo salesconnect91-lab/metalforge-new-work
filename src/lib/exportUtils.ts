@@ -25,6 +25,14 @@ function escapeHtml(value: unknown): string { return String(value ?? "").replace
 function cleanText(value: string | null | undefined) { return (value || "").replace(/\s+/g, " ").trim(); }
 function safeSheetName(value: string, index: number) { return (value || `Sheet ${index + 1}`).replace(/[\\/?*\[\]:]/g, " ").slice(0, 31) || `Sheet ${index + 1}`; }
 function isActionHeader(label: string) { return /^(actions?|action|عمل|کارروائی)$/i.test(label.trim()) || label.trim() === ""; }
+function isVisibleForExport(el: Element): boolean {
+  const node = el as HTMLElement;
+  if (node.closest("[data-no-export],[hidden],.hidden")) return false;
+  if (!node.isConnected) return true;
+  const style = window.getComputedStyle(node);
+  if (style.display === "none" || style.visibility === "hidden") return false;
+  return node.getClientRects().length > 0;
+}
 function downloadBlob(filename: string, blob: Blob): void {
   const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = filename;
   document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 0);
@@ -71,13 +79,18 @@ export function exportToExcel(filename: string, columns: ExportColumn[], rows: R
 export function exportToWord(filename: string, columns: ExportColumn[], rows: Record<string, unknown>[], title = "NAVILO Report"): void { exportMatrixToWord(filename, [columns.map(c => c.label), ...rows.map(row => columns.map(c => row[c.key]))], title); }
 
 function controlLabel(el: Element): string {
+  const aria = cleanText(el.getAttribute("aria-label"));
+  if (aria) return aria;
   const id = (el as HTMLElement).id;
   if (id) { const lab = document.querySelector(`label[for="${CSS.escape(id)}"]`); if (lab) return cleanText(lab.textContent); }
   const parentLabel = el.closest("label");
   if (parentLabel) return cleanText(parentLabel.textContent).replace(cleanText((el as HTMLInputElement).value), "").trim();
-  const parent = el.parentElement;
-  const sibling = parent?.querySelector("label");
-  return cleanText(sibling?.textContent) || (el as HTMLInputElement).placeholder || (el as HTMLInputElement).name || "Filter";
+  let parent = el.parentElement;
+  for (let depth = 0; parent && depth < 4; depth += 1, parent = parent.parentElement) {
+    const sibling = parent.querySelector(":scope > label");
+    if (sibling) return cleanText(sibling.textContent);
+  }
+  return (el as HTMLInputElement).placeholder || (el as HTMLInputElement).name || "Filter";
 }
 function controlValue(el: Element): string {
   if (el instanceof HTMLSelectElement) return cleanText(el.selectedOptions[0]?.textContent) || el.value;
@@ -86,18 +99,18 @@ function controlValue(el: Element): string {
   return cleanText(el.textContent);
 }
 function collectFilters(root: HTMLElement): ExportMatrix {
-  const scoped = Array.from(root.querySelectorAll("[data-report-filters] input,[data-report-filters] select,[data-report-filters] textarea"));
-  const controls = scoped.length ? scoped : Array.from(root.querySelectorAll("input:not([type=file]):not([type=hidden]),select,textarea")).filter(el => !el.closest("[role=dialog],.modal,[data-no-export]"));
+  const scoped = Array.from(root.querySelectorAll("[data-report-filters] input,[data-report-filters] select,[data-report-filters] textarea")).filter(isVisibleForExport);
+  const controls = scoped.length ? scoped : Array.from(root.querySelectorAll("input:not([type=file]):not([type=hidden]),select,textarea")).filter(el => isVisibleForExport(el) && !el.closest("[role=dialog],.modal,[data-no-export]"));
   const rows: ExportMatrix = [["Filter", "Value"]];
   const seen = new Set<string>();
   controls.forEach(el => { const label=controlLabel(el); const value=controlValue(el); const key=`${label}|${value}`; if(!seen.has(key)){rows.push([label,value]);seen.add(key);} });
-  root.querySelectorAll<HTMLElement>("[data-report-filter-value]").forEach(el => rows.push([el.dataset.reportFilterLabel || "Filter", cleanText(el.textContent)]));
-  const activeButtons = Array.from(root.querySelectorAll<HTMLButtonElement>("button.btn-primary")).filter(button => !button.closest("[data-no-export]") && !/new|add|save|refresh|print/i.test(cleanText(button.textContent)));
+  root.querySelectorAll<HTMLElement>("[data-report-filter-value]").forEach(el => { if (isVisibleForExport(el)) rows.push([el.dataset.reportFilterLabel || "Filter", cleanText(el.textContent)]); });
+  const activeButtons = Array.from(root.querySelectorAll<HTMLButtonElement>("button.btn-primary")).filter(button => isVisibleForExport(button) && !button.closest("[data-no-export]") && !/new|add|save|refresh|print|post|receive|pay/i.test(cleanText(button.textContent)));
   activeButtons.forEach(button => { const value=cleanText(button.textContent); if(value) rows.push(["Selected View / Status",value]); });
   return rows.length > 1 ? rows : [];
 }
 function collectSummary(root: HTMLElement): ExportMatrix {
-  const cards = Array.from(root.querySelectorAll<HTMLElement>("[data-export-summary] > *, [data-export-summary-item], .summary-card, #order-book-report > section.grid > *"));
+  const cards = Array.from(root.querySelectorAll<HTMLElement>("[data-export-summary] > *, [data-export-summary-item], .summary-card, #order-book-report > section.grid > *")).filter(isVisibleForExport);
   const rows: ExportMatrix = [["Metric", "Value"]];
   const seen = new Set<string>();
   cards.forEach(card => {
@@ -110,8 +123,8 @@ function collectSummary(root: HTMLElement): ExportMatrix {
 function tableMatrix(table: HTMLTableElement, includeTotals: boolean): ExportMatrix {
   const headerCells = Array.from(table.querySelectorAll("thead tr:first-child th"));
   const actionIndexes = new Set(headerCells.map((cell, index) => ({ index, label: cleanText(cell.textContent) })).filter(x => isActionHeader(x.label)).map(x => x.index));
-  const rows = Array.from(table.querySelectorAll("tr")).filter(row => includeTotals || !(row.closest("tfoot") || row.matches("[data-report-total],.report-total-row")));
-  return rows.map(row => Array.from(row.children).filter((_cell, index) => !actionIndexes.has(index)).map(cell => cleanText(cell.textContent))).filter(row => row.some(Boolean));
+  const rows = Array.from(table.querySelectorAll("tr")).filter(row => isVisibleForExport(row) && (includeTotals || !(row.closest("tfoot") || row.matches("[data-report-total],.report-total-row"))));
+  return rows.map(row => Array.from(row.children).filter((cell, index) => !actionIndexes.has(index) && isVisibleForExport(cell)).map(cell => cleanText(cell.textContent))).filter(row => row.some(Boolean));
 }
 export function collectReportPackage(root: HTMLElement, title = document.title || "NAVILO Report", options?: { includeTotals?: boolean; includeFilters?: boolean }): ExportPackage {
   const includeTotals = options?.includeTotals !== false;
@@ -123,7 +136,7 @@ export function collectReportPackage(root: HTMLElement, title = document.title |
   if (filterRows.length) overview.push([], ["Applied Filters"], ...filterRows);
   if (summaryRows.length) overview.push([], ["Summary"], ...summaryRows);
   if (overview.length > 2) sheets.push({ name: "Summary & Filters", rows: overview });
-  Array.from(root.querySelectorAll<HTMLTableElement>("table")).forEach((table, index) => {
+  Array.from(root.querySelectorAll<HTMLTableElement>("table")).filter(isVisibleForExport).forEach((table, index) => {
     const matrix = tableMatrix(table, includeTotals); if (!matrix.length) return;
     const heading = table.closest("section,div")?.querySelector<HTMLElement>("h1,h2,h3,[data-export-table-title]");
     sheets.push({ name: cleanText(heading?.textContent) || (index === 0 ? "Report Data" : `Table ${index + 1}`), rows: matrix });

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/auth/AuthContext";
 import SearchableSelect from "@/components/SearchableSelect";
@@ -137,12 +138,31 @@ export default function CustomerInvoiceStatement() {
     return totals;
   }, [baseFilteredInvoices]);
 
+  const exportRows = useMemo(() => [
+    ["Customer","Invoice No","Invoice Date","Document Type","Payment Mode","Salesperson","Due Date","Invoice","Received","Balance Due","Payment Status","Invoice Age Days","Overdue Days","Aging Bucket"],
+    ...filteredInvoices.map(inv => [inv.customer_name || "", inv.invoice_no, inv.invoice_date, normalizedDocType(inv.invoice_type), inv.payment_mode || "Credit", inv.sales_person || "", inv.due_date || "", num(inv.invoice_amount).toFixed(2), num(inv.paid_amount).toFixed(2), num(inv.outstanding_amount).toFixed(2), inv.payment_status, String(inv.days_outstanding), String(inv.overdue_days), inv.aging_bucket]),
+  ], [filteredInvoices]);
+
+  const exportBaseName = useMemo(() => `${selectedCustomer?.name?.replace(/\s+/g,"_") || "customer_aging"}_${new Date().toISOString().slice(0,10)}`, [selectedCustomer]);
   const clearCustomer = () => { setSelectedCustomerId(""); setCustomerSearch(""); setExpandedInvoiceId(null); };
   const exportCsv = () => {
-    if (!filteredInvoices.length) return;
-    const rows = [["Customer","Invoice No","Invoice Date","Document Type","Payment Mode","Salesperson","Due Date","Invoice","Received","Balance Due","Payment Status","Invoice Age Days","Overdue Days","Aging Bucket"], ...filteredInvoices.map(inv => [inv.customer_name || "", inv.invoice_no, inv.invoice_date, normalizedDocType(inv.invoice_type), inv.payment_mode || "Credit", inv.sales_person || "", inv.due_date || "", num(inv.invoice_amount).toFixed(2), num(inv.paid_amount).toFixed(2), num(inv.outstanding_amount).toFixed(2), inv.payment_status, String(inv.days_outstanding), String(inv.overdue_days), inv.aging_bucket])];
-    const blob = new Blob(["\ufeff" + rows.map(r => r.map(csvCell).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `${selectedCustomer?.name?.replace(/\s+/g,"_") || "customer_aging"}.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    const blob = new Blob(["\ufeff" + exportRows.map(r => r.map(csvCell).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${exportBaseName}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+  const exportExcel = () => {
+    const ws = XLSX.utils.aoa_to_sheet(exportRows);
+    ws["!cols"] = exportRows[0].map((_value, index) => ({ wch: Math.min(32, Math.max(12, ...exportRows.map(row => String(row[index] ?? "").length + 2))) }));
+    ws["!autofilter"] = ws["!ref"] ? { ref: ws["!ref"] } : undefined;
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Customer Aging");
+    XLSX.writeFile(wb, `${exportBaseName}.xlsx`, { compression: true });
   };
 
   return <div className="space-y-4">
@@ -151,7 +171,8 @@ export default function CustomerInvoiceStatement() {
       <div className="relative flex flex-wrap gap-2">
         <button type="button" onClick={() => setShowColumns(v => !v)} className="px-3 py-2 text-sm font-semibold rounded-lg border border-blue-200 bg-blue-50 text-blue-700">Customize</button>
         {showColumns && <div className="absolute right-0 top-11 z-50 grid w-[300px] grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-white p-3 shadow-xl">{Object.entries({type:"Document Type",mode:"Payment Mode",salesperson:"Salesperson",dueDate:"Due Date",age:"Invoice Age",overdue:"Overdue",aging:"Aging Bucket"}).map(([key,label]) => <label key={key} className="flex items-center gap-2 text-xs"><input type="checkbox" checked={visibleColumns[key as keyof typeof visibleColumns]} onChange={() => setVisibleColumns(v => ({ ...v, [key]: !v[key as keyof typeof v] }))}/>{label}</label>)}</div>}
-        <button type="button" onClick={exportCsv} disabled={!filteredInvoices.length} className="px-3 py-2 text-sm font-semibold rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 disabled:opacity-50">Export CSV</button>
+        <button type="button" onClick={exportExcel} className="px-3 py-2 text-sm font-semibold rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50">Excel</button>
+        <button type="button" onClick={exportCsv} className="px-3 py-2 text-sm font-semibold rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100">CSV</button>
         <button type="button" onClick={() => window.print()} className="px-3 py-2 text-sm font-semibold rounded-lg border border-slate-300 hover:bg-slate-50">Print</button>
       </div>
     </div>

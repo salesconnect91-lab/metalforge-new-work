@@ -201,6 +201,7 @@ export default function CashCounter() {
           .eq("is_active", true)
           .eq("is_group", false)
           .eq("allow_manual_entries", true)
+          .in("detail_type", ["Cash on Hand", "Bank Account"])
           .order("code"),
       ]);
 
@@ -1336,7 +1337,7 @@ export default function CashCounter() {
 
     if (!paymentAccountId) {
       setError(
-        "Select Cash / Bank account."
+        "Select Payment Account."
       );
       return;
     }
@@ -1751,7 +1752,7 @@ export default function CashCounter() {
               </div>
 
               <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-600">Cash / Bank Account / نقد یا بینک اکاؤنٹ</label>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-600">Payment Account / ادائیگی اکاؤنٹ</label>
                 <SearchableSelect
                   value={paymentAccountId}
                   onChange={(e) =>
@@ -1762,7 +1763,7 @@ export default function CashCounter() {
                   className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-500"
                 >
                   <option value="">
-                    — Select account —
+                    — Select payment account —
                   </option>
                   {accounts.map(
                     (account) => (

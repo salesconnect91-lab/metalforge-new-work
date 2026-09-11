@@ -3,84 +3,38 @@ import { BarChart3, RefreshCw, RotateCcw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/auth/AuthContext";
 import { ErrorBanner, formatCurrency, formatDate } from "@/components/ui";
+import { exportMatrixToCSV, exportMatrixToWord, exportWorkbookToExcel, triggerPrint } from "@/lib/exportUtils";
 
-type AgingRow = {
-  purchase_order_id: string; company_id: string; business_unit_id: string | null; supplier_id: string;
-  supplier_name: string | null; invoice_no: string | null; invoice_date: string | null; due_date: string | null;
-  invoice_amount: number | null; paid_amount: number | null; outstanding_amount: number | null;
-  payment_status: string | null; aging_status: string | null; overdue_days: number | null; aging_bucket: string | null;
-};
-type Supplier = { id: string; name: string; is_active: boolean };
-const num = (v: unknown) => Number.isFinite(Number(v)) ? Number(v) : 0;
-const PAYMENT_STATUSES = ["open", "partial", "overdue", "paid"] as const;
-const AGING_BUCKETS = ["Current", "1-30 Days", "31-60 Days", "61-90 Days", "90+ Days", "Paid", "No Due Date"] as const;
+type AgingRow = { purchase_order_id:string; company_id:string; business_unit_id:string|null; supplier_id:string; supplier_name:string|null; invoice_no:string|null; invoice_date:string|null; due_date:string|null; invoice_amount:number|null; paid_amount:number|null; outstanding_amount:number|null; payment_status:string|null; aging_status:string|null; overdue_days:number|null; aging_bucket:string|null };
+type Supplier = { id:string; name:string; is_active:boolean };
+const num=(v:unknown)=>Number.isFinite(Number(v))?Number(v):0;
+const PAYMENT_STATUSES=["open","partial","overdue","paid"] as const;
+const AGING_BUCKETS=["Current","1-30 Days","31-60 Days","61-90 Days","90+ Days","Paid","No Due Date"] as const;
+const localIsoDate=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`};
 
-export default function SupplierAgingReport() {
-  const { activeCompany, activeBusinessUnit } = useAuth();
-  const companyId = activeCompany?.company_id;
-  const businessUnitId = activeBusinessUnit?.business_unit_id;
-  const [data, setData] = useState<AgingRow[]>([]); const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null);
-  const [q, setQ] = useState(""); const [from, setFrom] = useState(""); const [to, setTo] = useState("");
-  const [supplier, setSupplier] = useState(""); const [paymentStatus, setPaymentStatus] = useState(""); const [agingBucket, setAgingBucket] = useState("");
-
-  const load = useCallback(async () => {
-    if (!companyId) { setData([]); setSuppliers([]); setLoading(false); return; }
-    setLoading(true); setError(null);
-    let agingQuery = supabase.from("supplier_invoice_aging").select("*").eq("company_id", companyId).order("invoice_date", { ascending: false }).limit(10000);
-    if (businessUnitId) agingQuery = agingQuery.eq("business_unit_id", businessUnitId);
-    const supplierQuery = supabase.from("suppliers").select("id,name,is_active").eq("company_id", companyId).eq("is_active", true).order("name");
-    const [agingResult, supplierResult] = await Promise.all([agingQuery, supplierQuery]);
-    if (agingResult.error || supplierResult.error) setError(agingResult.error?.message || supplierResult.error?.message || "Supplier aging load failed.");
-    setData((agingResult.data ?? []) as AgingRow[]); setSuppliers((supplierResult.data ?? []) as Supplier[]); setLoading(false);
-  }, [companyId, businessUnitId]);
-  useEffect(() => { void load(); }, [load]);
-
-  const supplierNames = useMemo(() => Array.from(new Set(suppliers.map(s => s.name.trim()).filter(Boolean))).sort(), [suppliers]);
-  const rows = useMemo(() => data.filter(r => {
-    const d = String(r.invoice_date ?? "").slice(0, 10);
-    if (from && d < from) return false; if (to && d > to) return false;
-    if (supplier && String(r.supplier_name ?? "") !== supplier) return false;
-    if (paymentStatus && String(r.aging_status ?? "").toLowerCase() !== paymentStatus) return false;
-    if (agingBucket && String(r.aging_bucket ?? "") !== agingBucket) return false;
-    const search = q.trim().toLowerCase(); if (!search) return true;
-    return [r.invoice_no, r.invoice_date, r.supplier_name, r.payment_status, r.aging_status, r.aging_bucket, r.due_date].some(v => String(v ?? "").toLowerCase().includes(search));
-  }), [data, q, from, to, supplier, paymentStatus, agingBucket]);
-  const summary = useMemo(() => rows.reduce((a, r) => { a.invoiced += num(r.invoice_amount); a.paid += num(r.paid_amount); a.outstanding += num(r.outstanding_amount); if (num(r.overdue_days) > 0 && num(r.outstanding_amount) > 0) a.overdue += num(r.outstanding_amount); return a; }, { invoiced: 0, paid: 0, outstanding: 0, overdue: 0 }), [rows]);
-  const bucketTotals = useMemo(() => Object.fromEntries(AGING_BUCKETS.map(bucket => [bucket, rows.filter(r => r.aging_bucket === bucket).reduce((s, r) => s + num(r.outstanding_amount), 0)])), [rows]);
-  const reset = () => { setQ(""); setFrom(""); setTo(""); setSupplier(""); setPaymentStatus(""); setAgingBucket(""); };
-  const toggleBucket = (bucket: string) => setAgingBucket(v => v === bucket ? "" : bucket);
-
-  return <div className="space-y-4 pb-12 print-report" data-print-root>
-    <section className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
-      <div><h1 className="flex items-center gap-2 text-xl font-bold"><BarChart3 className="h-5 w-5 text-blue-600"/>Supplier Aging</h1><p className="mt-1 text-xs text-slate-500">Company-wide posted supplier payables, due dates and aging. Supplier, payment status and aging bucket are independent filters.</p></div>
-      <button className="btn-secondary no-print" onClick={() => void load()}><RefreshCw className="h-4 w-4"/>Refresh</button>
-    </section>
-    {error && <ErrorBanner message={error}/>} 
-    <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4" data-export-summary>
-      <div className="summary-card"><div className="summary-label">Total Invoiced</div><div className="summary-value">{formatCurrency(summary.invoiced)}</div></div>
-      <div className="summary-card"><div className="summary-label">Total Paid</div><div className="summary-value">{formatCurrency(summary.paid)}</div></div>
-      <div className="summary-card"><div className="summary-label">Outstanding</div><div className="summary-value">{formatCurrency(summary.outstanding)}</div></div>
-      <div className="summary-card"><div className="summary-label">Overdue Amount</div><div className="summary-value">{formatCurrency(summary.overdue)}</div></div>
-    </section>
-    <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7" data-export-summary data-print-summary>
-      {AGING_BUCKETS.map(bucket => <div key={bucket} role="button" tabIndex={0} data-print-keep className={`rounded-xl border bg-white p-3 text-left ${agingBucket === bucket ? "ring-2 ring-blue-500" : ""}`} onClick={() => toggleBucket(bucket)} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleBucket(bucket); } }}><div className="text-xs font-bold text-slate-500">{bucket}</div><div className="mt-1 text-sm font-black">{formatCurrency(num(bucketTotals[bucket]))}</div></div>)}
-    </section>
-    <section className="no-print rounded-xl border border-slate-200 bg-white p-3" data-report-filters>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-7">
-        <label className="lg:col-span-2"><span className="sr-only">Search</span><input className="input w-full" aria-label="Search" placeholder="Search supplier, invoice, date, status or aging..." value={q} onChange={e => setQ(e.target.value)}/></label>
-        <label><span className="sr-only">From Date</span><input type="date" aria-label="From Date" className="input w-full" value={from} onChange={e => setFrom(e.target.value)}/></label>
-        <label><span className="sr-only">To Date</span><input type="date" aria-label="To Date" className="input w-full" value={to} onChange={e => setTo(e.target.value)}/></label>
-        <label><span className="sr-only">Supplier</span><select aria-label="Supplier" className="input w-full" value={supplier} onChange={e => setSupplier(e.target.value)}><option value="">All Suppliers</option>{supplierNames.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
-        <label><span className="sr-only">Payment Status</span><select aria-label="Payment Status" className="input w-full" value={paymentStatus} onChange={e => setPaymentStatus(e.target.value)}><option value="">All Payment Statuses</option>{PAYMENT_STATUSES.map(s => <option key={s} value={s}>{s[0].toUpperCase() + s.slice(1)}</option>)}</select></label>
-        <label><span className="sr-only">Aging Bucket</span><select aria-label="Aging Bucket" className="input w-full" value={agingBucket} onChange={e => setAgingBucket(e.target.value)}><option value="">All Aging Buckets</option>{AGING_BUCKETS.map(bucket => <option key={bucket} value={bucket}>{bucket}</option>)}</select></label>
-      </div>
-      <button className="btn-secondary mt-2" onClick={reset}><RotateCcw className="h-4 w-4"/>Reset</button>
-    </section>
-    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white"><table className="table w-full">
-      <thead><tr><th>Invoice</th><th>Date</th><th>Supplier</th><th className="text-right">Invoice</th><th className="text-right">Paid</th><th className="text-right">Outstanding</th><th>Due</th><th>Status</th><th className="text-right">Overdue Days</th><th>Bucket</th></tr></thead>
-      <tbody>{loading ? <tr><td colSpan={10} className="py-12 text-center text-slate-500">Loading supplier aging…</td></tr> : rows.length ? rows.map((r, i) => <tr key={r.purchase_order_id || `${r.invoice_no}-${i}`}><td>{r.invoice_no || "—"}</td><td>{r.invoice_date ? formatDate(r.invoice_date) : "—"}</td><td>{r.supplier_name || "—"}</td><td className="text-right tabular-nums">{formatCurrency(num(r.invoice_amount))}</td><td className="text-right tabular-nums">{formatCurrency(num(r.paid_amount))}</td><td className="text-right tabular-nums">{formatCurrency(num(r.outstanding_amount))}</td><td>{r.due_date ? formatDate(r.due_date) : "—"}</td><td>{r.aging_status || r.payment_status || "—"}</td><td className="text-right tabular-nums">{num(r.overdue_days).toLocaleString()}</td><td>{r.aging_bucket || "—"}</td></tr>) : <tr><td colSpan={10} className="py-12 text-center text-slate-500">No posted supplier invoices match the current filters.</td></tr>}</tbody>
-      <tfoot><tr className="bg-slate-50 font-semibold"><td colSpan={10}>{rows.length.toLocaleString()} record{rows.length === 1 ? "" : "s"}</td></tr></tfoot>
-    </table></div>
-  </div>;
+export default function SupplierAgingReport(){
+ const {activeCompany,activeBusinessUnit}=useAuth(); const companyId=activeCompany?.company_id; const businessUnitId=activeBusinessUnit?.business_unit_id;
+ const [data,setData]=useState<AgingRow[]>([]),[suppliers,setSuppliers]=useState<Supplier[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState<string|null>(null);
+ const [q,setQ]=useState(""),[from,setFrom]=useState(""),[to,setTo]=useState(""),[supplier,setSupplier]=useState(""),[paymentStatus,setPaymentStatus]=useState(""),[agingBucket,setAgingBucket]=useState("");
+ const [showColumns,setShowColumns]=useState(false); const [visible,setVisible]=useState({due:true,status:true,overdue:true,bucket:true});
+ const load=useCallback(async()=>{if(!companyId){setData([]);setSuppliers([]);setLoading(false);return}setLoading(true);setError(null);let aq=supabase.from("supplier_invoice_aging").select("*").eq("company_id",companyId).order("invoice_date",{ascending:false}).limit(10000);if(businessUnitId)aq=aq.eq("business_unit_id",businessUnitId);const sq=supabase.from("suppliers").select("id,name,is_active").eq("company_id",companyId).eq("is_active",true).order("name");const[a,s]=await Promise.all([aq,sq]);if(a.error||s.error)setError(a.error?.message||s.error?.message||"Supplier aging load failed.");setData((a.data??[]) as AgingRow[]);setSuppliers((s.data??[]) as Supplier[]);setLoading(false)},[companyId,businessUnitId]);
+ useEffect(()=>{void load()},[load]);
+ const supplierNames=useMemo(()=>Array.from(new Set(suppliers.map(s=>s.name.trim()).filter(Boolean))).sort(),[suppliers]);
+ const rows=useMemo(()=>data.filter(r=>{const d=String(r.invoice_date??"").slice(0,10);if(from&&d<from)return false;if(to&&d>to)return false;if(supplier&&String(r.supplier_name??"")!==supplier)return false;if(paymentStatus&&String(r.aging_status??"").toLowerCase()!==paymentStatus)return false;if(agingBucket&&String(r.aging_bucket??"")!==agingBucket)return false;const s=q.trim().toLowerCase();return !s||[r.invoice_no,r.invoice_date,r.supplier_name,r.payment_status,r.aging_status,r.aging_bucket,r.due_date].some(v=>String(v??"").toLowerCase().includes(s))}),[data,q,from,to,supplier,paymentStatus,agingBucket]);
+ const summary=useMemo(()=>rows.reduce((a,r)=>{a.invoiced+=num(r.invoice_amount);a.paid+=num(r.paid_amount);a.outstanding+=num(r.outstanding_amount);if(num(r.overdue_days)>0&&num(r.outstanding_amount)>0)a.overdue+=num(r.outstanding_amount);return a},{invoiced:0,paid:0,outstanding:0,overdue:0}),[rows]);
+ const bucketTotals=useMemo(()=>Object.fromEntries(AGING_BUCKETS.map(b=>[b,rows.filter(r=>r.aging_bucket===b).reduce((s,r)=>s+num(r.outstanding_amount),0)])),[rows]);
+ const reset=()=>{setQ("");setFrom("");setTo("");setSupplier("");setPaymentStatus("");setAgingBucket("")}; const toggleBucket=(b:string)=>setAgingBucket(v=>v===b?"":b);
+ const filterRows=useMemo(()=>[["Report","Supplier Aging"],["Company",activeCompany?.company_name||""],["Business Unit",activeBusinessUnit?.business_unit_name||""],["From Date",from||"All"],["To Date",to||"All"],["Supplier",supplier||"All Suppliers"],["Payment Status",paymentStatus||"All Payment Statuses"],["Aging Bucket",agingBucket||"All Aging Buckets"],["Search",q||"—"],["Export Date",localIsoDate()]],[activeCompany,activeBusinessUnit,from,to,supplier,paymentStatus,agingBucket,q]);
+ const summaryRows=useMemo(()=>[["Metric","Amount"],["Total Invoiced",summary.invoiced],["Total Paid",summary.paid],["Outstanding",summary.outstanding],["Overdue Amount",summary.overdue],[""],["Aging Bucket","Amount"],...AGING_BUCKETS.map(b=>[b,num(bucketTotals[b])])],[summary,bucketTotals]);
+ const detailRows=useMemo(()=>[["Invoice","Date","Supplier","Invoice Amount","Paid","Outstanding","Due","Status","Overdue Days","Bucket"],...rows.map(r=>[r.invoice_no||"",r.invoice_date||"",r.supplier_name||"",num(r.invoice_amount),num(r.paid_amount),num(r.outstanding_amount),r.due_date||"",r.aging_status||r.payment_status||"",num(r.overdue_days),r.aging_bucket||""])],[rows]);
+ const completeRows=useMemo(()=>[["SUPPLIER AGING"],[""],...filterRows,[""],["SUMMARY"],...summaryRows,[""],["SUPPLIER INVOICE AGING"],...detailRows],[filterRows,summaryRows,detailRows]); const fileName=`Supplier_Aging_${localIsoDate()}`;
+ const exportExcel=()=>exportWorkbookToExcel(fileName,[{name:"Summary & Filters",rows:[...filterRows,[""],...summaryRows]},{name:"Report Data",rows:detailRows}]);
+ return <div className="space-y-4 pb-12 print-report" data-print-root data-native-export>
+  <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between print:hidden"><div><h1 className="flex items-center gap-2 text-2xl font-bold"><BarChart3 className="h-5 w-5 text-blue-600"/>Supplier Aging</h1><p className="mt-1 text-sm text-slate-500">Company-wide posted supplier payables, due dates and aging. Supplier, payment status and aging bucket are independent filters.</p></div><div className="relative flex flex-wrap gap-2"><button className="btn-secondary" onClick={()=>setShowColumns(v=>!v)}>Customize</button>{showColumns&&<div className="absolute right-0 top-11 z-50 w-72 rounded-lg border bg-white p-3 shadow-xl"><div className="mb-2 flex justify-between"><strong>Show / Hide Columns</strong><button onClick={()=>setShowColumns(false)}>✕</button></div>{Object.entries({due:"Due Date",status:"Status",overdue:"Overdue Days",bucket:"Aging Bucket"}).map(([k,l])=><label key={k} className="block py-1 text-xs"><input type="checkbox" checked={visible[k as keyof typeof visible]} onChange={()=>setVisible(v=>({...v,[k]:!v[k as keyof typeof v]}))}/> {l}</label>)}<button className="btn-secondary mt-2 w-full" onClick={()=>setVisible({due:true,status:true,overdue:true,bucket:true})}>Show All</button></div>}<button className="btn-secondary" onClick={exportExcel}>Excel</button><button className="btn-secondary" onClick={()=>exportMatrixToCSV(fileName,completeRows)}>CSV</button><button className="btn-secondary" onClick={()=>exportMatrixToWord(fileName,completeRows,"Supplier Aging")}>Word</button><button className="btn-secondary" onClick={()=>triggerPrint("[data-print-root]")}>Print</button></div></div>
+  {error&&<ErrorBanner message={error}/>} 
+  <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4" data-export-summary>{[["Total Invoiced",summary.invoiced],["Total Paid",summary.paid],["Outstanding",summary.outstanding],["Overdue Amount",summary.overdue]].map(([l,v])=><div key={String(l)} className="summary-card"><div className="summary-label">{l}</div><div className="summary-value">{formatCurrency(Number(v))}</div></div>)}</section>
+  <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7" data-export-summary data-print-summary>{AGING_BUCKETS.map(b=><div key={b} role="button" tabIndex={0} data-print-keep className={`rounded-xl border bg-white p-3 text-left ${agingBucket===b?"ring-2 ring-blue-500":""}`} onClick={()=>toggleBucket(b)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();toggleBucket(b)}}}><div className="text-xs font-bold text-slate-500">{b}</div><div className="mt-1 text-sm font-black">{formatCurrency(num(bucketTotals[b]))}</div></div>)}</section>
+  <section className="rounded-xl border border-slate-200 bg-white p-3 print:hidden" data-report-filters><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-7"><label className="lg:col-span-2"><span className="sr-only">Search</span><input className="input w-full" aria-label="Search" placeholder="Search supplier, invoice, date, status or aging..." value={q} onChange={e=>setQ(e.target.value)}/></label><label><span className="sr-only">From Date</span><input type="date" aria-label="From Date" className="input w-full" value={from} onChange={e=>setFrom(e.target.value)}/></label><label><span className="sr-only">To Date</span><input type="date" aria-label="To Date" className="input w-full" value={to} onChange={e=>setTo(e.target.value)}/></label><label><span className="sr-only">Supplier</span><select aria-label="Supplier" className="input w-full" value={supplier} onChange={e=>setSupplier(e.target.value)}><option value="">All Suppliers</option>{supplierNames.map(n=><option key={n} value={n}>{n}</option>)}</select></label><label><span className="sr-only">Payment Status</span><select aria-label="Payment Status" className="input w-full" value={paymentStatus} onChange={e=>setPaymentStatus(e.target.value)}><option value="">All Payment Statuses</option>{PAYMENT_STATUSES.map(s=><option key={s} value={s}>{s[0].toUpperCase()+s.slice(1)}</option>)}</select></label><label><span className="sr-only">Aging Bucket</span><select aria-label="Aging Bucket" className="input w-full" value={agingBucket} onChange={e=>setAgingBucket(e.target.value)}><option value="">All Aging Buckets</option>{AGING_BUCKETS.map(b=><option key={b} value={b}>{b}</option>)}</select></label></div><button className="btn-secondary mt-2" onClick={reset}><RotateCcw className="h-4 w-4"/>Reset</button></section>
+  <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white"><table className="table w-full"><thead><tr><th>Invoice</th><th>Date</th><th>Supplier</th><th className="text-right">Invoice</th><th className="text-right">Paid</th><th className="text-right">Outstanding</th>{visible.due&&<th>Due</th>}{visible.status&&<th>Status</th>}{visible.overdue&&<th className="text-right">Overdue Days</th>}{visible.bucket&&<th>Bucket</th>}</tr></thead><tbody>{loading?<tr><td colSpan={10} className="py-12 text-center text-slate-500">Loading supplier aging…</td></tr>:rows.length?rows.map((r,i)=><tr key={r.purchase_order_id||`${r.invoice_no}-${i}`}><td>{r.invoice_no||"—"}</td><td>{r.invoice_date?formatDate(r.invoice_date):"—"}</td><td>{r.supplier_name||"—"}</td><td className="text-right tabular-nums">{formatCurrency(num(r.invoice_amount))}</td><td className="text-right tabular-nums">{formatCurrency(num(r.paid_amount))}</td><td className="text-right tabular-nums">{formatCurrency(num(r.outstanding_amount))}</td>{visible.due&&<td>{r.due_date?formatDate(r.due_date):"—"}</td>}{visible.status&&<td>{r.aging_status||r.payment_status||"—"}</td>}{visible.overdue&&<td className="text-right tabular-nums">{num(r.overdue_days).toLocaleString()}</td>}{visible.bucket&&<td>{r.aging_bucket||"—"}</td>}</tr>):<tr><td colSpan={10} className="py-12 text-center text-slate-500">No posted supplier invoices match the current filters.</td></tr>}</tbody><tfoot><tr className="bg-slate-50 font-semibold"><td colSpan={10}>{rows.length.toLocaleString()} record{rows.length===1?"":"s"}</td></tr></tfoot></table></div>
+ </div>;
 }

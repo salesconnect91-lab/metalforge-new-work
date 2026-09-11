@@ -1,127 +1,77 @@
 import SearchableSelect from "@/components/SearchableSelect";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CalendarDays, Download, Printer, RefreshCw, Scale, Table2, TrendingUp } from "lucide-react";
+import { AlertTriangle, CalendarDays, Download, FileText, Printer, RefreshCw, Scale, Table2, TrendingUp } from "lucide-react";
 import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/auth/AuthContext";
 import { ErrorBanner, formatCurrency } from "@/components/ui";
+import { exportMatrixToCSV, exportMatrixToWord, triggerPrint } from "@/lib/exportUtils";
 
 type ViewMode = "matrix" | "commercial" | "history" | "exceptions";
 type Row = Record<string, any>;
-
 const n = (v: unknown) => Number.isFinite(Number(v)) ? Number(v) : 0;
 const qty = (v: unknown) => n(v).toLocaleString(undefined, { maximumFractionDigits: 3 });
 const money = (v: unknown) => formatCurrency(n(v));
 const pct = (v: unknown) => `${n(v).toLocaleString(undefined, { maximumFractionDigits: 2 })}%`;
-const dateText = (d: Date) => d.toISOString().slice(0, 10);
+const dateText = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const today = () => dateText(new Date());
 const monthStart = () => { const d = new Date(); d.setDate(1); return dateText(d); };
-
-const steelGroup = (r: Row) => {
-  const s = [r.sub_category, r.category_name, r.item_name, r.sku].filter(Boolean).join(" ").toLowerCase();
-  if (/tr\s*toti|toti\s*tr|toti/.test(s)) return "TR Toti";
-  if (/sarya|saria|rebar|deformed/.test(s)) return "Sarya";
-  if (/(^|\s)tr($|\s)|tee\s*bar|t-?iron/.test(s)) return "TR";
-  if (/oval/.test(s)) return "Oval";
-  if (/girder|i[- ]?beam|beam/.test(s)) return "Girder";
-  return r.sub_category || r.category_name || "Other Steel";
-};
+const steelGroup = (r: Row) => { const s = [r.sub_category, r.category_name, r.item_name, r.sku].filter(Boolean).join(" ").toLowerCase(); if (/tr\s*toti|toti\s*tr|toti/.test(s)) return "TR Toti"; if (/sarya|saria|rebar|deformed/.test(s)) return "Sarya"; if (/(^|\s)tr($|\s)|tee\s*bar|t-?iron/.test(s)) return "TR"; if (/oval/.test(s)) return "Oval"; if (/girder|i[- ]?beam|beam/.test(s)) return "Girder"; return r.sub_category || r.category_name || "Other Steel"; };
 
 export default function SteelStockControl() {
   const { activeCompany } = useAuth();
   const [mode, setMode] = useState<ViewMode>("matrix");
-  const [stock, setStock] = useState<Row[]>([]);
-  const [period, setPeriod] = useState<Row[]>([]);
-  const [history, setHistory] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [group, setGroup] = useState("all");
-  const [godown, setGodown] = useState("all");
-  const [fromDate, setFromDate] = useState(monthStart());
-  const [toDate, setToDate] = useState(today());
-  const [asOfDate, setAsOfDate] = useState(today());
+  const [stock, setStock] = useState<Row[]>([]); const [period, setPeriod] = useState<Row[]>([]); const [history, setHistory] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState(""); const [group, setGroup] = useState("all"); const [godown, setGodown] = useState("all");
+  const [fromDate, setFromDate] = useState(monthStart()); const [toDate, setToDate] = useState(today()); const [asOfDate, setAsOfDate] = useState(today());
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
-    const [s, p, h] = await Promise.all([
-      supabase.from("steel_stock_reconciliation").select("*").order("item_name").order("godown").limit(20000),
-      supabase.rpc("steel_period_commercial_summary", { p_from: fromDate, p_to: toDate }),
-      supabase.rpc("steel_stock_as_of", { p_as_of: asOfDate }),
-    ]);
-    const firstError = s.error ?? p.error ?? h.error;
-    if (firstError) setError(firstError.message);
-    setStock((s.data ?? []) as Row[]);
-    setPeriod((p.data ?? []) as Row[]);
-    setHistory((h.data ?? []) as Row[]);
-    setLoading(false);
+    const [s, p, h] = await Promise.all([supabase.from("steel_stock_reconciliation").select("*").order("item_name").order("godown").limit(20000), supabase.rpc("steel_period_commercial_summary", { p_from: fromDate, p_to: toDate }), supabase.rpc("steel_stock_as_of", { p_as_of: asOfDate })]);
+    const firstError = s.error ?? p.error ?? h.error; if (firstError) setError(firstError.message);
+    setStock((s.data ?? []) as Row[]); setPeriod((p.data ?? []) as Row[]); setHistory((h.data ?? []) as Row[]); setLoading(false);
   }, [fromDate, toDate, asOfDate]);
-
   useEffect(() => { void load(); }, [load]);
 
   const groups = useMemo(() => Array.from(new Set(stock.map(steelGroup))).sort(), [stock]);
   const godowns = useMemo(() => Array.from(new Set(stock.map((r) => r.godown || "Unassigned"))).sort(), [stock]);
-  const matches = useCallback((r: Row) => {
-    const q = search.trim().toLowerCase();
-    const text = [r.item_name, r.sku, r.grade, r.size, r.category_name, r.sub_category, r.godown, steelGroup(r)].filter(Boolean).join(" ").toLowerCase();
-    return (!q || text.includes(q)) && (group === "all" || steelGroup(r) === group);
-  }, [search, group]);
-
+  const matches = useCallback((r: Row) => { const q = search.trim().toLowerCase(); const text = [r.item_name, r.sku, r.grade, r.size, r.category_name, r.sub_category, r.godown, steelGroup(r)].filter(Boolean).join(" ").toLowerCase(); return (!q || text.includes(q)) && (group === "all" || steelGroup(r) === group); }, [search, group]);
   const filteredStock = useMemo(() => stock.filter((r) => matches(r) && (godown === "all" || (r.godown || "Unassigned") === godown)), [stock, matches, godown]);
   const filteredPeriod = useMemo(() => period.filter(matches), [period, matches]);
   const filteredHistory = useMemo(() => history.filter((r) => matches(r) && (godown === "all" || (r.godown || "Unassigned") === godown)), [history, matches, godown]);
   const exceptions = useMemo(() => filteredStock.filter((r) => n(r.current_quantity) < 0 || Math.abs(n(r.variance_quantity)) >= 0.0001), [filteredStock]);
-
   const summary = useMemo(() => filteredStock.reduce((a, r) => ({ qty: a.qty + n(r.current_quantity), value: a.value + n(r.stock_value), variance: a.variance + n(r.variance_quantity) }), { qty: 0, value: 0, variance: 0 }), [filteredStock]);
   const commercial = useMemo(() => filteredPeriod.reduce((a, r) => ({ pq: a.pq + n(r.net_purchase_qty), pv: a.pv + n(r.net_purchase_value), sq: a.sq + n(r.net_sales_qty), sv: a.sv + n(r.net_sales_value) }), { pq: 0, pv: 0, sq: 0, sv: 0 }), [filteredPeriod]);
-  const avgPurchase = commercial.pq ? commercial.pv / commercial.pq : 0;
-  const avgSale = commercial.sq ? commercial.sv / commercial.sq : 0;
-  const spread = avgSale - avgPurchase;
-  const margin = avgSale ? (spread / avgSale) * 100 : 0;
+  const avgPurchase = commercial.pq ? commercial.pv / commercial.pq : 0; const avgSale = commercial.sq ? commercial.sv / commercial.sq : 0; const spread = avgSale - avgPurchase; const margin = avgSale ? (spread / avgSale) * 100 : 0;
 
-  const matrixRows = useMemo(() => {
-    const map = new Map<string, Row>();
-    filteredStock.forEach((r) => {
-      const x = map.get(r.item_id) ?? { item_id: r.item_id, group: steelGroup(r), sku: r.sku, item_name: r.item_name, grade: r.grade, size: r.size, unit: r.unit, total: 0, value: 0 };
-      const g = r.godown || "Unassigned";
-      x[g] = n(x[g]) + n(r.current_quantity);
-      x.total = n(x.total) + n(r.current_quantity);
-      x.value = n(x.value) + n(r.stock_value);
-      map.set(r.item_id, x);
-    });
-    return Array.from(map.values()).sort((a, b) => `${a.group} ${a.item_name}`.localeCompare(`${b.group} ${b.item_name}`));
-  }, [filteredStock]);
+  const matrixRows = useMemo(() => { const map = new Map<string, Row>(); filteredStock.forEach((r) => { const x = map.get(r.item_id) ?? { item_id: r.item_id, group: steelGroup(r), sku: r.sku, item_name: r.item_name, grade: r.grade, size: r.size, unit: r.unit, total: 0, value: 0 }; const g = r.godown || "Unassigned"; x[g] = n(x[g]) + n(r.current_quantity); x.total = n(x.total) + n(r.current_quantity); x.value = n(x.value) + n(r.stock_value); map.set(r.item_id, x); }); return Array.from(map.values()).sort((a, b) => `${a.group} ${a.item_name}`.localeCompare(`${b.group} ${b.item_name}`)); }, [filteredStock]);
+  const groupTotals = useMemo(() => { const map = new Map<string, { qty: number; value: number }>(); matrixRows.forEach((r) => { const x = map.get(r.group) ?? { qty: 0, value: 0 }; x.qty += n(r.total); x.value += n(r.value); map.set(r.group, x); }); return Array.from(map.entries()).map(([name, x]) => ({ name, ...x })); }, [matrixRows]);
 
-  const groupTotals = useMemo(() => {
-    const map = new Map<string, { qty: number; value: number }>();
-    matrixRows.forEach((r) => {
-      const x = map.get(r.group) ?? { qty: 0, value: 0 };
-      x.qty += n(r.total); x.value += n(r.value); map.set(r.group, x);
-    });
-    return Array.from(map.entries()).map(([name, x]) => ({ name, ...x }));
-  }, [matrixRows]);
+  const matrixExport = useMemo(() => matrixRows.map((r) => { const x: Row = { Group: r.group, SKU: r.sku ?? "", Item: r.item_name ?? "", Grade: r.grade ?? "", Size: r.size ?? "", Unit: r.unit ?? "" }; godowns.forEach((g) => { x[g] = n(r[g]); }); x["Total Qty"] = n(r.total); x["Stock Value"] = n(r.value); return x; }), [matrixRows, godowns]);
+  const ratesExport = useMemo(() => filteredPeriod.map((r) => ({ Group: steelGroup(r), SKU: r.sku ?? "", Item: r.item_name ?? "", "Purchase Qty": n(r.net_purchase_qty), "Purchase Avg": n(r.avg_purchase_rate), "Sales Qty": n(r.net_sales_qty), "Sale Avg": n(r.avg_sale_rate), Spread: n(r.rate_spread), "Margin %": n(r.margin_percent) })), [filteredPeriod]);
+  const problemsExport = useMemo(() => exceptions.map((r) => ({ Problem: n(r.current_quantity) < 0 ? "Negative Stock" : "Variance", Group: steelGroup(r), SKU: r.sku ?? "", Item: r.item_name, Godown: r.godown, Book: n(r.book_quantity), Current: n(r.current_quantity), Variance: n(r.variance_quantity), "Stock Value": n(r.stock_value) })), [exceptions]);
+  const historyExport = useMemo(() => filteredHistory.map((r) => ({ Group: steelGroup(r), SKU: r.sku ?? "", Item: r.item_name, Godown: r.godown, [`Book Qty ${asOfDate}`]: n(r.book_quantity), "Last Movement": r.last_movement_at ?? "" })), [filteredHistory, asOfDate]);
 
   const exportExcel = () => {
     const wb = XLSX.utils.book_new();
-    const matrix = matrixRows.map((r) => {
-      const x: Row = { Group: r.group, SKU: r.sku ?? "", Item: r.item_name ?? "", Grade: r.grade ?? "", Size: r.size ?? "", Unit: r.unit ?? "" };
-      godowns.forEach((g) => { x[g] = n(r[g]); });
-      x["Total Qty"] = n(r.total); x["Stock Value"] = n(r.value); return x;
+    [["Godown Matrix", matrixExport], ["Rates Margin", ratesExport], ["Exceptions", problemsExport], ["Historical", historyExport]].forEach(([name, rows]) => {
+      const data = (rows as Row[]).length ? rows as Row[] : [{ Message: "No data for current filters" }];
+      const ws = XLSX.utils.json_to_sheet(data); ws["!autofilter"] = ws["!ref"] ? { ref: ws["!ref"] } : undefined; XLSX.utils.book_append_sheet(wb, ws, String(name));
     });
-    const rates = filteredPeriod.map((r) => ({ Group: steelGroup(r), SKU: r.sku ?? "", Item: r.item_name ?? "", "Purchase Qty": n(r.net_purchase_qty), "Purchase Avg": n(r.avg_purchase_rate), "Sales Qty": n(r.net_sales_qty), "Sale Avg": n(r.avg_sale_rate), Spread: n(r.rate_spread), "Margin %": n(r.margin_percent) }));
-    const problems = exceptions.map((r) => ({ Problem: n(r.current_quantity) < 0 ? "Negative Stock" : "Variance", Group: steelGroup(r), Item: r.item_name, Godown: r.godown, Book: n(r.book_quantity), Current: n(r.current_quantity), Variance: n(r.variance_quantity) }));
-    const historical = filteredHistory.map((r) => ({ Group: steelGroup(r), Item: r.item_name, Godown: r.godown, [`Book Qty ${asOfDate}`]: n(r.book_quantity), "Last Movement": r.last_movement_at ?? "" }));
-    [["Godown Matrix", matrix], ["Rates Margin", rates], ["Exceptions", problems], ["Historical", historical]].forEach(([name, rows]) => XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet((rows as Row[]).length ? rows as Row[] : [{ Message: "No data" }]), String(name)));
-    XLSX.writeFile(wb, `Steel_Stock_Control_${today()}.xlsx`);
+    XLSX.writeFile(wb, `Steel_Stock_Control_${today()}.xlsx`, { compression: true });
   };
+  const combinedExport = useMemo(() => {
+    const section = (title: string, rows: Row[]) => { const keys = Array.from(new Set(rows.flatMap(row => Object.keys(row)))); return [[title], keys, ...rows.map(row => keys.map(key => row[key] ?? "")), []]; };
+    return [["NAVILO Steel Stock Control"], [`Company: ${activeCompany?.company_name || ""}`], [`Filters: Group=${group}; Godown=${godown}; Search=${search || "All"}; Period=${fromDate} to ${toDate}; As of=${asOfDate}`], [], ...section("Godown Matrix", matrixExport), ...section("Rates & Margin", ratesExport), ...section("Exceptions", problemsExport), ...section("Historical", historyExport)];
+  }, [activeCompany?.company_name, group, godown, search, fromDate, toDate, asOfDate, matrixExport, ratesExport, problemsExport, historyExport]);
+  const fileBase = `Steel_Stock_Control_${today()}`;
 
-  return <div className="print-report space-y-4 pb-12" data-print-root>
-    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{activeCompany?.company_name || "MetalForge"}</div><h1 className="mt-1 flex items-center gap-2 text-xl font-black"><Scale className="h-5 w-5 text-blue-600"/>Steel Stock Control / اسٹیل اسٹاک کنٹرول</h1><p className="mt-1 text-xs font-semibold text-slate-500">Godown matrix, steel groups, weighted rates, margins, exceptions and historical stock.</p></div><div className="flex gap-2 print:hidden"><button onClick={exportExcel} className="btn-secondary"><Download className="h-3.5 w-3.5"/> Excel</button><button onClick={() => window.print()} className="btn-secondary"><Printer className="h-3.5 w-3.5"/> Print / PDF</button><button onClick={() => void load()} className="btn-secondary"><RefreshCw className="h-3.5 w-3.5"/> Refresh</button></div></div></section>
+  return <div className="print-report space-y-4 pb-12" data-print-root data-native-export>
+    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{activeCompany?.company_name || "NAVILO"}</div><h1 className="mt-1 flex items-center gap-2 text-xl font-black"><Scale className="h-5 w-5 text-blue-600"/>Steel Stock Control / اسٹیل اسٹاک کنٹرول</h1><p className="mt-1 text-xs font-semibold text-slate-500">Godown matrix, steel groups, weighted rates, margins, exceptions and historical stock.</p></div><div className="flex flex-wrap gap-2 print:hidden"><button onClick={exportExcel} className="btn-secondary"><Download className="h-3.5 w-3.5"/> Excel (All Data)</button><button onClick={() => exportMatrixToCSV(fileBase, combinedExport)} className="btn-secondary"><Download className="h-3.5 w-3.5"/> CSV</button><button onClick={() => exportMatrixToWord(fileBase, combinedExport, "Steel Stock Control")} className="btn-secondary"><FileText className="h-3.5 w-3.5"/> Word</button><button onClick={() => triggerPrint("[data-print-root]")} className="btn-secondary"><Printer className="h-3.5 w-3.5"/> Print / PDF</button><button onClick={() => void load()} className="btn-secondary"><RefreshCw className="h-3.5 w-3.5"/> Refresh</button></div></div></section>
     {error && <ErrorBanner message={error}/>} 
-    <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-8">{[
-      ["Current Stock", qty(summary.qty)], ["Stock Value", money(summary.value)], ["Variance", qty(summary.variance)], ["Exceptions", String(exceptions.length)], ["Weighted Purchase", money(avgPurchase)], ["Weighted Sale", money(avgSale)], ["Rate Spread", money(spread)], ["Margin %", pct(margin)]
-    ].map(([label, value]) => <div key={label} className="summary-card"><div className="summary-label">{label}</div><div className="summary-value">{value}</div></div>)}</div>
-    <section className="rounded-xl border border-slate-200 bg-white p-3 print:hidden"><div className="flex flex-wrap gap-2"><button onClick={() => setMode("matrix")} className={mode === "matrix" ? "btn-primary" : "btn-secondary"}><Table2 className="h-3.5 w-3.5"/> Godown Matrix</button><button onClick={() => setMode("commercial")} className={mode === "commercial" ? "btn-primary" : "btn-secondary"}><TrendingUp className="h-3.5 w-3.5"/> Rates & Margin</button><button onClick={() => setMode("history")} className={mode === "history" ? "btn-primary" : "btn-secondary"}><CalendarDays className="h-3.5 w-3.5"/> Historical</button><button onClick={() => setMode("exceptions")} className={mode === "exceptions" ? "btn-primary" : "btn-secondary"}><AlertTriangle className="h-3.5 w-3.5"/> Exceptions</button></div><div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-6"><input className="input lg:col-span-2" placeholder="Search Sarya, TR, Toti, Oval, Girder, size..." value={search} onChange={(e) => setSearch(e.target.value)}/><SearchableSelect className="input" value={group} onChange={(e) => setGroup(e.target.value)}><option value="all">All Steel Groups</option>{groups.map((x) => <option key={x}>{x}</option>)}</SearchableSelect>{mode !== "commercial" && <SearchableSelect className="input" value={godown} onChange={(e) => setGodown(e.target.value)}><option value="all">All Godowns</option>{godowns.map((x) => <option key={x}>{x}</option>)}</SearchableSelect>}{mode === "commercial" && <><input className="input" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)}/><input className="input" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)}/></>}{mode === "history" && <input className="input" type="date" value={asOfDate} onChange={(e) => setAsOfDate(e.target.value)}/>}</div></section>
+    <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-8">{[["Current Stock", qty(summary.qty)], ["Stock Value", money(summary.value)], ["Variance", qty(summary.variance)], ["Exceptions", String(exceptions.length)], ["Weighted Purchase", money(avgPurchase)], ["Weighted Sale", money(avgSale)], ["Rate Spread", money(spread)], ["Margin %", pct(margin)]].map(([label, value]) => <div key={label} className="summary-card"><div className="summary-label">{label}</div><div className="summary-value">{value}</div></div>)}</div>
+    <section className="rounded-xl border border-slate-200 bg-white p-3 print:hidden" data-report-filters><div className="flex flex-wrap gap-2"><button onClick={() => setMode("matrix")} className={mode === "matrix" ? "btn-primary" : "btn-secondary"}><Table2 className="h-3.5 w-3.5"/> Godown Matrix</button><button onClick={() => setMode("commercial")} className={mode === "commercial" ? "btn-primary" : "btn-secondary"}><TrendingUp className="h-3.5 w-3.5"/> Rates & Margin</button><button onClick={() => setMode("history")} className={mode === "history" ? "btn-primary" : "btn-secondary"}><CalendarDays className="h-3.5 w-3.5"/> Historical</button><button onClick={() => setMode("exceptions")} className={mode === "exceptions" ? "btn-primary" : "btn-secondary"}><AlertTriangle className="h-3.5 w-3.5"/> Exceptions</button></div><div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-6"><input className="input lg:col-span-2" placeholder="Search Sarya, TR, Toti, Oval, Girder, size..." value={search} onChange={(e) => setSearch(e.target.value)}/><SearchableSelect className="input" value={group} onChange={(e) => setGroup(e.target.value)}><option value="all">All Steel Groups</option>{groups.map((x) => <option key={x}>{x}</option>)}</SearchableSelect>{mode !== "commercial" && <SearchableSelect className="input" value={godown} onChange={(e) => setGodown(e.target.value)}><option value="all">All Godowns</option>{godowns.map((x) => <option key={x}>{x}</option>)}</SearchableSelect>}{mode === "commercial" && <><input className="input" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)}/><input className="input" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)}/></>}{mode === "history" && <input className="input" type="date" value={asOfDate} onChange={(e) => setAsOfDate(e.target.value)}/>}</div></section>
     {loading ? <div className="rounded-xl border bg-white p-10 text-center text-sm font-bold text-slate-500">Loading steel stock report…</div> : mode === "matrix" ? <><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{groupTotals.map((g) => <div key={g.name} className="rounded-lg border bg-white p-3"><div className="text-[10px] font-black uppercase text-slate-400">{g.name}</div><div className="mt-1 text-lg font-black">{qty(g.qty)}</div><div className="text-[10px] font-bold text-slate-500">{money(g.value)}</div></div>)}</div><ReportTable headers={["Group","Item","Grade / Size",...godowns,"Total","Value"]}>{matrixRows.map((r) => <tr key={r.item_id} className="border-t"><td className="p-2 font-black">{r.group}</td><td className="p-2"><b>{r.item_name}</b><div className="text-[10px] text-slate-400">{r.sku}</div></td><td className="p-2">{[r.grade,r.size].filter(Boolean).join(" / ") || "—"}</td>{godowns.map((g) => <td key={g} className={`p-2 text-right ${n(r[g]) < 0 ? "font-black text-rose-700" : ""}`}>{qty(r[g])}</td>)}<td className="p-2 text-right font-black">{qty(r.total)}</td><td className="p-2 text-right">{money(r.value)}</td></tr>)}</ReportTable></> : mode === "commercial" ? <ReportTable headers={["Group","Item","Purchase Qty","Purchase Avg","Sale Qty","Sale Avg","Spread","Margin %"]}>{filteredPeriod.map((r) => <tr key={r.item_id} className="border-t"><td className="p-2 font-black">{steelGroup(r)}</td><td className="p-2 font-bold">{r.item_name}</td><td className="p-2 text-right">{qty(r.net_purchase_qty)}</td><td className="p-2 text-right">{money(r.avg_purchase_rate)}</td><td className="p-2 text-right">{qty(r.net_sales_qty)}</td><td className="p-2 text-right">{money(r.avg_sale_rate)}</td><td className={`p-2 text-right font-black ${n(r.rate_spread) < 0 ? "text-rose-700" : "text-emerald-700"}`}>{money(r.rate_spread)}</td><td className="p-2 text-right font-black">{pct(r.margin_percent)}</td></tr>)}</ReportTable> : mode === "history" ? <ReportTable headers={["Group","Item","Godown",`Book Qty as of ${asOfDate}`,"Last Movement"]}>{filteredHistory.map((r, i) => <tr key={`${r.item_id}-${r.godown_id}-${i}`} className="border-t"><td className="p-2 font-black">{steelGroup(r)}</td><td className="p-2 font-bold">{r.item_name}</td><td className="p-2">{r.godown || "Unassigned"}</td><td className={`p-2 text-right font-black ${n(r.book_quantity) < 0 ? "text-rose-700" : ""}`}>{qty(r.book_quantity)}</td><td className="p-2">{r.last_movement_at ? new Date(r.last_movement_at).toLocaleString() : "—"}</td></tr>)}</ReportTable> : <ReportTable headers={["Problem","Group","Item","Godown","Book","Current","Variance"]}>{exceptions.map((r, i) => <tr key={`${r.item_id}-${r.godown_id}-${i}`} className="border-t"><td className="p-2 font-black text-rose-700">{n(r.current_quantity) < 0 ? "Negative Stock" : "Variance"}</td><td className="p-2 font-black">{steelGroup(r)}</td><td className="p-2 font-bold">{r.item_name}</td><td className="p-2">{r.godown || "Unassigned"}</td><td className="p-2 text-right">{qty(r.book_quantity)}</td><td className="p-2 text-right font-black">{qty(r.current_quantity)}</td><td className="p-2 text-right font-black text-rose-700">{qty(r.variance_quantity)}</td></tr>)}</ReportTable>}
   </div>;
 }

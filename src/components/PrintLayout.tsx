@@ -71,6 +71,7 @@ export interface PrintLayoutProps {
     showSignatures?: boolean;
     showPrintDatetime?: boolean;
     showPageNumbers?: boolean;
+    showQrCode?: boolean;
   };
   documentHeader?: string | null;
   documentHeaderUrdu?: string | null;
@@ -93,20 +94,40 @@ function urduTitle(title: string) {
   return "دستاویز";
 }
 
+function normalize(value?: string | null) {
+  return String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function documentLanguageState() {
+  const root = document.documentElement;
+  const mode = root.dataset.documentLanguageMode === "bilingual" ? "bilingual" : "single";
+  const primary = root.dataset.documentPrimaryLanguage || "en";
+  const secondary = root.dataset.documentSecondaryLanguage || "";
+  return { mode, primary, secondary };
+}
+
 export default function PrintLayout({
   voucherTitle, voucherNo, voucherDate, company, party, items, chargeBreakdown, itemsTotal, chargesTotal,
   taxAmount = 0, showTaxSummary = false, grandTotal, extraFields, hawalaDocuments = [], normalInvoiceTotal,
-  documentNotice, documentNoticeUrdu, paymentSummary, bilingual = true,
+  documentNotice, documentNoticeUrdu, paymentSummary, bilingual,
   signatureLabels = ["Authorized Signature / مجاز دستخط", "Customer Signature / گاہک دستخط"],
   visibility = {}, documentHeader, documentHeaderUrdu, documentFooter, documentFooterUrdu,
 }: PrintLayoutProps) {
   const {
     showCompanyName = true, showLogo = true, showAddress = true, showPhoneEmail = true, showTaxDetails = true,
     showHeader = true, showFooter = true, showSignatures = true, showPrintDatetime = false, showPageNumbers = true,
+    showQrCode = false,
   } = visibility;
+
+  const language = documentLanguageState();
+  const showEnglishText = language.primary === "en" || (language.mode === "bilingual" && language.secondary === "en");
+  const showUrduText = language.primary === "ur" || (language.mode === "bilingual" && language.secondary === "ur");
+  const effectiveBilingual = bilingual ?? (language.mode === "bilingual" && showEnglishText && showUrduText);
 
   const isPurchase = voucherTitle.toLowerCase().includes("purchase");
   const isSales = !isPurchase && ["sales invoice", "tax invoice", "cash bill"].includes(voucherTitle.toLowerCase());
+  const statusValue = String(extraFields?.find((field) => field.label.toLowerCase().includes("status"))?.value || "").toLowerCase();
+  const isDraft = statusValue === "draft";
   const [livePaymentSummary, setLivePaymentSummary] = useState<PaymentSummary | null>(null);
 
   useEffect(() => {
@@ -138,7 +159,7 @@ export default function PrintLayout({
             totalReceived: n(order.paid_amount),
             todayReceived: paymentRows.filter((row: any) => row.allocation_date === today).reduce((sum: number, row: any) => sum + n(row.amount), 0),
             lastPaymentAmount: n(last?.amount), lastPaymentDate: last?.allocation_date || null, lastPaymentMode: lastMode,
-            currentOutstanding: n(order.outstanding_amount),
+            currentOutstanding: isDraft ? Math.max(n(grandTotal) - n(order.paid_amount), 0) : n(order.outstanding_amount),
           });
         } else {
           const { data: order } = await supabase.from("sales_orders")
@@ -164,7 +185,7 @@ export default function PrintLayout({
             totalReceived: n(order.paid_amount),
             todayReceived: receiptRows.filter((row: any) => row.allocation_date === today).reduce((sum: number, row: any) => sum + n(row.amount), 0),
             lastPaymentAmount: n(last?.amount), lastPaymentDate: last?.allocation_date || null, lastPaymentMode: lastMode,
-            currentOutstanding: n(order.outstanding_amount),
+            currentOutstanding: isDraft ? Math.max(n(grandTotal) - n(order.paid_amount), 0) : n(order.outstanding_amount),
           });
         }
       } catch {
@@ -173,14 +194,22 @@ export default function PrintLayout({
     };
     void loadFinancials();
     return () => { cancelled = true; };
-  }, [isPurchase, isSales, paymentSummary, voucherDate, voucherNo]);
+  }, [grandTotal, isDraft, isPurchase, isSales, paymentSummary, voucherDate, voucherNo]);
 
-  const effectivePayment = paymentSummary ?? livePaymentSummary;
+  const draftFallback: PaymentSummary | null = isDraft && (isSales || isPurchase)
+    ? { previousBalance: 0, totalReceived: 0, todayReceived: 0, lastPaymentAmount: 0, lastPaymentDate: null, lastPaymentMode: null, currentOutstanding: n(grandTotal) }
+    : null;
+  const effectivePayment = paymentSummary ?? livePaymentSummary ?? draftFallback;
   const itemVat = useMemo(() => items.reduce((sum, item) => sum + n(item.taxAmount), 0), [items]);
   const chargeVat = Math.max(n(taxAmount) - itemVat, 0);
   const itemGridClass = showTaxSummary ? "invoice-items-grid invoice-items-grid-tax" : "invoice-items-grid invoice-items-grid-no-tax";
   const partyLabel = isPurchase ? "Supplier / سپلائر" : "Bill To / گاہک";
   const qrPayload = JSON.stringify({ company: company.name || "", taxId: company.taxId || "", documentType: voucherTitle, documentNo: voucherNo, documentDate: voucherDate, party: party.name, amount: n(grandTotal).toFixed(2), tax: n(taxAmount).toFixed(2) });
+  const duplicateEnglishHeader = normalize(documentHeader) && normalize(documentHeader) === normalize(company.name);
+  const visibleEnglishHeader = showEnglishText && documentHeader && !duplicateEnglishHeader ? documentHeader : null;
+  const visibleUrduHeader = showUrduText ? documentHeaderUrdu : null;
+  const visibleEnglishFooter = showEnglishText ? documentFooter : null;
+  const visibleUrduFooter = showUrduText ? documentFooterUrdu : null;
 
   return <div className="print-document"><div className="print-page">
     <div className="print-header">
@@ -193,14 +222,14 @@ export default function PrintLayout({
           {showTaxDetails && company.taxId && <p className="print-company-tax">NTN / STRN / ٹیکس نمبر: {company.taxId}</p>}
         </div>
       </div>
-      <div className="print-voucher-title-box" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "12px" }}>
-        <div><h2 className="print-voucher-title">{voucherTitle}{bilingual ? ` / ${urduTitle(voucherTitle)}` : ""}</h2><div style={{ marginTop: 4, textAlign: "right", fontSize: 10, color: "#64748b" }}>Internal Document QR / دستاویزی QR</div></div>
-        <div style={{ background: "#fff", padding: 3, lineHeight: 0, breakInside: "avoid" }}><QRCodeSVG value={qrPayload} size={82} level="M" includeMargin={false} /></div>
+      <div className="print-voucher-title-box" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
+        <div><h2 className="print-voucher-title">{voucherTitle}{effectiveBilingual ? ` / ${urduTitle(voucherTitle)}` : ""}</h2>{showQrCode && <div style={{ marginTop: 3, textAlign: "right", fontSize: 9, color: "#64748b" }}>Internal Document QR / دستاویزی QR</div>}</div>
+        {showQrCode && <div style={{ background: "#fff", padding: 2, lineHeight: 0, breakInside: "avoid" }}><QRCodeSVG value={qrPayload} size={62} level="M" includeMargin={false} /></div>}
       </div>
     </div>
 
-    {showHeader && (documentHeader || documentHeaderUrdu) && <div style={{ textAlign: "center", margin: "8px 0 12px", fontSize: 12, color: "#475569" }}>{documentHeader && <div>{documentHeader}</div>}{documentHeaderUrdu && <div>{documentHeaderUrdu}</div>}</div>}
-    {(documentNotice || documentNoticeUrdu) && <div style={{ margin: "0 0 12px", border: "1px solid #cbd5e1", background: "#f8fafc", padding: "7px 10px", textAlign: "center", fontSize: 12, fontWeight: 700, color: "#334155" }}>{documentNotice && <div>{documentNotice}</div>}{documentNoticeUrdu && <div>{documentNoticeUrdu}</div>}</div>}
+    {showHeader && (visibleEnglishHeader || visibleUrduHeader) && <div style={{ textAlign: "center", margin: "6px 0 10px", fontSize: 11, color: "#475569" }}>{visibleEnglishHeader && <div>{visibleEnglishHeader}</div>}{visibleUrduHeader && <div>{visibleUrduHeader}</div>}</div>}
+    {(documentNotice || documentNoticeUrdu) && <div style={{ margin: "0 0 10px", border: "1px solid #cbd5e1", background: "#f8fafc", padding: "6px 9px", textAlign: "center", fontSize: 11, fontWeight: 700, color: "#334155" }}>{showEnglishText && documentNotice && <div>{documentNotice}</div>}{showUrduText && documentNoticeUrdu && <div>{documentNoticeUrdu}</div>}</div>}
 
     <div className="print-meta">
       <div className="print-meta-col">
@@ -211,8 +240,8 @@ export default function PrintLayout({
       <div className="print-meta-col"><div className="print-party-box">
         <div className="print-party-label">{partyLabel}</div><div className="print-party-name">{party.name}</div>
         {party.address && <div className="print-party-addr">{party.address}</div>}{party.phone && <div className="print-party-phone">Phone / فون: {party.phone}</div>}{party.email && <div className="print-party-email">{party.email}</div>}
-        {showTaxDetails && (party.strn || party.ntn || party.cnic) && <div className="print-party-tax" style={{ marginTop: 4, fontSize: 11, color: "#475569" }}>{[party.strn ? `STRN: ${party.strn}` : "", party.ntn ? `NTN: ${party.ntn}` : "", party.cnic ? `CNIC: ${party.cnic}` : ""].filter(Boolean).join(" · ")}</div>}
-        {showTaxDetails && party.taxRegistrationStatus && <div style={{ marginTop: 2, fontSize: 10, color: "#64748b", textTransform: "capitalize" }}>Tax Status: {party.taxRegistrationStatus}</div>}
+        {showTaxDetails && (party.strn || party.ntn || party.cnic) && <div className="print-party-tax" style={{ marginTop: 4, fontSize: 10, color: "#475569" }}>{[party.strn ? `STRN: ${party.strn}` : "", party.ntn ? `NTN: ${party.ntn}` : "", party.cnic ? `CNIC: ${party.cnic}` : ""].filter(Boolean).join(" · ")}</div>}
+        {showTaxDetails && party.taxRegistrationStatus && <div style={{ marginTop: 2, fontSize: 9, color: "#64748b", textTransform: "capitalize" }}>Tax Status: {party.taxRegistrationStatus}</div>}
       </div></div>
     </div>
 
@@ -229,11 +258,11 @@ export default function PrintLayout({
       })}
     </div>
 
-    {hawalaDocuments.length > 0 && <div style={{ marginTop: 14, border: "1px solid #cbd5e1", borderRadius: 4, overflow: "hidden", breakInside: "avoid" }}>
-      <div style={{ padding: "8px 10px", background: "#f1f5f9", borderBottom: "1px solid #cbd5e1" }}><div style={{ fontSize: 12, fontWeight: 700, color: "#0f172a" }}>Unbilled Dispatch Details / حوالہ تفصیل</div><div style={{ marginTop: 2, fontSize: 12, color: "#64748b" }}>Unbilled dispatch documents included in this Sales Invoice / اس فروخت بل میں شامل حوالہ دستاویزات</div></div>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}><thead><tr style={{ background: "#f8fafc" }}><th style={{ padding: 6, borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>Dispatch No.</th><th style={{ padding: 6, borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>Date</th><th style={{ padding: 6, borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>Reference Name</th><th style={{ padding: 6, borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>Reference No.</th><th style={{ padding: 6, borderBottom: "1px solid #cbd5e1", textAlign: "right" }}>Amount</th></tr></thead>
-      <tbody>{hawalaDocuments.map((row) => <tr key={row.id}><td style={{ padding: 6, borderBottom: "1px solid #e2e8f0", fontWeight: 600 }}>{row.invoiceNo}</td><td style={{ padding: 6, borderBottom: "1px solid #e2e8f0" }}>{row.invoiceDate ? formatDate(row.invoiceDate) : "—"}</td><td style={{ padding: 6, borderBottom: "1px solid #e2e8f0" }}>{row.referenceName || "—"}</td><td style={{ padding: 6, borderBottom: "1px solid #e2e8f0" }}>{row.referenceNo || "—"}</td><td style={{ padding: 6, borderBottom: "1px solid #e2e8f0", textAlign: "right", fontWeight: 600 }}>{formatCurrency(row.amount)}</td></tr>)}</tbody>
-      <tfoot><tr style={{ background: "#f8fafc" }}><td colSpan={4} style={{ padding: 7, textAlign: "right", fontWeight: 700 }}>Unbilled Dispatch Total / کل حوالہ رقم</td><td style={{ padding: 7, textAlign: "right", fontWeight: 700 }}>{formatCurrency(hawalaDocuments.reduce((sum, row) => sum + n(row.amount), 0))}</td></tr></tfoot></table>
+    {hawalaDocuments.length > 0 && <div style={{ marginTop: 12, border: "1px solid #cbd5e1", borderRadius: 4, overflow: "hidden", breakInside: "avoid" }}>
+      <div style={{ padding: "7px 9px", background: "#f1f5f9", borderBottom: "1px solid #cbd5e1" }}><div style={{ fontSize: 11, fontWeight: 700, color: "#0f172a" }}>Unbilled Dispatch Details / حوالہ تفصیل</div><div style={{ marginTop: 2, fontSize: 10, color: "#64748b" }}>Unbilled dispatch documents included in this Sales Invoice / اس فروخت بل میں شامل حوالہ دستاویزات</div></div>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}><thead><tr style={{ background: "#f8fafc" }}><th style={{ padding: 5, borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>Dispatch No.</th><th style={{ padding: 5, borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>Date</th><th style={{ padding: 5, borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>Reference Name</th><th style={{ padding: 5, borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>Reference No.</th><th style={{ padding: 5, borderBottom: "1px solid #cbd5e1", textAlign: "right" }}>Amount</th></tr></thead>
+      <tbody>{hawalaDocuments.map((row) => <tr key={row.id}><td style={{ padding: 5, borderBottom: "1px solid #e2e8f0", fontWeight: 600 }}>{row.invoiceNo}</td><td style={{ padding: 5, borderBottom: "1px solid #e2e8f0" }}>{row.invoiceDate ? formatDate(row.invoiceDate) : "—"}</td><td style={{ padding: 5, borderBottom: "1px solid #e2e8f0" }}>{row.referenceName || "—"}</td><td style={{ padding: 5, borderBottom: "1px solid #e2e8f0" }}>{row.referenceNo || "—"}</td><td style={{ padding: 5, borderBottom: "1px solid #e2e8f0", textAlign: "right", fontWeight: 600 }}>{formatCurrency(row.amount)}</td></tr>)}</tbody>
+      <tfoot><tr style={{ background: "#f8fafc" }}><td colSpan={4} style={{ padding: 6, textAlign: "right", fontWeight: 700 }}>Unbilled Dispatch Total / کل حوالہ رقم</td><td style={{ padding: 6, textAlign: "right", fontWeight: 700 }}>{formatCurrency(hawalaDocuments.reduce((sum, row) => sum + n(row.amount), 0))}</td></tr></tfoot></table>
     </div>}
 
     <div className="print-totals-section">
@@ -246,20 +275,20 @@ export default function PrintLayout({
       </div>
     </div>
 
-    {effectivePayment && <div className="print-payment-summary" style={{ marginTop: 18, border: "1px solid #cbd5e1", padding: 12, breakInside: "avoid" }}>
-      <div style={{ fontWeight: 700, marginBottom: 8 }}>{isPurchase ? "Payment & Balance / ادائیگی اور بقایا" : "Receipt & Balance / وصولی اور بقایا"}</div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, fontSize: 12 }}>
+    {effectivePayment && <div className="print-payment-summary" style={{ marginTop: 12, border: "1px solid #cbd5e1", padding: 10, breakInside: "avoid" }}>
+      <div style={{ fontWeight: 700, marginBottom: 7 }}>{isPurchase ? "Payment & Balance / ادائیگی اور بقایا" : "Receipt & Balance / وصولی اور بقایا"}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 7, fontSize: 10 }}>
         <div>Previous Balance / سابقہ بقایا<br/><strong>{formatCurrency(effectivePayment.previousBalance || 0)}</strong></div>
         <div>{isPurchase ? "Total Paid / کل ادائیگی" : "Total Received / کل وصولی"}<br/><strong>{formatCurrency(effectivePayment.totalReceived || 0)}</strong></div>
         <div>{isPurchase ? "Today's Paid / آج کی ادائیگی" : "Today's Received / آج کی وصولی"}<br/><strong>{formatCurrency(effectivePayment.todayReceived || 0)}</strong></div>
         <div>Outstanding / موجودہ بقایا<br/><strong>{formatCurrency(effectivePayment.currentOutstanding || 0)}</strong></div>
       </div>
-      <div style={{ marginTop: 8, fontSize: 12 }}>{isPurchase ? "Last Payment / آخری ادائیگی" : "Last Receipt / آخری وصولی"}: <strong>{effectivePayment.lastPaymentDate ? formatDate(effectivePayment.lastPaymentDate) : "—"}</strong> · <strong>{formatCurrency(effectivePayment.lastPaymentAmount || 0)}</strong> · {effectivePayment.lastPaymentMode || "—"}</div>
+      <div style={{ marginTop: 7, fontSize: 10 }}>{isPurchase ? "Last Payment / آخری ادائیگی" : "Last Receipt / آخری وصولی"}: <strong>{effectivePayment.lastPaymentDate ? formatDate(effectivePayment.lastPaymentDate) : "—"}</strong> · <strong>{formatCurrency(effectivePayment.lastPaymentAmount || 0)}</strong> · {effectivePayment.lastPaymentMode || "—"}</div>
     </div>}
 
     {showSignatures && signatureLabels.length > 0 && <div className="print-signatures">{signatureLabels.map((label, index) => <div key={`${label}-${index}`} className="print-signature-block"><div className="print-signature-line"/><div className="print-signature-label">{label}</div></div>)}</div>}
-    {showFooter && <div className="print-footer">{documentFooter && <p>{documentFooter}</p>}{documentFooterUrdu && <p>{documentFooterUrdu}</p>}{!documentFooter && !documentFooterUrdu && <p>This is a computer-generated document. / یہ کمپیوٹر سے تیار کردہ دستاویز ہے۔</p>}</div>}
-    {showPrintDatetime && <div style={{ marginTop: 8, textAlign: "right", fontSize: 12, color: "#94a3b8" }}>Printed / پرنٹ: {new Date().toLocaleString("en-PK")}</div>}
-    {showPageNumbers && <div className="print-page-number" style={{ marginTop: 4, textAlign: "right", fontSize: 12, color: "#94a3b8" }}/>} 
+    {showFooter && <div className="print-footer">{visibleEnglishFooter && <p>{visibleEnglishFooter}</p>}{visibleUrduFooter && <p>{visibleUrduFooter}</p>}{!visibleEnglishFooter && !visibleUrduFooter && <p>This is a computer-generated document.</p>}</div>}
+    {showPrintDatetime && <div style={{ marginTop: 7, textAlign: "right", fontSize: 10, color: "#94a3b8" }}>Printed / پرنٹ: {new Date().toLocaleString("en-PK")}</div>}
+    {showPageNumbers && <div className="print-page-number" style={{ marginTop: 3, textAlign: "right", fontSize: 10, color: "#94a3b8" }}/>} 
   </div></div>;
 }

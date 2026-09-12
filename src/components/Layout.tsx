@@ -2,7 +2,9 @@ import * as Lucide from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
+import { useFeatureAccess } from "@/auth/FeatureAccess";
 import { canViewModule, roleLabel, type ModuleKey } from "@/auth/permissions";
+import { FEATURE_BY_KEY } from "@/config/featureRegistry";
 import { usePlatformBranding } from "@/lib/platformBranding";
 import UniversalDataTools from "@/components/UniversalDataTools";
 
@@ -43,22 +45,31 @@ const navigation:NavNode[]=[
   {key:"settings",label:"Settings / سیٹنگز",icon:Lucide.Settings,module:"settings",children:[{key:"company-settings",to:"/settings",label:"Company / کمپنی",end:true,module:"settings"},{key:"tax-settings",to:"/settings/tax",label:"Tax Settings / ٹیکس سیٹنگز",module:"settings"},{key:"document-settings",to:"/settings/documents",label:"Document & Print / ڈاکومنٹ و پرنٹ",module:"settings"},{key:"order-book-settings",to:"/settings/order-book",label:"Order Book Settings / آرڈر بک سیٹنگز",module:"settings"},{key:"gate-pass-settings",to:"/settings/gate-pass",label:"Gate Pass & Weighbridge / گیٹ پاس و کانٹا",module:"settings"}]},
 ];
 
-const labels:Record<string,string>={
-  "/":"Dashboard / ڈیش بورڈ","/owner":"Owner Control / مالک کنٹرول","/master-data":"Items / آئٹمز","/sales":"Sales Invoices / سیلز انوائسز","/sales/order-book":"Sales Order Book / سیلز آرڈر بک","/sales/consolidated":"Consolidated Invoices / مشترکہ انوائسز","/purchase":"Purchase / خریداری","/purchase/consolidated":"Consolidated Purchase / مشترکہ خریداری","/purchase/order-book":"Purchase Order Book / پرچیز آرڈر بک","/godown":"Current Stock / موجودہ اسٹاک","/godown/aging":"Stock Aging / اسٹاک ایجنگ","/production":"Work Orders / ورک آرڈرز","/cutting":"Cutting Orders / کٹنگ آرڈرز","/cutting/gate-pass":"Gate Pass & Weighbridge / گیٹ پاس و وزن کانٹا","/accounting":"Journal Entries / جرنل اندراجات","/accounting/cash-counter":"Cash Counter / کیش کاؤنٹر","/accounting/payroll":"Payroll & Salary Ledger / تنخواہ لیجر","/accounting/loans":"Loan & Lender Ledger / قرض خواہ لیجر","/accounting/customer-invoice-statement":"Customer Invoice Statement & Aging / گاہک انوائس اسٹیٹمنٹ و ایجنگ","/accounting/payment-reversals":"Payment Reversals / ادائیگی واپسی","/accounting/returns":"Credit / Debit Notes / ریٹرن نوٹس","/accounting/vat-register":"VAT Register / وی اے ٹی رجسٹر","/accounting/day-book":"Day Book / روزنامچہ","/accounting/ledgers":"General Ledgers / جنرل لیجر","/accounting/bank-reconciliation":"Bank Reconciliation / بینک ریکنسیلی ایشن","/accounting/trial-balance":"Trial Balance / ٹرائل بیلنس","/accounting/profit-loss":"Profit & Loss / نفع و نقصان","/accounting/balance-sheet":"Balance Sheet / بیلنس شیٹ","/accounting/cash-flow":"Cash Flow / کیش فلو","/accounting/periods":"Period Closing / پیریڈ کلوزنگ","/accounting/year-closing":"Year Closing / سالانہ اختتام","/accounting/controls":"Financial Controls / مالی کنٹرولز","/accounting/audit-trail":"Audit Trail / آڈٹ ٹریل","/accounting/accounts":"Chart of Accounts / چارٹ آف اکاؤنٹس","/accounting/mappings":"Account Mapping / اکاؤنٹ میپنگ","/accounting/opening-balances":"Opening Balances / اوپننگ بیلنس","/reports/sales-margin":"Sales & Margin / سیلز و مارجن","/reports/sales-register":"Sales Register / سیلز رجسٹر","/reports/purchase-register":"Purchase Register / پرچیز رجسٹر","/reports/customer-aging":"Customer Aging / گاہک ایجنگ","/reports/supplier-aging":"Supplier Aging / سپلائر ایجنگ","/reports/customer-item-history":"Customer Item History / گاہک آئٹم ہسٹری","/reports/supplier-item-history":"Supplier Item History / سپلائر آئٹم ہسٹری","/reports/stock-valuation":"Stock Valuation / اسٹاک ویلیو","/reports/customer-profitability":"Customer Profitability / گاہک منافع","/reports/item-profitability":"Item Profitability / آئٹم منافع","/reports/salesperson-profitability":"Salesperson Profitability / سیلز پرسن منافع","/reports/customer-collections":"Customer Collections / وصولیاں","/reports/supplier-performance":"Supplier Performance / سپلائر کارکردگی","/reports/purchase-price-variance":"Purchase Price Variance / خریداری ریٹ فرق","/reports/inventory-aging":"Inventory Aging / Slow Moving","/reports/inventory-turnover":"Inventory Turnover / اسٹاک ٹرن اوور","/reports/stock-exceptions":"Stock Exceptions / اسٹاک ایکسیپشنز","/reports/business-unit-performance":"Business Unit Performance / بزنس یونٹ","/reports/monthly-mis":"Monthly Business MIS / ماہانہ ایم آئی ایس","/reports/returns-register":"Returns Register / ریٹرنز رجسٹر","/reports/ar-ap-reconciliation":"AR / AP Reconciliation","/reports/exceptions":"Exceptions / ایکسیپشنز","/reports/service-charges":"Service Charges / سروس چارجز","/reports/gate-pass":"Gate Pass Report / گیٹ پاس رپورٹ","/reports":"Reports / رپورٹس","/settings":"Company Settings / کمپنی سیٹنگز","/settings/order-book":"Order Book Settings / آرڈر بک سیٹنگز","/settings/gate-pass":"Gate Pass & Weighbridge Settings / گیٹ پاس و کانٹا سیٹنگز"
-};
-
 function matches(n:NavNode,p:string):boolean{return Boolean(n.to&&(p===n.to||(!n.end&&n.to!=="/"&&p.startsWith(n.to+"/"))))||Boolean(n.children?.some(c=>matches(c,p)))}
-function filterNode(n:NavNode,role:string|undefined,owner:boolean,mods:string[],unitType:string|undefined):NavNode|null{if(n.ownerOnly&&!owner)return null;if(n.steelOnly&&unitType&&unitType!=="steel")return null;if(n.module&&(!mods.includes(n.module)||!canViewModule(role as never,n.module,owner)))return null;const children=n.children?.map(c=>filterNode(c,role,owner,mods,unitType)).filter(Boolean) as NavNode[]|undefined;if(n.children&&!children?.length&&!n.to)return null;return{...n,children}}
-function title(p:string){if(labels[p])return labels[p];const k=Object.keys(labels).filter(x=>x!=="/"&&p.startsWith(x+"/")).sort((a,b)=>b.length-a.length)[0];return k?labels[k]:"ERP"}
+function filterNode(n:NavNode,role:string|undefined,owner:boolean,mods:string[],unitType:string|undefined,isFeatureEnabled:(key:string)=>boolean):NavNode|null{
+  if(n.ownerOnly&&!owner)return null;
+  if(n.steelOnly&&unitType&&unitType!=="steel")return null;
+  if(n.module&&(!mods.includes(n.module)||!canViewModule(role as never,n.module,owner)))return null;
+  if(n.to&&FEATURE_BY_KEY.has(n.key)&&!isFeatureEnabled(n.key))return null;
+  const children=n.children?.map(c=>filterNode(c,role,owner,mods,unitType,isFeatureEnabled)).filter(Boolean) as NavNode[]|undefined;
+  if(n.children&&!children?.length&&!n.to)return null;
+  return{...n,children};
+}
+function flatten(nodes:NavNode[]):NavNode[]{return nodes.flatMap(n=>[n,...(n.children?flatten(n.children):[])])}
+function title(pathname:string){
+  const candidates=flatten(navigation).filter(n=>n.to&&(pathname===n.to||(!n.end&&n.to!=="/"&&pathname.startsWith(`${n.to}/`))));
+  return candidates.sort((a,b)=>(b.to?.length??0)-(a.to?.length??0))[0]?.label??"ERP";
+}
 
 export default function Layout({children}:{children:ReactNode}){
   const{user,signOut,isPlatformOwner,activeCompany,activeBusinessUnit}=useAuth();
+  const{isFeatureEnabled}=useFeatureAccess();
   const{branding}=usePlatformBranding();
   const location=useLocation(),navigate=useNavigate();
   const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role;
   const mods=activeBusinessUnit?.enabled_modules??[];
   const[collapsed,setCollapsed]=useState(false),[mobileOpen,setMobileOpen]=useState(false),[open,setOpen]=useState<Record<string,boolean>>({});
-  const visible=useMemo(()=>navigation.map(n=>filterNode(n,role,isPlatformOwner,mods,activeBusinessUnit?.business_unit_type)).filter(Boolean) as NavNode[],[role,isPlatformOwner,mods,activeBusinessUnit?.business_unit_type]);
+  const visible=useMemo(()=>navigation.map(n=>filterNode(n,role,isPlatformOwner,mods,activeBusinessUnit?.business_unit_type,(key)=>isFeatureEnabled(key,"view"))).filter(Boolean) as NavNode[],[role,isPlatformOwner,mods,activeBusinessUnit?.business_unit_type,isFeatureEnabled]);
   const pageTitle=title(location.pathname);
   const showSidebarBrand=branding.show_branding&&branding.show_in_sidebar;
   useEffect(()=>{document.title=branding.show_branding&&branding.erp_name?`${pageTitle} · ${branding.erp_name}`:pageTitle},[pageTitle,branding.show_branding,branding.erp_name]);

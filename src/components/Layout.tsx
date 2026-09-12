@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { useFeatureAccess } from "@/auth/FeatureAccess";
-import { canViewModule, roleLabel, type ModuleKey } from "@/auth/permissions";
+import { hasPermission, roleLabel, type ModuleKey, type PermissionMatrix } from "@/auth/permissions";
 import { FEATURE_BY_KEY } from "@/config/featureRegistry";
 import { usePlatformBranding } from "@/lib/platformBranding";
 import UniversalDataTools from "@/components/UniversalDataTools";
@@ -53,21 +53,18 @@ const navigation:NavNode[]=[
 ];
 
 function matches(n:NavNode,p:string):boolean{return Boolean(n.to&&(p===n.to||(!n.end&&n.to!=="/"&&p.startsWith(n.to+"/"))))||Boolean(n.children?.some(c=>matches(c,p)))}
-function filterNode(n:NavNode,role:string|undefined,owner:boolean,mods:string[],unitType:string|undefined,isFeatureEnabled:(key:string)=>boolean):NavNode|null{
+function filterNode(n:NavNode,role:string|undefined,owner:boolean,mods:string[],unitType:string|undefined,permissions:PermissionMatrix|undefined,isFeatureEnabled:(key:string)=>boolean):NavNode|null{
   if(n.ownerOnly&&!owner)return null;
   if(n.accessAdminOnly&&!owner&&role!=="company_owner"&&role!=="admin")return null;
   if(n.steelOnly&&unitType&&unitType!=="steel")return null;
-  if(n.module&&(!mods.includes(n.module)||!canViewModule(role as never,n.module,owner)))return null;
+  if(n.module&&(!mods.includes(n.module)||!hasPermission(role as never,n.module,"view",permissions,owner)))return null;
   if(n.to&&FEATURE_BY_KEY.has(n.key)&&!isFeatureEnabled(n.key))return null;
-  const children=n.children?.map(c=>filterNode(c,role,owner,mods,unitType,isFeatureEnabled)).filter(Boolean) as NavNode[]|undefined;
+  const children=n.children?.map(c=>filterNode(c,role,owner,mods,unitType,permissions,isFeatureEnabled)).filter(Boolean) as NavNode[]|undefined;
   if(n.children&&!children?.length&&!n.to)return null;
   return{...n,children};
 }
 function flatten(nodes:NavNode[]):NavNode[]{return nodes.flatMap(n=>[n,...(n.children?flatten(n.children):[])])}
-function title(pathname:string){
-  const candidates=flatten(navigation).filter(n=>n.to&&(pathname===n.to||(!n.end&&n.to!=="/"&&pathname.startsWith(`${n.to}/`))));
-  return candidates.sort((a,b)=>(b.to?.length??0)-(a.to?.length??0))[0]?.label??"ERP";
-}
+function title(pathname:string){const candidates=flatten(navigation).filter(n=>n.to&&(pathname===n.to||(!n.end&&n.to!=="/"&&pathname.startsWith(`${n.to}/`))));return candidates.sort((a,b)=>(b.to?.length??0)-(a.to?.length??0))[0]?.label??"ERP";}
 
 export default function Layout({children}:{children:ReactNode}){
   const{user,signOut,isPlatformOwner,activeCompany,activeBusinessUnit}=useAuth();
@@ -75,9 +72,10 @@ export default function Layout({children}:{children:ReactNode}){
   const{branding}=usePlatformBranding();
   const location=useLocation(),navigate=useNavigate();
   const role=activeBusinessUnit?.membership_role??activeCompany?.membership_role;
+  const permissions=activeCompany?.permissions as PermissionMatrix|undefined;
   const mods=activeBusinessUnit?.enabled_modules??[];
   const[collapsed,setCollapsed]=useState(false),[mobileOpen,setMobileOpen]=useState(false),[open,setOpen]=useState<Record<string,boolean>>({});
-  const visible=useMemo(()=>navigation.map(n=>filterNode(n,role,isPlatformOwner,mods,activeBusinessUnit?.business_unit_type,(key)=>isFeatureEnabled(key,"view"))).filter(Boolean) as NavNode[],[role,isPlatformOwner,mods,activeBusinessUnit?.business_unit_type,isFeatureEnabled]);
+  const visible=useMemo(()=>navigation.map(n=>filterNode(n,role,isPlatformOwner,mods,activeBusinessUnit?.business_unit_type,permissions,(key)=>isFeatureEnabled(key,"view"))).filter(Boolean) as NavNode[],[role,isPlatformOwner,mods,activeBusinessUnit?.business_unit_type,permissions,isFeatureEnabled]);
   const pageTitle=title(location.pathname);
   const showSidebarBrand=branding.show_branding&&branding.show_in_sidebar;
   useEffect(()=>{document.title=branding.show_branding&&branding.erp_name?`${pageTitle} · ${branding.erp_name}`:pageTitle},[pageTitle,branding.show_branding,branding.erp_name]);

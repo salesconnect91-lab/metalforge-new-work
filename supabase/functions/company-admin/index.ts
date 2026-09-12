@@ -8,7 +8,26 @@ const HEADERS={
 };
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...HEADERS,"Content-Type":"application/json"}});
 const STANDARD_ROLES=["admin","accounts","sales","purchase","store","production","transport","viewer"];
+const MODULES=["dashboard","master","sales","purchase","inventory","production","transport","accounting","reports","settings"];
+const ACTIONS=["view","create","edit","delete","post","print","export"];
 const profileRole=(role:string)=>role==="accounts"?"accountant":role==="store"?"warehouse":role==="production"?"admin":role;
+
+function sanitizePermissions(input:unknown){
+  if(!input||typeof input!=="object"||Array.isArray(input))return {};
+  const source=input as Record<string,unknown>;
+  const output:Record<string,Record<string,boolean>>={};
+  for(const module of MODULES){
+    const raw=source[module];
+    if(!raw||typeof raw!=="object"||Array.isArray(raw))continue;
+    const clean:Record<string,boolean>={};
+    for(const action of ACTIONS){
+      const value=(raw as Record<string,unknown>)[action];
+      if(typeof value==="boolean")clean[action]=value;
+    }
+    if(Object.keys(clean).length)output[module]=clean;
+  }
+  return output;
+}
 
 Deno.serve(async(request)=>{
   if(request.method==="OPTIONS")return new Response("ok",{headers:HEADERS});
@@ -60,7 +79,7 @@ Deno.serve(async(request)=>{
   try{
     if(action==="list_access"){
       const [memberships,units,locations,limits]=await Promise.all([
-        admin.from("company_memberships").select("id,user_id,role,is_active,created_at").eq("company_id",companyId).order("created_at"),
+        admin.from("company_memberships").select("id,user_id,role,is_active,permissions,created_at").eq("company_id",companyId).order("created_at"),
         admin.from("business_units").select("id,name,code,unit_type,is_active,is_default").eq("company_id",companyId).order("is_default",{ascending:false}).order("name"),
         admin.from("operating_locations").select("id,business_unit_id,name,code,location_type,is_active").eq("company_id",companyId).order("name"),
         admin.rpc("company_resource_limits",{p_company_id:companyId}),
@@ -70,10 +89,7 @@ Deno.serve(async(request)=>{
       const profiles=ids.length?await admin.from("user_profiles").select("id,email,full_name,locked_business_unit_id,locked_operating_location_id").in("id",ids):{data:[],error:null};
       if(profiles.error)throw profiles.error;
       const profileMap=new Map((profiles.data??[]).map((p:any)=>[p.id,p]));
-      const users=(memberships.data??[]).map((m:any)=>({
-        membership_id:m.id,user_id:m.user_id,role:m.role,is_active:m.is_active,created_at:m.created_at,
-        ...(profileMap.get(m.user_id)||{}),
-      }));
+      const users=(memberships.data??[]).map((m:any)=>({membership_id:m.id,user_id:m.user_id,role:m.role,is_active:m.is_active,permissions:m.permissions||{},created_at:m.created_at,...(profileMap.get(m.user_id)||{})}));
       return json({users,units:units.data??[],locations:locations.data??[],limits:limits.data??{},actor_role:actorRole,is_platform_owner:isPlatformOwner});
     }
 
@@ -82,6 +98,7 @@ Deno.serve(async(request)=>{
       const password=String(body.password||"");
       const fullName=String(body.full_name||"").trim();
       const role=String(body.role||"viewer");
+      const permissions=sanitizePermissions(body.permissions);
       const unitId=body.business_unit_id?String(body.business_unit_id):null;
       const locationId=body.operating_location_id?String(body.operating_location_id):null;
       if(!email||password.length<8)return json({error:"Email and minimum 8 character temporary password are required."},400);
@@ -99,7 +116,7 @@ Deno.serve(async(request)=>{
       try{
         let result=await admin.from("user_profiles").upsert({id:userId,email,full_name:fullName||null,role:profileRole(role),platform_role:"user",is_active:true,last_company_id:companyId,last_business_unit_id:unitId,locked_business_unit_id:unitId,locked_operating_location_id:locationId,updated_at:new Date().toISOString()},{onConflict:"id"});
         if(result.error)throw result.error;
-        result=await admin.from("company_memberships").upsert({company_id:companyId,user_id:userId,role,is_active:true,permissions:{},invited_by:actor.id,updated_at:new Date().toISOString()},{onConflict:"company_id,user_id"});
+        result=await admin.from("company_memberships").upsert({company_id:companyId,user_id:userId,role,is_active:true,permissions,invited_by:actor.id,updated_at:new Date().toISOString()},{onConflict:"company_id,user_id"});
         if(result.error)throw result.error;
         await assignWorkspace(userId,role,unitId!,locationId);
         return json({success:true,user_id:userId});
@@ -112,9 +129,9 @@ Deno.serve(async(request)=>{
       const {data:target}=await admin.from("company_memberships").select("role,is_active").eq("company_id",companyId).eq("user_id",userId).maybeSingle();
       if(!target)return json({error:"User is not assigned to this company."},404);
       if(!isPlatformOwner){
-        if(userId===actor.id&&(body.is_active===false||body.role!==undefined))return json({error:"You cannot disable or change your own company role."},403);
+        if(userId===actor.id&&(body.is_active===false||body.role!==undefined||body.permissions!==undefined))return json({error:"You cannot disable or change your own role or permissions."},403);
         if(actorRole==="admin"&&["company_owner","admin"].includes(target.role))return json({error:"Administrators cannot manage Company Owner or Administrator accounts."},403);
-        if(target.role==="company_owner"&&(body.role!==undefined||body.is_active!==undefined||body.business_unit_id!==undefined||body.operating_location_id!==undefined))return json({error:"Company Owner access is controlled by the NAVILO Platform Owner."},403);
+        if(target.role==="company_owner"&&(body.role!==undefined||body.permissions!==undefined||body.is_active!==undefined||body.business_unit_id!==undefined||body.operating_location_id!==undefined))return json({error:"Company Owner access is controlled by the NAVILO Platform Owner."},403);
         const {count:sharedCount}=await admin.from("company_memberships").select("id",{count:"exact",head:true}).eq("user_id",userId).eq("is_active",true);
         if((sharedCount||0)>1)return json({error:"This login is shared across companies and can only be changed by the NAVILO Platform Owner."},403);
       }
@@ -127,6 +144,7 @@ Deno.serve(async(request)=>{
       }
       const membershipPatch:any={updated_at:new Date().toISOString()};
       if(body.role!==undefined)membershipPatch.role=nextRole;
+      if(body.permissions!==undefined)membershipPatch.permissions=sanitizePermissions(body.permissions);
       if(body.is_active!==undefined)membershipPatch.is_active=!!body.is_active;
       if(Object.keys(membershipPatch).length>1){const result=await admin.from("company_memberships").update(membershipPatch).eq("company_id",companyId).eq("user_id",userId);if(result.error)throw result.error;}
       if(body.is_active===false){

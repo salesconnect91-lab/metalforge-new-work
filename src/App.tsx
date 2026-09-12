@@ -19,6 +19,7 @@ import SalesInvoiceList from "@/modules/sales/SalesInvoiceList";
 import SalesInvoiceCreate from "@/modules/sales/SalesInvoiceCreate";
 import SalesInvoiceDetail from "@/modules/sales/SalesInvoiceDetail";
 import SalespersonReport from "@/modules/sales/SalespersonReport";
+import SalespersonLedger from "@/modules/sales/SalespersonLedger";
 import ChargeMaster from "@/modules/sales/ChargeMaster";
 import Purchase from "@/modules/purchase/Purchase";
 import Godown from "@/modules/master-data/Godown";
@@ -105,6 +106,7 @@ export default function App() {
       <Route path="/sales/new" element={<ModuleActionOnly module="sales" action="create"><SalesInvoiceCreate /></ModuleActionOnly>} />
       <Route path="/sales/:id/edit" element={<ModuleActionOnly module="sales" action="edit"><SalesInvoiceCreate /></ModuleActionOnly>} />
       <Route path="/sales/report" element={<ModuleOnly module="reports"><ReportSurface><SalespersonReport /></ReportSurface></ModuleOnly>} />
+      <Route path="/sales/person-ledger" element={<ModuleOnly module="reports"><ReportSurface><SalespersonLedger /></ReportSurface></ModuleOnly>} />
       <Route path="/sales/charges" element={<ModuleOnly module="master"><ChargeMaster /></ModuleOnly>} />
       <Route path="/sales/consolidated" element={<ModuleOnly module="sales"><ConsolidatedInvoices /></ModuleOnly>} />
       <Route path="/sales/order-book" element={<ModuleOnly module="sales"><OrderBook type="sales" /></ModuleOnly>} />

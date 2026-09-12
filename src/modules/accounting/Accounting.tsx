@@ -10,6 +10,7 @@ import BalanceSheet from "./BalanceSheet";
 import AuditTrail from "./AuditTrail";
 import CashCounterWorkspace from "./CashCounterWorkspace";
 import PayrollLedger from "./PayrollLedger";
+import LoanLedger from "./LoanLedger";
 import AccountMappingSetup from "./AccountMappingSetup";
 import AccountingPeriods from "./AccountingPeriods";
 import ReturnNotes from "./ReturnNotes";
@@ -30,6 +31,7 @@ export default function Accounting() {
         <Route path="/" element={<JournalEntryList />} />
         <Route path="/cash-counter" element={<CashCounterWorkspace />} />
         <Route path="/payroll" element={report(<PayrollLedger />)} />
+        <Route path="/loans" element={report(<LoanLedger />)} />
         <Route path="/payment-reversals" element={<PaymentReversals />} />
         <Route path="/vat-register" element={report(<VatRegister />)} />
         <Route path="/day-book" element={report(<DayBook />)} />

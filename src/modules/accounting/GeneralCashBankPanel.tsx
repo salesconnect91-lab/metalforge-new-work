@@ -110,7 +110,7 @@ const isCashBank = (account: Account) =>
 export default function GeneralCashBankPanel() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [partySuggestions, setPartySuggestions] = useState<PartySuggestion[]>([]);
+  const [expensePayees, setExpensePayees] = useState<PartySuggestion[]>([]);
   const [mappedIds, setMappedIds] = useState<Record<string, string>>({});
   const [history, setHistory] = useState<Voucher[]>([]);
 
@@ -208,12 +208,12 @@ export default function GeneralCashBankPanel() {
       .slice(0, 12);
   }, [employees, employeeSearch]);
 
-  const filteredPartySuggestions = useMemo(() => {
+  const filteredExpensePayees = useMemo(() => {
     const q = partyName.trim().toLowerCase();
-    return partySuggestions
+    return expensePayees
       .filter((party) => !q || `${party.name} ${party.source}`.toLowerCase().includes(q))
       .slice(0, 12);
-  }, [partyName, partySuggestions]);
+  }, [partyName, expensePayees]);
 
   const filteredHistory = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -244,20 +244,17 @@ export default function GeneralCashBankPanel() {
         if (row?.mapping_key && row?.account_id) nextMappings[String(row.mapping_key)] = String(row.account_id);
       });
 
-      const suggestionMap = new Map<string, PartySuggestion>();
-      const addSuggestion = (id: string, name: string, source: string) => {
-        const clean = String(name || "").trim();
+      const payeeMap = new Map<string, PartySuggestion>();
+      (transportersResult.data || []).forEach((row: any) => {
+        const clean = String(row?.name || "").trim();
         if (!clean) return;
-        const key = clean.toLowerCase();
-        if (!suggestionMap.has(key)) suggestionMap.set(key, { id, name: clean, source });
-      };
-      (transportersResult.data || []).forEach((row: any) => addSuggestion(String(row.id), row.name, "Transporter"));
-      loadedEmployees.forEach((row) => addSuggestion(row.id, row.name, "Employee"));
+        payeeMap.set(clean.toLowerCase(), { id: String(row.id), name: clean, source: "Transporter" });
+      });
 
       setAccounts(loadedAccounts);
       setEmployees(loadedEmployees);
       setMappedIds(nextMappings);
-      setPartySuggestions(Array.from(suggestionMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
+      setExpensePayees(Array.from(payeeMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
       setHistory((historyResult.data || []) as Voucher[]);
 
       const firstCash = loadedAccounts.find(isCashBank);
@@ -299,10 +296,6 @@ export default function GeneralCashBankPanel() {
       if (insertError) throw insertError;
       const employee = data as Employee;
       setEmployees((current) => [...current, employee].sort((a, b) => a.name.localeCompare(b.name)));
-      setPartySuggestions((current) => {
-        if (current.some((row) => row.name.toLowerCase() === employee.name.toLowerCase())) return current;
-        return [...current, { id: employee.id, name: employee.name, source: "Employee" }].sort((a, b) => a.name.localeCompare(b.name));
-      });
       setPartyName(employee.name);
       setEmployeeSearch(employee.name);
       setShowEmployeeResults(false);
@@ -420,6 +413,15 @@ export default function GeneralCashBankPanel() {
 
   if (loading) return <div className="mt-4 flex min-h-[250px] items-center justify-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" />Loading General Cash / Bank...</div>;
 
+  const manualPartyPlaceholder =
+    transactionType === "loan_received" || transactionType === "loan_repayment"
+      ? "Enter lender name..."
+      : transactionType === "capital_received" || transactionType === "drawings_payment"
+        ? "Enter owner name..."
+        : transactionType === "other_receipt"
+          ? "Enter payer/source name..."
+          : "Enter payee name...";
+
   return <div className="mt-4 space-y-5">
     {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
     {success && <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-700"><span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4" />{success}</span>{lastVoucher && <div className="flex gap-2"><button type="button" data-direct-print onClick={() => printVoucher(lastVoucher)} className="btn-secondary inline-flex items-center gap-2 text-xs"><Printer className="h-4 w-4" />Print / پرنٹ</button><button type="button" onClick={() => downloadPdf(lastVoucher)} className="btn-secondary inline-flex items-center gap-2 text-xs"><FileDown className="h-4 w-4" />PDF</button></div>}</div>}
@@ -430,7 +432,7 @@ export default function GeneralCashBankPanel() {
         <div><label className="mb-1.5 block text-xs font-semibold">Transaction Type / لین دین قسم</label><SearchableSelect value={transactionType} onChange={(e) => setTransactionType(e.target.value as TransactionType)} className="input w-full">{TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</SearchableSelect></div>
         <div><label className="mb-1.5 block text-xs font-semibold">Date / تاریخ</label><input type="date" value={transactionDate} onChange={(e) => setTransactionDate(e.target.value)} className="input w-full" /></div>
         <div className="relative"><label className="mb-1.5 block text-xs font-semibold">{selectedType.partyLabel}</label>
-          {transactionType === "salary_payment" ? <><div className="flex gap-2"><div className="relative flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={employeeSearch} onFocus={() => setShowEmployeeResults(true)} onChange={(e) => { setEmployeeSearch(e.target.value); setPartyName(""); setShowEmployeeResults(true); }} placeholder="Search employee / ملازم تلاش کریں" className="input w-full pl-9" autoComplete="off" />{showEmployeeResults && <div className="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-xl">{filteredEmployees.length ? filteredEmployees.map((employee) => <button key={employee.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { setPartyName(employee.name); setEmployeeSearch(employee.name); setShowEmployeeResults(false); }} className="block w-full border-b border-slate-100 px-3 py-2.5 text-left last:border-0 hover:bg-emerald-50"><div className="flex items-center justify-between gap-3"><div className="font-semibold text-slate-900">{employee.name}</div>{employee.employee_code && <span className="rounded bg-slate-100 px-2 py-0.5 text-[12px] font-bold text-slate-600">{employee.employee_code}</span>}</div><div className="mt-1 text-[12px] text-slate-500">{[employee.designation, employee.department, employee.phone].filter(Boolean).join(" • ") || "Employee / ملازم"}</div></button>) : <div className="px-3 py-4 text-center text-xs text-slate-500">No employee found / کوئی ملازم نہیں ملا</div>}<button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { setNewEmployeeName(employeeSearch.trim()); setShowEmployeeResults(false); setShowAddEmployee(true); }} className="block w-full bg-emerald-50 px-3 py-2.5 text-left text-xs font-bold text-emerald-700 hover:bg-emerald-100">+ Add New Employee / نیا ملازم شامل کریں</button></div>}</div><button type="button" onClick={() => { setNewEmployeeName(employeeSearch.trim()); setShowAddEmployee(true); setShowEmployeeResults(false); }} className="btn-secondary whitespace-nowrap px-3 text-xs">+ Add</button></div>{partyName && <div className="mt-1 text-[12px] font-semibold text-emerald-700">Selected: {partyName}</div>}</> : <div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={partyName} onFocus={() => setShowPartyResults(true)} onChange={(e) => { setPartyName(e.target.value); setShowPartyResults(true); }} onBlur={() => setTimeout(() => setShowPartyResults(false), 120)} placeholder={transactionType === "expense_payment" ? "Search payee or type a name..." : "Search or type name..."} className="input w-full pl-9" autoComplete="off" />{showPartyResults && <div className="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-xl">{filteredPartySuggestions.length ? filteredPartySuggestions.map((party) => <button key={`${party.source}-${party.id}`} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { setPartyName(party.name); setShowPartyResults(false); }} className="flex w-full items-center justify-between gap-3 border-b border-slate-100 px-3 py-2.5 text-left last:border-0 hover:bg-emerald-50"><span className="font-semibold text-slate-900">{party.name}</span><span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">{party.source}</span></button>) : <div className="px-3 py-3 text-xs text-slate-500">No saved payee found. You can keep the typed name as a manual payee.</div>}<div className="border-t border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-500">Direct expense payees only. Supplier invoice payments must use the Supplier Payment tab.</div></div>}</div>}
+          {transactionType === "salary_payment" ? <><div className="flex gap-2"><div className="relative flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={employeeSearch} onFocus={() => setShowEmployeeResults(true)} onChange={(e) => { setEmployeeSearch(e.target.value); setPartyName(""); setShowEmployeeResults(true); }} placeholder="Search employee / ملازم تلاش کریں" className="input w-full pl-9" autoComplete="off" />{showEmployeeResults && <div className="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-xl">{filteredEmployees.length ? filteredEmployees.map((employee) => <button key={employee.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { setPartyName(employee.name); setEmployeeSearch(employee.name); setShowEmployeeResults(false); }} className="block w-full border-b border-slate-100 px-3 py-2.5 text-left last:border-0 hover:bg-emerald-50"><div className="flex items-center justify-between gap-3"><div className="font-semibold text-slate-900">{employee.name}</div>{employee.employee_code && <span className="rounded bg-slate-100 px-2 py-0.5 text-[12px] font-bold text-slate-600">{employee.employee_code}</span>}</div><div className="mt-1 text-[12px] text-slate-500">{[employee.designation, employee.department, employee.phone].filter(Boolean).join(" • ") || "Employee / ملازم"}</div></button>) : <div className="px-3 py-4 text-center text-xs text-slate-500">No employee found / کوئی ملازم نہیں ملا</div>}<button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { setNewEmployeeName(employeeSearch.trim()); setShowEmployeeResults(false); setShowAddEmployee(true); }} className="block w-full bg-emerald-50 px-3 py-2.5 text-left text-xs font-bold text-emerald-700 hover:bg-emerald-100">+ Add New Employee / نیا ملازم شامل کریں</button></div>}</div><button type="button" onClick={() => { setNewEmployeeName(employeeSearch.trim()); setShowAddEmployee(true); setShowEmployeeResults(false); }} className="btn-secondary whitespace-nowrap px-3 text-xs">+ Add</button></div>{partyName && <div className="mt-1 text-[12px] font-semibold text-emerald-700">Selected: {partyName}</div>}</> : transactionType === "expense_payment" ? <div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={partyName} onFocus={() => setShowPartyResults(true)} onChange={(e) => { setPartyName(e.target.value); setShowPartyResults(true); }} onBlur={() => setTimeout(() => setShowPartyResults(false), 120)} placeholder="Search direct payee or type a name..." className="input w-full pl-9" autoComplete="off" />{showPartyResults && <div className="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-xl">{filteredExpensePayees.length ? filteredExpensePayees.map((party) => <button key={`${party.source}-${party.id}`} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { setPartyName(party.name); setShowPartyResults(false); }} className="flex w-full items-center justify-between gap-3 border-b border-slate-100 px-3 py-2.5 text-left last:border-0 hover:bg-emerald-50"><span className="font-semibold text-slate-900">{party.name}</span><span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">{party.source}</span></button>) : <div className="px-3 py-3 text-xs text-slate-500">No saved direct payee found. Keep the typed name as a manual payee.</div>}<div className="border-t border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-500">Direct expense payees only. Supplier invoice payments must use the Supplier Payment tab.</div></div>}</div> : <input value={partyName} onChange={(e) => setPartyName(e.target.value)} placeholder={manualPartyPlaceholder} className="input w-full" autoComplete="off" />}
         </div>
         <div><label className="mb-1.5 block text-xs font-semibold">{transactionType === "salary_payment" ? "Salary Expense Account / تنخواہ خرچ اکاؤنٹ" : "Transaction Account / لین دین اکاؤنٹ"}</label><SearchableSelect value={counterAccountId} onChange={(e) => setCounterAccountId(e.target.value)} className="input w-full" aria-label="Transaction Account"><option value="">Select account...</option>{counterAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</SearchableSelect></div>
         <div><label className="mb-1.5 block text-xs font-semibold">Cash / Bank Account / کیش بینک اکاؤنٹ</label><SearchableSelect value={cashBankAccountId} onChange={(e) => setCashBankAccountId(e.target.value)} className="input w-full" aria-label="Cash Bank Account"><option value="">Select cash/bank...</option>{cashBankAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</SearchableSelect></div>

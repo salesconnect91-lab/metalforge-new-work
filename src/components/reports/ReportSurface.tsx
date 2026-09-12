@@ -50,6 +50,33 @@ export default function ReportSurface({ children }: ReportSurfaceProps) {
   }, [reportContent, scanColumns]);
 
   useEffect(() => {
+    const root = reportContent();
+    if (!root) return;
+
+    const hideDuplicateActions = () => {
+      root.querySelectorAll<HTMLButtonElement>("button").forEach((button) => {
+        const label = (button.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
+        const duplicate =
+          label.includes("export excel") ||
+          label === "pdf" ||
+          label.startsWith("pdf /") ||
+          label === "print" ||
+          label.startsWith("print /");
+
+        if (duplicate) {
+          button.style.display = "none";
+          button.dataset.naviloDuplicateReportAction = "true";
+        }
+      });
+    };
+
+    hideDuplicateActions();
+    const observer = new MutationObserver(hideDuplicateActions);
+    observer.observe(root, { childList: true, subtree: true, characterData: true });
+    return () => observer.disconnect();
+  }, [reportContent]);
+
+  useEffect(() => {
     const root = reportContent(); if (!root) return;
     const hidden = new Set(columns.filter(column => !column.visible).map(column => column.index));
     root.querySelectorAll("table").forEach(table => table.querySelectorAll("tr").forEach(row => Array.from(row.children).forEach((cell, index) => { (cell as HTMLElement).style.display = hidden.has(index) ? "none" : ""; })));

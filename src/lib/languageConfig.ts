@@ -7,23 +7,24 @@ export type NaviloLanguage = {
   direction: "ltr" | "rtl";
 };
 
+/**
+ * Languages that NAVILO can currently translate end-to-end at runtime.
+ * Add a language here only after its UI/document translation dictionaries
+ * and RTL/LTR behaviour are fully implemented and tested.
+ */
 export const NAVILO_LANGUAGES: NaviloLanguage[] = [
   { code: "en", label: "English", nativeLabel: "English", direction: "ltr" },
   { code: "ur", label: "Urdu", nativeLabel: "اردو", direction: "rtl" },
   { code: "ar", label: "Arabic", nativeLabel: "العربية", direction: "rtl" },
-  { code: "hi", label: "Hindi", nativeLabel: "हिन्दी", direction: "ltr" },
-  { code: "fr", label: "French", nativeLabel: "Français", direction: "ltr" },
-  { code: "es", label: "Spanish", nativeLabel: "Español", direction: "ltr" },
-  { code: "de", label: "German", nativeLabel: "Deutsch", direction: "ltr" },
-  { code: "tr", label: "Turkish", nativeLabel: "Türkçe", direction: "ltr" },
-  { code: "zh", label: "Chinese", nativeLabel: "中文", direction: "ltr" },
-  { code: "pt", label: "Portuguese", nativeLabel: "Português", direction: "ltr" },
-  { code: "id", label: "Indonesian", nativeLabel: "Bahasa Indonesia", direction: "ltr" },
-  { code: "bn", label: "Bengali", nativeLabel: "বাংলা", direction: "ltr" },
-  { code: "fa", label: "Persian", nativeLabel: "فارسی", direction: "rtl" },
 ];
 
+export const SUPPORTED_RUNTIME_LANGUAGE_CODES = NAVILO_LANGUAGES.map((language) => language.code);
+
 export const languageByCode = (code?: string | null) => NAVILO_LANGUAGES.find((language) => language.code === code) ?? NAVILO_LANGUAGES[0];
+
+export function isSupportedRuntimeLanguage(code?: string | null): code is "en" | "ur" | "ar" {
+  return code === "en" || code === "ur" || code === "ar";
+}
 
 export function legacyPrintLanguage(mode: LanguageMode, primary: string, secondary?: string | null): "english" | "urdu" | "both" {
   if (mode === "bilingual" && primary === "en" && secondary === "ur") return "both";

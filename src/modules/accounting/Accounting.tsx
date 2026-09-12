@@ -13,6 +13,7 @@ import PayrollLedger from "./PayrollLedger";
 import LoanLedger from "./LoanLedger";
 import AccountMappingSetup from "./AccountMappingSetup";
 import AccountingPeriods from "./AccountingPeriods";
+import OpeningBalances from "./OpeningBalances";
 import ReturnNotes from "./ReturnNotes";
 import BankReconciliation from "./BankReconciliation";
 import FiscalYearClosing from "./FiscalYearClosing";
@@ -37,6 +38,7 @@ export default function Accounting() {
         <Route path="/day-book" element={report(<DayBook />)} />
         <Route path="/accounts" element={<ChartOfAccounts />} />
         <Route path="/mappings" element={<AccountMappingSetup />} />
+        <Route path="/opening-balances" element={<OpeningBalances />} />
         <Route path="/periods" element={<AccountingPeriods />} />
         <Route path="/returns" element={<ReturnNotes />} />
         <Route path="/bank-reconciliation" element={report(<BankReconciliation />)} />

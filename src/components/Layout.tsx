@@ -8,7 +8,7 @@ import { FEATURE_BY_KEY } from "@/config/featureRegistry";
 import { usePlatformBranding } from "@/lib/platformBranding";
 import UniversalDataTools from "@/components/UniversalDataTools";
 
-type NavNode={key:string;label:string;to?:string;end?:boolean;module?:ModuleKey;ownerOnly?:boolean;steelOnly?:boolean;icon?:Lucide.LucideIcon;children?:NavNode[]};
+type NavNode={key:string;label:string;to?:string;end?:boolean;module?:ModuleKey;ownerOnly?:boolean;accessAdminOnly?:boolean;steelOnly?:boolean;icon?:Lucide.LucideIcon;children?:NavNode[]};
 
 const navigation:NavNode[]=[
   {key:"dashboard",to:"/",label:"Dashboard / ڈیش بورڈ",icon:Lucide.LayoutDashboard,end:true,module:"dashboard"},
@@ -42,12 +42,20 @@ const navigation:NavNode[]=[
     {key:"operations-reports",label:"Operations / آپریشن رپورٹس",module:"reports",children:[{key:"gate-pass-report",to:"/reports/gate-pass",label:"Gate Pass Report / گیٹ پاس رپورٹ",module:"reports"}]},
   ]},
   {key:"owner",to:"/owner",label:"Owner Control / مالک کنٹرول",icon:Lucide.ShieldCheck,ownerOnly:true},
-  {key:"settings",label:"Settings / سیٹنگز",icon:Lucide.Settings,module:"settings",children:[{key:"company-settings",to:"/settings",label:"Company / کمپنی",end:true,module:"settings"},{key:"tax-settings",to:"/settings/tax",label:"Tax Settings / ٹیکس سیٹنگز",module:"settings"},{key:"document-settings",to:"/settings/documents",label:"Document & Print / ڈاکومنٹ و پرنٹ",module:"settings"},{key:"order-book-settings",to:"/settings/order-book",label:"Order Book Settings / آرڈر بک سیٹنگز",module:"settings"},{key:"gate-pass-settings",to:"/settings/gate-pass",label:"Gate Pass & Weighbridge / گیٹ پاس و کانٹا",module:"settings"}]},
+  {key:"settings",label:"Settings / سیٹنگز",icon:Lucide.Settings,module:"settings",children:[
+    {key:"company-settings",to:"/settings",label:"Company / کمپنی",end:true,module:"settings"},
+    {key:"access-settings",to:"/settings/access",label:"Users & Branches / یوزرز اور برانچز",module:"settings",accessAdminOnly:true},
+    {key:"tax-settings",to:"/settings/tax",label:"Tax Settings / ٹیکس سیٹنگز",module:"settings"},
+    {key:"document-settings",to:"/settings/documents",label:"Document & Print / ڈاکومنٹ و پرنٹ",module:"settings"},
+    {key:"order-book-settings",to:"/settings/order-book",label:"Order Book Settings / آرڈر بک سیٹنگز",module:"settings"},
+    {key:"gate-pass-settings",to:"/settings/gate-pass",label:"Gate Pass & Weighbridge / گیٹ پاس و کانٹا",module:"settings"},
+  ]},
 ];
 
 function matches(n:NavNode,p:string):boolean{return Boolean(n.to&&(p===n.to||(!n.end&&n.to!=="/"&&p.startsWith(n.to+"/"))))||Boolean(n.children?.some(c=>matches(c,p)))}
 function filterNode(n:NavNode,role:string|undefined,owner:boolean,mods:string[],unitType:string|undefined,isFeatureEnabled:(key:string)=>boolean):NavNode|null{
   if(n.ownerOnly&&!owner)return null;
+  if(n.accessAdminOnly&&!owner&&role!=="company_owner"&&role!=="admin")return null;
   if(n.steelOnly&&unitType&&unitType!=="steel")return null;
   if(n.module&&(!mods.includes(n.module)||!canViewModule(role as never,n.module,owner)))return null;
   if(n.to&&FEATURE_BY_KEY.has(n.key)&&!isFeatureEnabled(n.key))return null;

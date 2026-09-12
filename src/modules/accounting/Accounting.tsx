@@ -30,8 +30,8 @@ export default function Accounting() {
       <Routes>
         <Route path="/" element={<JournalEntryList />} />
         <Route path="/cash-counter" element={<CashCounterWorkspace />} />
-        <Route path="/payroll" element={report(<PayrollLedger />)} />
-        <Route path="/loans" element={report(<LoanLedger />)} />
+        <Route path="/payroll" element={<PayrollLedger />} />
+        <Route path="/loans" element={<LoanLedger />} />
         <Route path="/payment-reversals" element={<PaymentReversals />} />
         <Route path="/vat-register" element={report(<VatRegister />)} />
         <Route path="/day-book" element={report(<DayBook />)} />

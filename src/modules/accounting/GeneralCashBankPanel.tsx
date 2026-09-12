@@ -116,6 +116,7 @@ export default function GeneralCashBankPanel() {
 
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [showEmployeeResults, setShowEmployeeResults] = useState(false);
+  const [showPartyResults, setShowPartyResults] = useState(false);
   const [showAddEmployee, setShowAddEmployee] = useState(false);
   const [newEmployeeCode, setNewEmployeeCode] = useState("");
   const [newEmployeeName, setNewEmployeeName] = useState("");
@@ -207,6 +208,13 @@ export default function GeneralCashBankPanel() {
       .slice(0, 12);
   }, [employees, employeeSearch]);
 
+  const filteredPartySuggestions = useMemo(() => {
+    const q = partyName.trim().toLowerCase();
+    return partySuggestions
+      .filter((party) => !q || `${party.name} ${party.source}`.toLowerCase().includes(q))
+      .slice(0, 12);
+  }, [partyName, partySuggestions]);
+
   const filteredHistory = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return history;
@@ -217,10 +225,9 @@ export default function GeneralCashBankPanel() {
     setLoading(true);
     setError(null);
     try {
-      const [accountsResult, employeesResult, suppliersResult, transportersResult, mappingsResult, historyResult] = await Promise.all([
+      const [accountsResult, employeesResult, transportersResult, mappingsResult, historyResult] = await Promise.all([
         supabase.from("chart_of_accounts").select("id,code,name,type,account_role,detail_type,is_group,is_active,allow_manual_entries").eq("is_active", true).eq("is_group", false).eq("allow_manual_entries", true).order("code"),
         supabase.from("employees").select("id,employee_code,name,phone,designation,department").eq("is_active", true).order("name"),
-        supabase.from("suppliers").select("id,name").eq("is_active", true).order("name"),
         supabase.from("transporters").select("id,name").order("name"),
         supabase.from("account_mappings").select("mapping_key,account_id"),
         supabase.from("journal_entries").select("id,entry_no,entry_date,description,party_name,payment_mode").eq("status", "posted").eq("trans_type", "General Cash/Bank").order("entry_date", { ascending: false }).order("entry_no", { ascending: false }).limit(100),
@@ -244,7 +251,6 @@ export default function GeneralCashBankPanel() {
         const key = clean.toLowerCase();
         if (!suggestionMap.has(key)) suggestionMap.set(key, { id, name: clean, source });
       };
-      (suppliersResult.data || []).forEach((row: any) => addSuggestion(String(row.id), row.name, "Supplier"));
       (transportersResult.data || []).forEach((row: any) => addSuggestion(String(row.id), row.name, "Transporter"));
       loadedEmployees.forEach((row) => addSuggestion(row.id, row.name, "Employee"));
 
@@ -268,6 +274,7 @@ export default function GeneralCashBankPanel() {
     setCounterAccountId("");
     setPartyName("");
     setEmployeeSearch("");
+    setShowPartyResults(false);
   }, [transactionType]);
 
   const addEmployee = async () => {
@@ -350,7 +357,7 @@ export default function GeneralCashBankPanel() {
       };
       setLastVoucher(voucher);
       setSuccess(`${selectedType.label} posted successfully — ${voucher.entry_no}. Rs. ${money(amountNumber)}`);
-      setAmount(""); setReference(""); setNotes(""); setPartyName(""); setEmployeeSearch(""); setShowEmployeeResults(false);
+      setAmount(""); setReference(""); setNotes(""); setPartyName(""); setEmployeeSearch(""); setShowEmployeeResults(false); setShowPartyResults(false);
       await load();
     } catch (err: any) {
       setError(err?.message || err?.details || err?.hint || "Failed to post transaction.");
@@ -423,7 +430,7 @@ export default function GeneralCashBankPanel() {
         <div><label className="mb-1.5 block text-xs font-semibold">Transaction Type / لین دین قسم</label><SearchableSelect value={transactionType} onChange={(e) => setTransactionType(e.target.value as TransactionType)} className="input w-full">{TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</SearchableSelect></div>
         <div><label className="mb-1.5 block text-xs font-semibold">Date / تاریخ</label><input type="date" value={transactionDate} onChange={(e) => setTransactionDate(e.target.value)} className="input w-full" /></div>
         <div className="relative"><label className="mb-1.5 block text-xs font-semibold">{selectedType.partyLabel}</label>
-          {transactionType === "salary_payment" ? <><div className="flex gap-2"><div className="relative flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={employeeSearch} onFocus={() => setShowEmployeeResults(true)} onChange={(e) => { setEmployeeSearch(e.target.value); setPartyName(""); setShowEmployeeResults(true); }} placeholder="Search employee / ملازم تلاش کریں" className="input w-full pl-9" autoComplete="off" />{showEmployeeResults && <div className="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-xl">{filteredEmployees.length ? filteredEmployees.map((employee) => <button key={employee.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { setPartyName(employee.name); setEmployeeSearch(employee.name); setShowEmployeeResults(false); }} className="block w-full border-b border-slate-100 px-3 py-2.5 text-left last:border-0 hover:bg-emerald-50"><div className="flex items-center justify-between gap-3"><div className="font-semibold text-slate-900">{employee.name}</div>{employee.employee_code && <span className="rounded bg-slate-100 px-2 py-0.5 text-[12px] font-bold text-slate-600">{employee.employee_code}</span>}</div><div className="mt-1 text-[12px] text-slate-500">{[employee.designation, employee.department, employee.phone].filter(Boolean).join(" • ") || "Employee / ملازم"}</div></button>) : <div className="px-3 py-4 text-center text-xs text-slate-500">No employee found / کوئی ملازم نہیں ملا</div>}<button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { setNewEmployeeName(employeeSearch.trim()); setShowEmployeeResults(false); setShowAddEmployee(true); }} className="block w-full bg-emerald-50 px-3 py-2.5 text-left text-xs font-bold text-emerald-700 hover:bg-emerald-100">+ Add New Employee / نیا ملازم شامل کریں</button></div>}</div><button type="button" onClick={() => { setNewEmployeeName(employeeSearch.trim()); setShowAddEmployee(true); setShowEmployeeResults(false); }} className="btn-secondary whitespace-nowrap px-3 text-xs">+ Add</button></div>{partyName && <div className="mt-1 text-[12px] font-semibold text-emerald-700">Selected: {partyName}</div>}</> : <><input list="general-cash-party-suggestions" value={partyName} onChange={(e) => setPartyName(e.target.value)} placeholder={transactionType === "expense_payment" ? "Search supplier, transporter, employee or type a name..." : "Search or type name..."} className="input w-full" autoComplete="off" /><datalist id="general-cash-party-suggestions">{partySuggestions.map((party) => <option key={`${party.source}-${party.id}`} value={party.name}>{party.source}</option>)}</datalist>{transactionType === "expense_payment" && <div className="mt-1 text-[11px] text-slate-500">Search existing Supplier / Transporter / Employee, or type another payee name.</div>}</>}
+          {transactionType === "salary_payment" ? <><div className="flex gap-2"><div className="relative flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={employeeSearch} onFocus={() => setShowEmployeeResults(true)} onChange={(e) => { setEmployeeSearch(e.target.value); setPartyName(""); setShowEmployeeResults(true); }} placeholder="Search employee / ملازم تلاش کریں" className="input w-full pl-9" autoComplete="off" />{showEmployeeResults && <div className="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-xl">{filteredEmployees.length ? filteredEmployees.map((employee) => <button key={employee.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { setPartyName(employee.name); setEmployeeSearch(employee.name); setShowEmployeeResults(false); }} className="block w-full border-b border-slate-100 px-3 py-2.5 text-left last:border-0 hover:bg-emerald-50"><div className="flex items-center justify-between gap-3"><div className="font-semibold text-slate-900">{employee.name}</div>{employee.employee_code && <span className="rounded bg-slate-100 px-2 py-0.5 text-[12px] font-bold text-slate-600">{employee.employee_code}</span>}</div><div className="mt-1 text-[12px] text-slate-500">{[employee.designation, employee.department, employee.phone].filter(Boolean).join(" • ") || "Employee / ملازم"}</div></button>) : <div className="px-3 py-4 text-center text-xs text-slate-500">No employee found / کوئی ملازم نہیں ملا</div>}<button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { setNewEmployeeName(employeeSearch.trim()); setShowEmployeeResults(false); setShowAddEmployee(true); }} className="block w-full bg-emerald-50 px-3 py-2.5 text-left text-xs font-bold text-emerald-700 hover:bg-emerald-100">+ Add New Employee / نیا ملازم شامل کریں</button></div>}</div><button type="button" onClick={() => { setNewEmployeeName(employeeSearch.trim()); setShowAddEmployee(true); setShowEmployeeResults(false); }} className="btn-secondary whitespace-nowrap px-3 text-xs">+ Add</button></div>{partyName && <div className="mt-1 text-[12px] font-semibold text-emerald-700">Selected: {partyName}</div>}</> : <div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={partyName} onFocus={() => setShowPartyResults(true)} onChange={(e) => { setPartyName(e.target.value); setShowPartyResults(true); }} onBlur={() => setTimeout(() => setShowPartyResults(false), 120)} placeholder={transactionType === "expense_payment" ? "Search payee or type a name..." : "Search or type name..."} className="input w-full pl-9" autoComplete="off" />{showPartyResults && <div className="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-xl">{filteredPartySuggestions.length ? filteredPartySuggestions.map((party) => <button key={`${party.source}-${party.id}`} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { setPartyName(party.name); setShowPartyResults(false); }} className="flex w-full items-center justify-between gap-3 border-b border-slate-100 px-3 py-2.5 text-left last:border-0 hover:bg-emerald-50"><span className="font-semibold text-slate-900">{party.name}</span><span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">{party.source}</span></button>) : <div className="px-3 py-3 text-xs text-slate-500">No saved payee found. You can keep the typed name as a manual payee.</div>}<div className="border-t border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-500">Direct expense payees only. Supplier invoice payments must use the Supplier Payment tab.</div></div>}</div>}
         </div>
         <div><label className="mb-1.5 block text-xs font-semibold">{transactionType === "salary_payment" ? "Salary Expense Account / تنخواہ خرچ اکاؤنٹ" : "Transaction Account / لین دین اکاؤنٹ"}</label><SearchableSelect value={counterAccountId} onChange={(e) => setCounterAccountId(e.target.value)} className="input w-full" aria-label="Transaction Account"><option value="">Select account...</option>{counterAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</SearchableSelect></div>
         <div><label className="mb-1.5 block text-xs font-semibold">Cash / Bank Account / کیش بینک اکاؤنٹ</label><SearchableSelect value={cashBankAccountId} onChange={(e) => setCashBankAccountId(e.target.value)} className="input w-full" aria-label="Cash Bank Account"><option value="">Select cash/bank...</option>{cashBankAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</SearchableSelect></div>

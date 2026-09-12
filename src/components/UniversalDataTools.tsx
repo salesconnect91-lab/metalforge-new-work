@@ -29,12 +29,62 @@ function currentExportRoot() {
   return document.querySelector<HTMLElement>("[data-report-content]") || document.querySelector<HTMLElement>("#navilo-main-content");
 }
 
+function normalizeActionLabel(value: string) {
+  return value
+    .replace(/\s+/g, " ")
+    .replace(/\.(xlsx|xls|csv|docx|doc|pdf)\b/gi, "")
+    .replace(/[()]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+const duplicateGenericActions = new Set([
+  "export",
+  "export excel",
+  "export csv",
+  "export word",
+  "excel",
+  "csv",
+  "word",
+  "pdf",
+  "print",
+  "print pdf",
+  "print / pdf",
+  "pdf / print",
+  "download excel",
+  "download csv",
+  "download word",
+]);
+
 /** One consistent NAVILO export / print surface for the protected ERP workspace. */
 export default function UniversalDataTools() {
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   const journalList = pathname === "/accounting";
+
+  useEffect(() => {
+    const main = document.querySelector<HTMLElement>("#navilo-main-content");
+    if (!main) return;
+
+    const suppressDuplicateLocalActions = () => {
+      main.querySelectorAll<HTMLElement>("button,a,[role='button']").forEach((element) => {
+        if (element.closest("[data-navilo-global-data-tools]")) return;
+        if (element.dataset.naviloKeepLocalAction === "true") return;
+
+        const label = normalizeActionLabel(element.textContent || element.getAttribute("aria-label") || element.getAttribute("title") || "");
+        if (!duplicateGenericActions.has(label)) return;
+
+        element.style.display = "none";
+        element.dataset.naviloDuplicateGlobalAction = "true";
+      });
+    };
+
+    suppressDuplicateLocalActions();
+    const observer = new MutationObserver(suppressDuplicateLocalActions);
+    observer.observe(main, { childList: true, subtree: true, characterData: true });
+    return () => observer.disconnect();
+  }, [pathname]);
 
   useEffect(() => {
     if (!journalList) return;
@@ -95,7 +145,7 @@ export default function UniversalDataTools() {
   };
 
   return (
-    <div className="relative flex items-center gap-2" ref={ref} data-no-print data-no-export>
+    <div className="relative flex items-center gap-2" ref={ref} data-no-print data-no-export data-navilo-global-data-tools>
       <div className="relative">
         <button
           type="button"

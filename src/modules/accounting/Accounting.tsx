@@ -9,6 +9,7 @@ import ProfitLoss from "./ProfitLoss";
 import BalanceSheet from "./BalanceSheet";
 import AuditTrail from "./AuditTrail";
 import CashCounter from "./CashCounter";
+import PayrollLedger from "./PayrollLedger";
 import AccountMappingSetup from "./AccountMappingSetup";
 import AccountingPeriods from "./AccountingPeriods";
 import ReturnNotes from "./ReturnNotes";
@@ -28,6 +29,7 @@ export default function Accounting() {
       <Routes>
         <Route path="/" element={<JournalEntryList />} />
         <Route path="/cash-counter" element={<CashCounter />} />
+        <Route path="/payroll" element={report(<PayrollLedger />)} />
         <Route path="/payment-reversals" element={<PaymentReversals />} />
         <Route path="/vat-register" element={report(<VatRegister />)} />
         <Route path="/day-book" element={report(<DayBook />)} />

@@ -22,7 +22,7 @@ export type ModuleKey =
   | "reports"
   | "settings";
 
-export type ModuleAction = "view" | "create" | "edit" | "delete" | "post" | "print";
+export type ModuleAction = "view" | "create" | "edit" | "delete" | "post" | "print" | "export";
 export type ModulePermissionSet = Record<ModuleAction, boolean>;
 export type PermissionMatrix = Partial<Record<ModuleKey, Partial<ModulePermissionSet>>>;
 
@@ -75,6 +75,7 @@ export function defaultRolePermissions(role: CompanyRole | null | undefined): Pe
     matrix[module] = {
       view: canView,
       print: canView,
+      export: canView,
       create: fullAccess || operationalAccess,
       edit: fullAccess || operationalAccess,
       delete: fullAccess,

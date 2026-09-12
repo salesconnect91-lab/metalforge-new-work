@@ -8,7 +8,7 @@ import TrialBalance from "./TrialBalance";
 import ProfitLoss from "./ProfitLoss";
 import BalanceSheet from "./BalanceSheet";
 import AuditTrail from "./AuditTrail";
-import CashCounter from "./CashCounter";
+import CashCounterWorkspace from "./CashCounterWorkspace";
 import PayrollLedger from "./PayrollLedger";
 import AccountMappingSetup from "./AccountMappingSetup";
 import AccountingPeriods from "./AccountingPeriods";
@@ -28,7 +28,7 @@ export default function Accounting() {
     <div className="space-y-4">
       <Routes>
         <Route path="/" element={<JournalEntryList />} />
-        <Route path="/cash-counter" element={<CashCounter />} />
+        <Route path="/cash-counter" element={<CashCounterWorkspace />} />
         <Route path="/payroll" element={report(<PayrollLedger />)} />
         <Route path="/payment-reversals" element={<PaymentReversals />} />
         <Route path="/vat-register" element={report(<VatRegister />)} />

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { languageByCode, type LanguageMode } from "@/lib/languageConfig";
+import { isSupportedRuntimeLanguage, languageByCode, type LanguageMode } from "@/lib/languageConfig";
 
 type RuntimeLanguage = {
   mode: LanguageMode;
@@ -314,22 +314,29 @@ const TRANSLATABLE_ATTRIBUTES = ["placeholder", "title", "aria-label"] as const;
 const GENERIC_UI_TAGS = new Set(["BUTTON", "LABEL", "H1", "H2", "H3", "H4", "H5", "H6", "TH", "OPTION", "LEGEND", "SUMMARY"]);
 const UI_CLASS_HINT = /(btn|button|label|title|heading|menu|nav|tab|badge|pill|filter|toolbar|action|error|warning|alert|hint|help|subtitle)/i;
 
+function sanitizePair(mode:LanguageMode,primary:string|null|undefined,secondary:string|null|undefined){
+  const safePrimary=isSupportedRuntimeLanguage(primary)?primary:"en";
+  const safeSecondary=isSupportedRuntimeLanguage(secondary)&&secondary!==safePrimary?secondary:null;
+  return {mode:mode==="bilingual"&&safeSecondary?"bilingual" as LanguageMode:"single" as LanguageMode,primary:safePrimary,secondary:safeSecondary};
+}
+
 async function loadRuntimeLanguage(): Promise<RuntimeLanguage> {
-  const result = await supabase
-    .from("company_settings")
-    .select("screen_language_mode,screen_primary_language,screen_secondary_language,document_language_mode,document_primary_language,document_secondary_language")
-    .maybeSingle();
-  if (result.error) throw result.error;
-  const mode = (result.data?.screen_language_mode || "single") as LanguageMode;
-  const documentMode = (result.data?.document_language_mode || "single") as LanguageMode;
-  return {
-    mode,
-    primary: result.data?.screen_primary_language || "en",
-    secondary: mode === "bilingual" ? result.data?.screen_secondary_language || null : null,
-    documentMode,
-    documentPrimary: result.data?.document_primary_language || "en",
-    documentSecondary: documentMode === "bilingual" ? result.data?.document_secondary_language || null : null,
-  };
+  const [companyResult,userResult]=await Promise.all([
+    supabase.from("company_settings").select("screen_language_mode,screen_primary_language,screen_secondary_language,document_language_mode,document_primary_language,document_secondary_language").maybeSingle(),
+    supabase.auth.getUser(),
+  ]);
+  if(companyResult.error)throw companyResult.error;
+  const companyScreen=sanitizePair((companyResult.data?.screen_language_mode||"single") as LanguageMode,companyResult.data?.screen_primary_language,companyResult.data?.screen_secondary_language);
+  const document=sanitizePair((companyResult.data?.document_language_mode||"single") as LanguageMode,companyResult.data?.document_primary_language,companyResult.data?.document_secondary_language);
+  let screen=companyScreen;
+  const user=userResult.data.user;
+  if(user){
+    const preference=await supabase.from("user_language_preferences").select("use_company_default,screen_language_mode,primary_language,secondary_language").eq("user_id",user.id).maybeSingle();
+    if(!preference.error&&preference.data&&preference.data.use_company_default===false){
+      screen=sanitizePair((preference.data.screen_language_mode||"single") as LanguageMode,preference.data.primary_language,preference.data.secondary_language);
+    }
+  }
+  return {mode:screen.mode,primary:screen.primary,secondary:screen.secondary,documentMode:document.mode,documentPrimary:document.primary,documentSecondary:document.secondary};
 }
 
 function applyDocumentLanguage(language: RuntimeLanguage) {
@@ -397,9 +404,7 @@ function selectLanguageText(value: string, language: RuntimeLanguage, allowGener
   const requested = language.mode === "bilingual" && language.secondary ? [language.primary, language.secondary] : [language.primary];
   const supported = requested.filter((code): code is UiLanguage => code === "en" || code === "ur" || code === "ar");
   const safeRequested: UiLanguage[] = supported.length ? supported : ["en"];
-  const rendered = safeRequested
-    .map((code) => translateExact(english, code, urdu, allowGeneric || known || isLegacyBilingual))
-    .filter((part, index, all) => part && all.indexOf(part) === index);
+  const rendered = safeRequested.map((code) => translateExact(english, code, urdu, allowGeneric || known || isLegacyBilingual)).filter((part, index, all) => part && all.indexOf(part) === index);
   return `${leading}${rendered.join(" / ")}${trailing}`;
 }
 
@@ -422,10 +427,7 @@ function processTextNode(node: Text, language: RuntimeLanguage) {
 function processElementAttributes(element: Element, language: RuntimeLanguage) {
   if (element.closest("[data-i18n-skip='true']")) return;
   let originals = originalAttributes.get(element);
-  if (!originals) {
-    originals = new Map<string, string>();
-    originalAttributes.set(element, originals);
-  }
+  if (!originals) { originals = new Map<string, string>(); originalAttributes.set(element, originals); }
   for (const attribute of TRANSLATABLE_ATTRIBUTES) {
     const current = element.getAttribute(attribute);
     if (!current) continue;
@@ -438,14 +440,13 @@ function processElementAttributes(element: Element, language: RuntimeLanguage) {
   }
   if (language.mode === "single" && (language.primary === "ur" || language.primary === "ar")) {
     if (element.matches("button, label, h1, h2, h3, h4, h5, h6, th, option, [role='button'], [role='menuitem'], [role='tab']")) element.setAttribute("dir", "rtl");
+  } else if (element.hasAttribute("dir") && element.matches("button, label, h1, h2, h3, h4, h5, h6, th, option, [role='button'], [role='menuitem'], [role='tab']")) {
+    element.removeAttribute("dir");
   }
 }
 
 function translateTree(root: Node, language: RuntimeLanguage) {
-  if (root.nodeType === Node.TEXT_NODE) {
-    processTextNode(root as Text, language);
-    return;
-  }
+  if (root.nodeType === Node.TEXT_NODE) { processTextNode(root as Text, language); return; }
   if (root.nodeType === Node.ELEMENT_NODE) processElementAttributes(root as Element, language);
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
   while (walker.nextNode()) {
@@ -479,9 +480,7 @@ export default function LanguageRuntime() {
     const observer = new MutationObserver((mutations) => {
       if (!active || applying) return;
       for (const mutation of mutations) {
-        mutation.addedNodes.forEach((node) => {
-          if (node.nodeType === Node.TEXT_NODE || node.nodeType === Node.ELEMENT_NODE) translateTree(node, language);
-        });
+        mutation.addedNodes.forEach((node) => { if (node.nodeType === Node.TEXT_NODE || node.nodeType === Node.ELEMENT_NODE) translateTree(node, language); });
         if (mutation.type === "characterData" && mutation.target.nodeType === Node.TEXT_NODE) processTextNode(mutation.target as Text, language);
         if (mutation.type === "attributes" && mutation.target.nodeType === Node.ELEMENT_NODE) processElementAttributes(mutation.target as Element, language);
       }

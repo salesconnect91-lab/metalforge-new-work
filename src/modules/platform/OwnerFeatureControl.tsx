@@ -62,7 +62,7 @@ export default function OwnerFeatureControl({companyId}:{companyId:string}){
     if(!enabledFor(feature))return false;
     const companyOverride=companyRules.get(feature.key)?.action_overrides?.[action];
     if(companyOverride===false)return false;
-    if(scope==="company")return companyOverride!==false;
+    if(scope==="company")return true;
     const unitOverride=unitRules.get(feature.key)?.action_overrides?.[action];
     return unitOverride!==false;
   };

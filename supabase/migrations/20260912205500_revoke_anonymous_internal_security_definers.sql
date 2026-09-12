@@ -1,0 +1,10 @@
+revoke execute on function public.enforce_company_resource_limit() from public, anon, authenticated;
+revoke execute on function public.enforce_journal_line_operating_location_scope() from public, anon, authenticated;
+revoke execute on function public.enforce_journal_operating_location_write_scope() from public, anon, authenticated;
+revoke execute on function public.normalize_direct_manual_journal_number() from public, anon, authenticated;
+revoke execute on function public.has_feature_access(text,text) from public, anon;
+revoke execute on function public.set_feature_entitlement(uuid,uuid,text,boolean,jsonb) from public, anon;
+revoke execute on function public.sync_platform_feature_catalog(jsonb) from public, anon;
+grant execute on function public.has_feature_access(text,text) to authenticated, service_role;
+grant execute on function public.set_feature_entitlement(uuid,uuid,text,boolean,jsonb) to authenticated, service_role;
+grant execute on function public.sync_platform_feature_catalog(jsonb) to authenticated, service_role;

@@ -57,6 +57,13 @@ function isCashCounterVoucherPrint(button: HTMLButtonElement, label: string) {
   );
 }
 
+function routeSpecificReportTarget(): HTMLElement | null {
+  if (window.location.pathname === "/accounting/bank-reconciliation") {
+    return document.querySelector<HTMLElement>("main");
+  }
+  return null;
+}
+
 function preparePrintTarget(event: MouseEvent) {
   const button = (event.target as Element | null)?.closest("button");
   if (!(button instanceof HTMLButtonElement)) return;
@@ -76,7 +83,7 @@ function preparePrintTarget(event: MouseEvent) {
 
   const explicitSelector = button.dataset.printSelector;
   const explicit = explicitSelector ? document.querySelector<HTMLElement>(explicitSelector) : null;
-  const target = explicit || closestPrintableDocument(button) || closestReport(button);
+  const target = explicit || routeSpecificReportTarget() || closestPrintableDocument(button) || closestReport(button);
   if (!target) return;
 
   markPrimaryTarget(target);

@@ -17,7 +17,7 @@ function cleanTitle(value: string) {
 }
 
 function currentPageTitle() {
-  const root = document.querySelector<HTMLElement>("#navilo-main-content") || document.body;
+  const root = document.querySelector<HTMLElement>("[data-report-content]") || document.querySelector<HTMLElement>("#navilo-main-content") || document.body;
   return (
     root.querySelector<HTMLElement>("h1,h2,.page-title")?.textContent?.replace(/\s+/g, " ").trim() ||
     document.title ||
@@ -25,8 +25,8 @@ function currentPageTitle() {
   );
 }
 
-function currentMain() {
-  return document.querySelector<HTMLElement>("#navilo-main-content");
+function currentExportRoot() {
+  return document.querySelector<HTMLElement>("[data-report-content]") || document.querySelector<HTMLElement>("#navilo-main-content");
 }
 
 /** One consistent NAVILO export / print surface for the protected ERP workspace. */
@@ -44,8 +44,6 @@ export default function UniversalDataTools() {
     style.textContent = 'button[title^="Print journal voucher"]{display:none!important}';
     document.head.appendChild(style);
 
-    // Export means data leaves NAVILO, so it keeps a downward download icon.
-    // Import means data enters NAVILO, so Journal Bulk Import must point upward.
     const normalizeImportArrow = () => {
       const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("#navilo-main-content button"));
       buttons.forEach((button) => {
@@ -81,7 +79,7 @@ export default function UniversalDataTools() {
   }, [open]);
 
   const exportCurrent = (type: "excel" | "csv" | "word") => {
-    const root = currentMain();
+    const root = currentExportRoot();
     if (!root) return;
     const title = currentPageTitle();
     const filename = cleanTitle(title);
@@ -93,7 +91,7 @@ export default function UniversalDataTools() {
 
   const printCurrent = () => {
     setOpen(false);
-    triggerPrint("#navilo-main-content");
+    triggerPrint(document.querySelector("[data-report-content]") ? "[data-report-content]" : "#navilo-main-content");
   };
 
   return (
@@ -113,9 +111,6 @@ export default function UniversalDataTools() {
 
         {open && (
           <div className="absolute right-0 top-11 z-[70] w-48 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-xl" role="menu">
-            <button type="button" onClick={printCurrent} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50">
-              <Printer className="h-4 w-4" /> PDF / Print
-            </button>
             <button type="button" onClick={() => exportCurrent("excel")} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50">
               <Sheet className="h-4 w-4" /> Excel (.xlsx)
             </button>

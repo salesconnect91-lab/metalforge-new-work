@@ -30,25 +30,22 @@ function currentMain() {
 }
 
 /**
- * Context-aware ERP toolbar.
- *
- * Do not turn this into a second copy of page-specific business actions. It is
- * intentionally enabled one audited screen at a time so NAVILO gets one
- * consistent Export / Print surface without duplicate controls.
+ * One consistent NAVILO export / print surface for the protected ERP workspace.
+ * Page-specific business actions (New, Import, Post, Approve, etc.) stay inside
+ * their own screens; data output actions stay here so the whole ERP follows the
+ * same header rule.
  */
 export default function UniversalDataTools() {
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
-
-  // Journal list is the first screen migrated to the common ERP action surface.
   const journalList = pathname === "/accounting";
 
   useEffect(() => {
     if (!journalList) return;
 
-    // Hide the legacy per-row journal Print button. Printing is now a single
-    // page-level action, which avoids duplicate actions for every record.
+    // Journal printing is now page-level. Keep the old per-row print control
+    // hidden so users do not see duplicate print actions for every row.
     const style = document.createElement("style");
     style.dataset.naviloJournalToolbar = "true";
     style.textContent = 'button[title^="Print journal voucher"]{display:none!important}';
@@ -64,8 +61,6 @@ export default function UniversalDataTools() {
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [open]);
-
-  if (!journalList) return null;
 
   const exportCurrent = (type: "excel" | "csv" | "word") => {
     const root = currentMain();
@@ -87,7 +82,7 @@ export default function UniversalDataTools() {
           className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-[12px] font-bold text-slate-700 shadow-sm hover:bg-slate-50"
           aria-haspopup="menu"
           aria-expanded={open}
-          title="Export current journal list"
+          title="Export current ERP screen"
         >
           <Download className="h-4 w-4" />
           <span className="hidden xl:inline">Export</span>

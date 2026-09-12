@@ -29,12 +29,7 @@ function currentMain() {
   return document.querySelector<HTMLElement>("#navilo-main-content");
 }
 
-/**
- * One consistent NAVILO export / print surface for the protected ERP workspace.
- * Page-specific business actions (New, Import, Post, Approve, etc.) stay inside
- * their own screens; data output actions stay here so the whole ERP follows the
- * same header rule.
- */
+/** One consistent NAVILO export / print surface for the protected ERP workspace. */
 export default function UniversalDataTools() {
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
@@ -44,13 +39,36 @@ export default function UniversalDataTools() {
   useEffect(() => {
     if (!journalList) return;
 
-    // Journal printing is now page-level. Keep the old per-row print control
-    // hidden so users do not see duplicate print actions for every row.
     const style = document.createElement("style");
     style.dataset.naviloJournalToolbar = "true";
     style.textContent = 'button[title^="Print journal voucher"]{display:none!important}';
     document.head.appendChild(style);
-    return () => style.remove();
+
+    // Export means data leaves NAVILO, so it keeps a downward download icon.
+    // Import means data enters NAVILO, so Journal Bulk Import must point upward.
+    const normalizeImportArrow = () => {
+      const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("#navilo-main-content button"));
+      buttons.forEach((button) => {
+        const walker = document.createTreeWalker(button, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          const node = walker.currentNode as Text;
+          if (node.nodeValue?.includes("↓ Bulk Import")) {
+            node.nodeValue = node.nodeValue.replace("↓ Bulk Import", "↑ Bulk Import");
+            break;
+          }
+        }
+      });
+    };
+
+    normalizeImportArrow();
+    const observer = new MutationObserver(normalizeImportArrow);
+    const main = document.querySelector("#navilo-main-content");
+    if (main) observer.observe(main, { childList: true, subtree: true, characterData: true });
+
+    return () => {
+      observer.disconnect();
+      style.remove();
+    };
   }, [journalList]);
 
   useEffect(() => {
@@ -73,6 +91,11 @@ export default function UniversalDataTools() {
     setOpen(false);
   };
 
+  const printCurrent = () => {
+    setOpen(false);
+    triggerPrint("#navilo-main-content");
+  };
+
   return (
     <div className="relative flex items-center gap-2" ref={ref} data-no-print data-no-export>
       <div className="relative">
@@ -89,7 +112,10 @@ export default function UniversalDataTools() {
         </button>
 
         {open && (
-          <div className="absolute right-0 top-11 z-[70] w-44 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-xl" role="menu">
+          <div className="absolute right-0 top-11 z-[70] w-48 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-xl" role="menu">
+            <button type="button" onClick={printCurrent} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50">
+              <Printer className="h-4 w-4" /> PDF / Print
+            </button>
             <button type="button" onClick={() => exportCurrent("excel")} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50">
               <Sheet className="h-4 w-4" /> Excel (.xlsx)
             </button>
@@ -105,7 +131,7 @@ export default function UniversalDataTools() {
 
       <button
         type="button"
-        onClick={() => triggerPrint("#navilo-main-content")}
+        onClick={printCurrent}
         className="inline-flex h-9 items-center gap-2 rounded-md border border-blue-300 bg-blue-50 px-3 text-[12px] font-bold text-blue-800 shadow-sm hover:bg-blue-100"
         title="Print preview or save as PDF"
       >

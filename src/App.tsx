@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
+import { FeatureAccessProvider, FeaturePathGuard, useFeatureAccess } from "@/auth/FeatureAccess";
 import { canPerformModule, canViewModule, type ModuleAction, type ModuleKey } from "@/auth/permissions";
+import type { FeatureAction } from "@/config/featureRegistry";
 import Login from "@/auth/Login";
 import ResetPassword from "@/auth/ResetPassword";
 import ProtectedRoute from "@/auth/ProtectedRoute";
@@ -53,14 +55,16 @@ function ModuleOnly({ module, children }: { module: ModuleKey; children: ReactNo
   return roleAllowed && companyAllowed && unitAllowed ? <>{children}</> : <Navigate to="/" replace />;
 }
 
-function ModuleActionOnly({ module, action, children }: { module: ModuleKey; action: ModuleAction; children: ReactNode }) {
+function ModuleActionOnly({ module, action, featureKey, children }: { module: ModuleKey; action: ModuleAction; featureKey?: string; children: ReactNode }) {
   const { isPlatformOwner, activeCompany, activeBusinessUnit } = useAuth();
+  const { isFeatureEnabled } = useFeatureAccess();
   const role = activeBusinessUnit?.membership_role ?? activeCompany?.membership_role;
   const permissions = activeBusinessUnit?.permissions ?? activeCompany?.permissions;
   const roleAllowed = canPerformModule(role, module, action, permissions, isPlatformOwner);
   const companyAllowed = moduleLicensed(activeCompany?.enabled_modules,module);
   const unitAllowed = !activeBusinessUnit || activeBusinessUnit.enabled_modules.includes(module);
-  return roleAllowed && companyAllowed && unitAllowed ? <>{children}</> : <Navigate to="/" replace />;
+  const featureAllowed = !featureKey || isFeatureEnabled(featureKey, action as FeatureAction);
+  return roleAllowed && companyAllowed && unitAllowed && featureAllowed ? <>{children}</> : <Navigate to="/" replace />;
 }
 
 function BusinessTypeOnly({ type, children }: { type: string; children: ReactNode }) {
@@ -97,14 +101,14 @@ export default function App() {
   return <><GlobalExperience /><Routes>
     <Route path="/login" element={<Login />} />
     <Route path="/reset-password" element={<ResetPassword />} />
-    <Route path="/*" element={<ProtectedRoute><><WorkspaceSwitchers /><Layout key={workspaceKey}><Routes>
+    <Route path="/*" element={<ProtectedRoute><FeatureAccessProvider><><WorkspaceSwitchers /><FeaturePathGuard><Layout key={workspaceKey}><Routes>
       <Route path="/" element={<ModuleOnly module="dashboard"><DashboardHome /></ModuleOnly>} />
       <Route path="/owner" element={<OwnerOnly />} />
       <Route path="/owner/opening-balances" element={<OwnerOnly><OpeningBalanceMigration /></OwnerOnly>} />
       <Route path="/master-data/*" element={<ModuleOnly module="master"><MasterData /></ModuleOnly>} />
       <Route path="/sales" element={<ModuleOnly module="sales"><SalesInvoiceList /></ModuleOnly>} />
-      <Route path="/sales/new" element={<ModuleActionOnly module="sales" action="create"><SalesInvoiceCreate /></ModuleActionOnly>} />
-      <Route path="/sales/:id/edit" element={<ModuleActionOnly module="sales" action="edit"><SalesInvoiceCreate /></ModuleActionOnly>} />
+      <Route path="/sales/new" element={<ModuleActionOnly module="sales" action="create" featureKey="sales-invoices"><SalesInvoiceCreate /></ModuleActionOnly>} />
+      <Route path="/sales/:id/edit" element={<ModuleActionOnly module="sales" action="edit" featureKey="sales-invoices"><SalesInvoiceCreate /></ModuleActionOnly>} />
       <Route path="/sales/report" element={<ModuleOnly module="reports"><ReportSurface><SalespersonReportHub /></ReportSurface></ModuleOnly>} />
       <Route path="/sales/person-ledger" element={<ModuleOnly module="reports"><ReportSurface><SalespersonLedger /></ReportSurface></ModuleOnly>} />
       <Route path="/sales/charges" element={<ModuleOnly module="master"><ChargeMaster /></ModuleOnly>} />
@@ -123,6 +127,6 @@ export default function App() {
       <Route path="/reports/*" element={<ModuleOnly module="reports"><ReportSurface><Reports /></ReportSurface></ModuleOnly>} />
       <Route path="/settings/*" element={<ModuleOnly module="settings"><Settings /></ModuleOnly>} />
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes></Layout></></ProtectedRoute>} />
+    </Routes></Layout></FeaturePathGuard></></FeatureAccessProvider></ProtectedRoute>} />
   </Routes></>;
 }
